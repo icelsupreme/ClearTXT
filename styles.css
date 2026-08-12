@@ -34,6 +34,13 @@ header h1 {
   font-size: 1.8rem;
   letter-spacing: -0.02em;
 }
+header h1 .logoIcon {
+  width: 28px;
+  height: 28px;
+  vertical-align: -5px;
+  margin-right: 6px;
+  color: var(--accent);
+}
 header h1 .version {
   vertical-align: middle;
   margin-left: 6px;

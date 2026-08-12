@@ -47,10 +47,11 @@ This is a static page - no server or build required. Either:
 ## Project structure
 
 ```
-index.html   markup
-styles.css   styling
-script.js    filtering logic + DOM wiring (dual-purpose: also require()-able for tests, see below)
-test/        unit tests for the filtering logic
+index.html    markup
+styles.css    styling
+script.js     filtering logic + DOM wiring (dual-purpose: also require()-able for tests, see below)
+favicon.svg   browser tab icon, also embedded inline as the header's logo icon
+test/         unit tests for the filtering logic
 ```
 
 ## Development
@@ -72,14 +73,19 @@ CI runs lint and tests on every push to `main` and on every pull request (see `.
 There's no build step here, so the version number is kept in sync by hand in three places - bump all three together on every release:
 
 1. `version` in `package.json`
-2. the `?v=` query string on both `styles.css` and `script.js` in `index.html`
-3. the `v0.x.y` badge next to the title in `index.html`'s `<header>`
+2. the `?v=` query string on `styles.css`, `script.js`, and `favicon.svg` in `index.html`
+3. the version badge next to the title in `index.html`'s `<header>`
 
 The `?v=` matters functionally, not just cosmetically: without it, browsers (especially since this page is often opened directly over `file://`) can keep serving an old cached copy of `styles.css`/`script.js`, e.g. making a checkbox toggle look like it silently stopped updating the output when it's actually just running stale JS. A plain hard refresh (Ctrl/Cmd+Shift+R) works around that for one visit, but the version bump is what prevents it for everyone else. The on-page badge exists so you can tell at a glance, without opening dev tools, whether the copy you're looking at is current - compare it against the latest entry below.
 
 ## Version history
 
-Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change - those are called out explicitly below.
+Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. Releases before 1.0.0 were pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release there could still include a behavior change - those are called out explicitly in the entries below.
+
+### 1.0.0
+- **Milestone:** version bumped to 1.0.0 to mark the project going public, now that it's hosted at [icelsupreme.github.io/ClearTXT](https://icelsupreme.github.io/ClearTXT/). No behavior change - see "Versioning and cache-busting" above for what 1.0.0 means for future releases.
+- **Feature:** a proper page title (`ClearTXT - Clean, Safe Text Filter`), a meta description, and Open Graph/Twitter Card tags, so links to the page show a real title and description when shared on social media instead of the browser's generic fallback.
+- **Feature:** a favicon (the same trash-can icon as the "Clear" button, on a dark rounded-square badge) for the browser tab, and the same icon inline next to "ClearTXT" in the page header.
 
 ### 0.19.0
 - **Feature (UI polish):** every button now has a matching [Lucide](https://lucide.dev) icon (import/clear/copy/export/previous/next/restore defaults), embedded as inline SVG - no icon font or added dependency. Buttons also get a subtle shadow, a real hover state (background tint, not just a border-color change), and a small press-down effect on click; the input/output boxes and the collapsible panels get a subtle drop shadow too, for a bit more depth against the flat background.

@@ -3,7 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ClearTXT - Text Filter</title>
+<title>ClearTXT - Clean, Safe Text Filter</title>
+<meta name="description" content="Strip smart quotes, em dashes, emoji, and invisible characters from pasted text - free, and none of your text ever leaves your browser.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://icelsupreme.github.io/ClearTXT/">
+<meta property="og:title" content="ClearTXT - Clean, Safe Text Filter">
+<meta property="og:description" content="Strip smart quotes, em dashes, emoji, and invisible characters from pasted text - free, and none of your text ever leaves your browser.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="ClearTXT - Clean, Safe Text Filter">
+<meta name="twitter:description" content="Strip smart quotes, em dashes, emoji, and invisible characters from pasted text - free, and none of your text ever leaves your browser.">
+<!-- Same trash-can glyph used for the "Clear" button - stands in for
+     "everything else is removed", the page's own tagline. Colors are
+     hardcoded (not var(--accent)/var(--bg)) since a standalone favicon.svg
+     has no access to the page's CSS custom properties. -->
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.0.0">
 <!-- Same typeface everywhere regardless of OS/browser, instead of each
      platform's own system-font stack (which is what made things look
      inconsistent). Noto Sans Hebrew is loaded alongside the Latin
@@ -15,16 +28,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Mono:wght@400;500;700&family=Noto+Sans+Hebrew:wght@400;500;600;700&display=swap" rel="stylesheet">
-<!-- This ?v= matches the version in package.json / shown in the header
-     below. Bump all three together on every release, so browsers
-     (especially over file://, which this page is often opened with
-     directly) don't keep serving a stale cached copy, and so the on-page
-     version is always accurate. -->
-<link rel="stylesheet" href="styles.css?v=0.19.0">
+<!-- This ?v= (and favicon.svg's own, above) matches the version in
+     package.json / shown in the header below. Bump all of these together
+     on every release, so browsers (especially over file://, which this
+     page is often opened with directly) don't keep serving a stale
+     cached copy, and so the on-page version is always accurate. -->
+<link rel="stylesheet" href="styles.css?v=1.0.0">
 </head>
 <body>
   <header>
-    <h1>ClearTXT <span class="version" title="Version, matches package.json">v0.19.0</span></h1>
+    <h1><svg class="logoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>ClearTXT <span class="version" title="Version, matches package.json">v1.0.0</span></h1>
     <p>Strip text down to a clean, safe character set - everything else is removed.</p>
   </header>
 
@@ -215,6 +228,6 @@
     <span id="stickyFooterCounts" aria-hidden="true"></span>
   </footer>
 
-<script src="script.js?v=0.19.0"></script>
+<script src="script.js?v=1.0.0"></script>
 </body>
 </html>
