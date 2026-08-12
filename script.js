@@ -1,4 +1,4 @@
-(function () {
+(function (root) {
   "use strict";
 
   var ZERO_WIDTH = new Set([
@@ -23,6 +23,54 @@
   // Hebrew letters, points (niqqud/cantillation) and punctuation, plus the
   // presentation-forms block (ligatures like "ﭏ" and pointed letters).
   var HEBREW_RANGES = [[0x0590, 0x05FF], [0xFB1D, 0xFB4F]];
+
+  // Short label + human name for zero-width/formatting characters that
+  // have no visible glyph of their own, so the diff view can show
+  // something in their place instead of literally nothing.
+  var INVISIBLE_NAMES = {
+    0x200B: { label: "ZWSP", name: "zero-width space" },
+    0x200C: { label: "ZWNJ", name: "zero-width non-joiner" },
+    0x200D: { label: "ZWJ", name: "zero-width joiner" },
+    0x200E: { label: "LRM", name: "left-to-right mark" },
+    0x200F: { label: "RLM", name: "right-to-left mark" },
+    0x2028: { label: "LS", name: "line separator" },
+    0x2029: { label: "PS", name: "paragraph separator" },
+    0x202A: { label: "LRE", name: "left-to-right embedding" },
+    0x202B: { label: "RLE", name: "right-to-left embedding" },
+    0x202C: { label: "PDF", name: "pop directional formatting" },
+    0x202D: { label: "LRO", name: "left-to-right override" },
+    0x202E: { label: "RLO", name: "right-to-left override" },
+    0x2060: { label: "WJ", name: "word joiner" },
+    0x2061: { label: "FA", name: "function application" },
+    0x2062: { label: "IT", name: "invisible times" },
+    0x2063: { label: "IS", name: "invisible separator" },
+    0x2064: { label: "IP", name: "invisible plus" },
+    0xFEFF: { label: "BOM", name: "byte order mark" }
+  };
+
+  // Standard short names for the C0 control characters (index = code point).
+  var CONTROL_NAMES = [
+    "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL", "BS", "HT", "LF", "VT", "FF", "CR", "SO", "SI",
+    "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB", "CAN", "EM", "SUB", "ESC", "FS", "GS", "RS", "US"
+  ];
+
+  function hex4(cp) {
+    return "U+" + cp.toString(16).toUpperCase().padStart(4, "0");
+  }
+
+  // Returns a visible one-or-few-character label and a human-readable name
+  // for a zero-width/control code point, used to substitute something
+  // visible for it in the diff view. C0 controls use their standard
+  // Unicode "control picture" glyph (U+2400-U+2421); the named zero-width
+  // characters use a short abbreviation; anything else falls back to its
+  // code point.
+  function invisibleInfo(cp) {
+    var special = INVISIBLE_NAMES[cp];
+    if (special) return { label: special.label, name: special.name + " (" + hex4(cp) + ")" };
+    if (cp <= 0x1F) return { label: String.fromCodePoint(0x2400 + cp), name: (CONTROL_NAMES[cp] || "control character") + " (" + hex4(cp) + ")" };
+    if (cp === 0x7F) return { label: "␡", name: "DEL (" + hex4(cp) + ")" };
+    return { label: hex4(cp), name: hex4(cp) };
+  }
 
   var CAT_LABEL = {
     invisible: "invisible/control",
@@ -239,32 +287,70 @@
   // Collapses consecutive same-type changes into a single run, so a long
   // stretch of removed or unchanged text becomes one span/text node
   // instead of one per character — this is what lets highlighting stay on
-  // for large inputs instead of being switched off wholesale.
+  // for large inputs instead of being switched off wholesale. Invisible
+  // characters are never merged into a run with anything else (including
+  // other invisible characters), since each needs its own visible label.
   function buildRuns(changes) {
     var runs = [];
     for (var i = 0; i < changes.length; i++) {
       var c = changes[i];
+      var isInvisible = c.category === "invisible";
       var last = runs[runs.length - 1];
-      if (last && last.type === c.type) {
+      if (!isInvisible && last && !last.invisible && last.type === c.type) {
         last.text += c.ch;
         last.count++;
       } else {
-        runs.push({ type: c.type, text: c.ch, count: 1, replacement: c.replacement });
+        runs.push({
+          type: c.type,
+          text: c.ch,
+          count: 1,
+          replacement: c.replacement,
+          invisible: isInvisible,
+          cp: isInvisible ? c.ch.codePointAt(0) : undefined
+        });
       }
     }
     return runs;
   }
 
-  function runHtml(type, text, count, replacement) {
-    var esc = escapeHtml(text);
-    if (type === "removed") {
-      return '<span class="rm" title="' + (count === 1 ? "removed" : "removed (" + count + " characters)") + '">' + esc + "</span>";
+  function runHtml(run) {
+    if (run.invisible) {
+      var info = invisibleInfo(run.cp);
+      var cls = "iv" + (run.type === "removed" ? " rm" : "");
+      var title = info.name + (run.type === "removed" ? " (removed)" : " (kept)");
+      return '<span class="' + cls + '" title="' + escapeHtml(title) + '">' + escapeHtml(info.label) + "</span>";
     }
-    if (type === "converted") {
-      var title = count === 1 ? ("→ " + escapeHtml(replacement)) : ("converted (" + count + " characters)");
-      return '<span class="cv" title="' + title + '">' + esc + "</span>";
+    var esc = escapeHtml(run.text);
+    if (run.type === "removed") {
+      return '<span class="rm" title="' + (run.count === 1 ? "removed" : "removed (" + run.count + " characters)") + '">' + esc + "</span>";
+    }
+    if (run.type === "converted") {
+      var cvTitle = run.count === 1 ? ("→ " + escapeHtml(run.replacement)) : ("converted (" + run.count + " characters)");
+      return '<span class="cv" title="' + cvTitle + '">' + esc + "</span>";
     }
     return esc;
+  }
+
+  // Renders the final output as HTML, substituting a visible labeled
+  // marker for any invisible/control character that survived filtering
+  // (e.g. with "Strip invisible & control characters" off), since those
+  // are otherwise indistinguishable from nothing. Stops after `maxChars`
+  // output characters.
+  function outputHtml(changes, maxChars) {
+    var html = [];
+    var shown = 0;
+    for (var i = 0; i < changes.length && shown < maxChars; i++) {
+      var c = changes[i];
+      if (c.type === "removed") continue;
+      if (c.category === "invisible") {
+        var info = invisibleInfo(c.replacement.codePointAt(0));
+        html.push('<span class="iv" title="' + escapeHtml(info.name + " (kept)") + '">' + escapeHtml(info.label) + "</span>");
+      } else {
+        html.push(escapeHtml(c.replacement));
+      }
+      shown++;
+    }
+    return html.join("");
   }
 
   // Character budget for the highlighted view. Runs already keep the DOM
@@ -273,6 +359,31 @@
   // every character) and truncates gracefully rather than dropping
   // highlighting entirely.
   var MAX_DIFF_CHARS = 20000;
+
+  // Everything above this point is pure text-processing logic with no DOM
+  // dependency, exported below for unit testing (see test/). Everything
+  // below wires that logic up to the actual page and only runs in a
+  // browser, where `document` exists.
+  var ClearTXT = {
+    processText: processText,
+    applyWhitespaceCleanup: applyWhitespaceCleanup,
+    summarizeChanges: summarizeChanges,
+    formatCatCounts: formatCatCounts,
+    buildRuns: buildRuns,
+    runHtml: runHtml,
+    outputHtml: outputHtml,
+    invisibleInfo: invisibleInfo,
+    isHebrew: isHebrew,
+    foldAccent: foldAccent
+  };
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = ClearTXT;
+  } else {
+    root.ClearTXT = ClearTXT;
+  }
+
+  if (typeof document === "undefined") return;
 
   var input = document.getElementById("input");
   var output = document.getElementById("output");
@@ -447,24 +558,33 @@
       if (shown + r.count > MAX_DIFF_CHARS) {
         var remaining = MAX_DIFF_CHARS - shown;
         if (remaining > 0) {
-          var partial = [...r.text].slice(0, remaining).join("");
-          html.push(runHtml(r.type, partial, remaining, r.replacement));
+          html.push(runHtml({
+            type: r.type,
+            text: [...r.text].slice(0, remaining).join(""),
+            count: remaining,
+            replacement: r.replacement,
+            invisible: r.invisible,
+            cp: r.cp
+          }));
           shown += remaining;
         }
         truncated = true;
         break;
       }
-      html.push(runHtml(r.type, r.text, r.count, r.replacement));
+      html.push(runHtml(r));
       shown += r.count;
     }
 
     diffBefore.innerHTML = html.join("");
+    // Every output character traces back to exactly one non-removed
+    // `changes` entry, so the output can never be longer than the input
+    // side's character count — reusing the same MAX_DIFF_CHARS budget and
+    // `truncated` flag here is always consistent with the note below.
+    diffAfter.innerHTML = outputHtml(changes, MAX_DIFF_CHARS);
     if (truncated) {
-      diffAfter.textContent = [...result.output].slice(0, MAX_DIFF_CHARS).join("");
       diffNote.textContent = "Showing highlights for the first " + shown.toLocaleString() + " of " + changes.length.toLocaleString() + " characters - the rest is omitted here for performance (the counts above cover the full text).";
       diffNote.style.display = "";
     } else {
-      diffAfter.textContent = result.output;
       diffNote.style.display = "none";
     }
   }
@@ -538,4 +658,4 @@
 
   applySavedOpts();
   update();
-})();
+})(typeof window !== "undefined" ? window : this);

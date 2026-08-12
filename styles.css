@@ -7,6 +7,7 @@
   --accent: #4f9dff;
   --accent-hover: #6bb0ff;
   --danger: #ff6b6b;
+  --invisible: #b980ff;
 }
 * { box-sizing: border-box; }
 body {
@@ -168,8 +169,11 @@ details code { color: var(--accent); background: #0d1017; padding: 1px 5px; bord
 }
 .diffPane .rm { background: rgba(255,107,107,.25); text-decoration: line-through; text-decoration-color: var(--danger); color: #ffb3b3; border-radius: 2px; }
 .diffPane .cv { background: rgba(79,157,255,.22); color: #bcdcff; border-radius: 2px; }
+.diffPane .iv { background: rgba(185,128,255,.22); color: #ddc2ff; border-radius: 2px; padding: 0 2px; font-size: 0.85em; font-weight: 600; letter-spacing: 0.02em; }
+.diffPane .iv.rm { background: rgba(255,107,107,.25); text-decoration: line-through; text-decoration-color: var(--danger); color: #ffb3b3; }
 .diffCounts { color: var(--muted); font-size: 0.8rem; margin: 2px 0 10px; }
 .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 0.8rem; color: var(--muted); }
 .legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 .legend .sw.removed { background: rgba(255,107,107,.5); }
 .legend .sw.converted { background: rgba(79,157,255,.4); }
+.legend .sw.invisible { background: rgba(185,128,255,.5); }
