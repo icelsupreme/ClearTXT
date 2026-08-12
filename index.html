@@ -116,6 +116,34 @@
             <div>Keeps Hebrew letters, niqqud/cantillation points and punctuation (<code>א–ת</code>) instead of removing them. Off by default since the base filter targets Latin/ASCII text.</div>
           </span>
         </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optRemoveTabs">
+          <span class="fixText">
+            <strong>Remove tabs</strong>
+            <div>Converts each tab character to a single space rather than deleting it outright, so tab-separated words don't get mashed together.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optRemoveExtraSpaces">
+          <span class="fixText">
+            <strong>Remove extra spaces</strong>
+            <div>Collapses runs of two or more spaces in a row down to a single space.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optRemoveLineBreaks">
+          <span class="fixText">
+            <strong>Remove line breaks</strong>
+            <div>Joins wrapped lines within a paragraph by turning a lone line break into a space. Blank-line paragraph breaks are left alone — see the toggle below.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optRemoveParagraphBreaks">
+          <span class="fixText">
+            <strong>Remove paragraph breaks</strong>
+            <div>Collapses blank lines between paragraphs (two or more line breaks in a row) into a single space, merging paragraphs together. Single line breaks within a paragraph are left alone unless "Remove line breaks" is also on.</div>
+          </span>
+        </label>
       </div>
 
       <p style="color:var(--muted);font-size:.9rem;">Always kept, regardless of the toggles above: the <b>Latin alphabet</b> (<code>a–z A–Z</code>), <b>digits</b> (<code>0–9</code>), standard <b>punctuation</b> and ASCII <b>math signs</b> (<code>+ - * / = &lt; &gt; % ^</code>), Markdown syntax, and <b>whitespace</b> (spaces, tabs, line breaks).</p>

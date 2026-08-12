@@ -30,7 +30,11 @@
     dash: "dashes",
     accent: "accents",
     quote: "quotes",
-    hebrew: "Hebrew"
+    hebrew: "Hebrew",
+    tab: "tabs",
+    linebreak: "line breaks",
+    paragraph: "paragraph breaks",
+    space: "extra spaces"
   };
 
   function isControl(cp) {
@@ -60,10 +64,12 @@
 
   // Runs the configurable pipeline over `text` and returns both the
   // filtered output and a per-character change log used to render the
-  // before/after diff and the removed/converted summary.
+  // before/after diff and the removed/converted summary. The output string
+  // is derived from `changes` at the end (see applyWhitespaceCleanup),
+  // rather than built inline, since the whitespace pass can retroactively
+  // turn an already-"kept" character into "removed"/"converted".
   function processText(text, opts) {
     var src = (opts.normalize && text.normalize) ? text.normalize("NFKC") : text;
-    var out = "";
     var changes = [];
 
     for (var ch of src) {
@@ -73,25 +79,21 @@
         if (opts.stripInvisible) {
           changes.push({ ch: ch, type: "removed", category: "invisible", replacement: "" });
         } else {
-          out += ch;
           changes.push({ ch: ch, type: "kept", category: "invisible", replacement: ch });
         }
         continue;
       }
       if (cp === 0x09 || cp === 0x0A || cp === 0x0D) {
-        out += ch;
         changes.push({ ch: ch, type: "kept", category: "whitespace", replacement: ch });
         continue;
       }
       if (cp >= 0x20 && cp <= 0x7E) {
-        out += ch;
         changes.push({ ch: ch, type: "kept", category: "ascii", replacement: ch });
         continue;
       }
 
       if (isHebrew(cp)) {
         if (opts.allowHebrew) {
-          out += ch;
           changes.push({ ch: ch, type: "kept", category: "hebrew", replacement: ch });
         } else {
           changes.push({ ch: ch, type: "removed", category: "hebrew", replacement: "" });
@@ -101,18 +103,15 @@
 
       if (opts.straightenQuotes && QUOTE_MAP.has(cp)) {
         var rq = QUOTE_MAP.get(cp);
-        out += rq;
         changes.push({ ch: ch, type: "converted", category: "quote", replacement: rq });
         continue;
       }
 
       if (PRESERVED_DASHES.has(cp)) {
-        out += ch;
         changes.push({ ch: ch, type: "kept", category: "dash", replacement: ch });
         continue;
       }
       if (cp === EM_DASH && opts.convertDashes) {
-        out += "-";
         changes.push({ ch: ch, type: "converted", category: "dash", replacement: "-" });
         continue;
       }
@@ -120,7 +119,6 @@
       if (opts.foldAccents) {
         var folded = foldAccent(ch);
         if (folded !== null) {
-          out += folded;
           changes.push({ ch: ch, type: "converted", category: "accent", replacement: folded });
           continue;
         }
@@ -129,12 +127,94 @@
       if (opts.stripEmoji) {
         changes.push({ ch: ch, type: "removed", category: "symbol", replacement: "" });
       } else {
-        out += ch;
         changes.push({ ch: ch, type: "kept", category: "symbol", replacement: ch });
       }
     }
 
+    applyWhitespaceCleanup(changes, opts);
+
+    var out = "";
+    for (var i = 0; i < changes.length; i++) {
+      if (changes[i].type !== "removed") out += changes[i].replacement;
+    }
+
     return { output: out, changes: changes, normalizedInput: src };
+  }
+
+  // Second pass over the per-character results, handling the whitespace
+  // toggles that need surrounding context (a run of newlines, a run of
+  // spaces) rather than a single-character decision. Mutates `changes` in
+  // place; segments already marked "removed" by the first pass contribute
+  // nothing and are skipped. Browsers normalize textarea line endings to a
+  // single "\n" (no "\r\n"/"\r"), so only "\n" needs to be handled here.
+  function applyWhitespaceCleanup(changes, opts) {
+    var n = changes.length;
+
+    // A run of one "\n" is a line break within a paragraph; a run of two or
+    // more is a blank-line paragraph break. Each is governed independently.
+    var i = 0;
+    while (i < n) {
+      var seg = changes[i];
+      if (seg.type !== "removed" && seg.replacement === "\n") {
+        var start = i;
+        var j = i;
+        while (j < n && changes[j].type !== "removed" && changes[j].replacement === "\n") j++;
+        if (j - start === 1) {
+          if (opts.removeLineBreaks) {
+            changes[start].type = "converted";
+            changes[start].category = "linebreak";
+            changes[start].replacement = " ";
+          }
+        } else if (opts.removeParagraphBreaks) {
+          changes[start].type = "converted";
+          changes[start].category = "paragraph";
+          changes[start].replacement = " ";
+          for (var k = start + 1; k < j; k++) {
+            changes[k].type = "removed";
+            changes[k].category = "paragraph";
+            changes[k].replacement = "";
+          }
+        }
+        i = j;
+      } else {
+        i++;
+      }
+    }
+
+    if (opts.removeTabs) {
+      for (var t = 0; t < n; t++) {
+        var s = changes[t];
+        if (s.type !== "removed" && s.replacement === "\t") {
+          s.type = "converted";
+          s.category = "tab";
+          s.replacement = " ";
+        }
+      }
+    }
+
+    // Collapse consecutive spaces using the final surviving character
+    // stream, so line-break/paragraph-break/tab conversions above (which
+    // can themselves introduce or expose adjacent spaces) are accounted
+    // for. Segments already removed contribute nothing and are skipped
+    // without resetting the "last char was a space" state.
+    if (opts.removeExtraSpaces) {
+      var lastWasSpace = false;
+      for (var m = 0; m < n; m++) {
+        var seg2 = changes[m];
+        if (seg2.type === "removed") continue;
+        if (seg2.replacement === " ") {
+          if (lastWasSpace) {
+            seg2.type = "removed";
+            seg2.category = "space";
+            seg2.replacement = "";
+            continue;
+          }
+          lastWasSpace = true;
+        } else {
+          lastWasSpace = false;
+        }
+      }
+    }
   }
 
   function summarizeChanges(changes) {
@@ -217,7 +297,14 @@
   var optStripEmoji = document.getElementById("optStripEmoji");
   var optStripInvisible = document.getElementById("optStripInvisible");
   var optAllowHebrew = document.getElementById("optAllowHebrew");
-  var optEls = [optNormalize, optFoldAccents, optStraightenQuotes, optConvertDashes, optStripEmoji, optStripInvisible, optAllowHebrew];
+  var optRemoveLineBreaks = document.getElementById("optRemoveLineBreaks");
+  var optRemoveParagraphBreaks = document.getElementById("optRemoveParagraphBreaks");
+  var optRemoveExtraSpaces = document.getElementById("optRemoveExtraSpaces");
+  var optRemoveTabs = document.getElementById("optRemoveTabs");
+  var optEls = [
+    optNormalize, optFoldAccents, optStraightenQuotes, optConvertDashes, optStripEmoji, optStripInvisible, optAllowHebrew,
+    optRemoveLineBreaks, optRemoveParagraphBreaks, optRemoveExtraSpaces, optRemoveTabs
+  ];
 
   var OPTS_KEY = "cleartxt-opts";
 
@@ -229,7 +316,11 @@
       convertDashes: optConvertDashes.checked,
       stripEmoji: optStripEmoji.checked,
       stripInvisible: optStripInvisible.checked,
-      allowHebrew: optAllowHebrew.checked
+      allowHebrew: optAllowHebrew.checked,
+      removeLineBreaks: optRemoveLineBreaks.checked,
+      removeParagraphBreaks: optRemoveParagraphBreaks.checked,
+      removeExtraSpaces: optRemoveExtraSpaces.checked,
+      removeTabs: optRemoveTabs.checked
     };
   }
 
@@ -249,6 +340,10 @@
       optStripEmoji.checked = saved.stripEmoji !== false;
       optStripInvisible.checked = saved.stripInvisible !== false;
       optAllowHebrew.checked = saved.allowHebrew === true;
+      optRemoveLineBreaks.checked = saved.removeLineBreaks === true;
+      optRemoveParagraphBreaks.checked = saved.removeParagraphBreaks === true;
+      optRemoveExtraSpaces.checked = saved.removeExtraSpaces === true;
+      optRemoveTabs.checked = saved.removeTabs === true;
     } catch (e) { /* ignore malformed storage */ }
   }
 
