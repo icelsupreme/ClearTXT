@@ -15,6 +15,7 @@ const DEFAULT_OPTS = {
   stripCurrency: true,
   stripInvisible: true,
   stripHebrew: true,
+  stripArabic: true,
   stripCyrillic: true,
   removeLineBreaks: false,
   removeParagraphBreaks: false,
@@ -115,6 +116,17 @@ test("the Letterlike Symbols math alef/bet/gimel/dalet (e.g. aleph-null, ℵ₀)
   assert.equal(ClearTXT.processText("ℵ", opts()).changes[0].category, "symbol");
 });
 
+test("Arabic is stripped by default and preserved when \"strip Arabic characters\" is off", () => {
+  assert.equal(run("hello مرحبا world"), "hello world");
+  assert.equal(run("hello مرحبا world", { removeExtraSpaces: false }), "hello  world");
+  assert.equal(run("hello مرحبا world", { stripArabic: false }), "hello مرحبا world");
+});
+
+test("Arabic stripping is independent of \"strip emoji & symbols\", governed only by its own toggle", () => {
+  assert.equal(run("مرحبا", { stripEmoji: false }), "");
+  assert.equal(run("مرحبا", { stripEmoji: false, stripArabic: false }), "مرحبا");
+});
+
 test("Cyrillic is stripped by default and preserved when \"strip Cyrillic characters\" is off", () => {
   assert.equal(run("hello привет world"), "hello world");
   assert.equal(run("hello привет world", { removeExtraSpaces: false }), "hello  world");
@@ -155,6 +167,27 @@ test("Unicode tag characters (ASCII-smuggling vector) are stripped by default an
   const tag = String.fromCodePoint(0xe0068, 0xe0069); // TAG h, TAG i
   assert.equal(run("a" + tag + "b"), "ab");
   assert.equal(run("a" + tag + "b", { stripInvisible: false }), "a" + tag + "b");
+});
+
+test("soft hyphen and Arabic letter mark are categorized as invisible (governed by \"strip invisible\"), not as a generic symbol - a codepoint-based Unicode Format (Cf) category scan found both previously fell through to the generic symbol strip instead", () => {
+  assert.equal(run("hyphen­ated"), "hyphenated");
+  assert.equal(run("hyphen­ated", { stripInvisible: false }), "hyphen­ated");
+  // Previously governed by stripEmoji instead of stripInvisible - would
+  // have survived here before the fix, unlike its LRM/RLM sibling marks.
+  assert.equal(run("hyphen­ated", { stripEmoji: false }), "hyphenated");
+
+  assert.equal(run("a؜b"), "ab");
+  assert.equal(run("a؜b", { stripInvisible: false }), "a؜b");
+  assert.equal(run("a؜b", { stripEmoji: false }), "ab");
+});
+
+test("isFormatChar matches Unicode's Format (Cf) general category plus the line/paragraph separators, and nothing else", () => {
+  assert.equal(ClearTXT.isFormatChar(0x00AD), true); // soft hyphen
+  assert.equal(ClearTXT.isFormatChar(0x061C), true); // Arabic letter mark
+  assert.equal(ClearTXT.isFormatChar(0x2028), true); // line separator (Zl, not Cf, included explicitly)
+  assert.equal(ClearTXT.isFormatChar(0x200B), true); // zero-width space
+  assert.equal(ClearTXT.isFormatChar(0x0041), false); // A
+  assert.equal(ClearTXT.isFormatChar(0x1F600), false); // 😀
 });
 
 test("deprecated variation selector supplement is stripped by default and kept when the toggle is off", () => {
@@ -285,6 +318,23 @@ test("isHebrew recognizes the Hebrew block and presentation forms, and nothing e
   assert.equal(ClearTXT.isHebrew(0x05d0), true); // א
   assert.equal(ClearTXT.isHebrew(0xfb1d), true);
   assert.equal(ClearTXT.isHebrew(0x0041), false); // A
+});
+
+test("isArabic recognizes the main Arabic block, supplement/extended blocks, and presentation forms, and nothing else", () => {
+  assert.equal(ClearTXT.isArabic(0x0627), true); // ا
+  assert.equal(ClearTXT.isArabic(0x0750), true); // Arabic Supplement
+  assert.equal(ClearTXT.isArabic(0x0870), true); // Arabic Extended-B
+  assert.equal(ClearTXT.isArabic(0x08A0), true); // Arabic Extended-A
+  assert.equal(ClearTXT.isArabic(0xFB50), true); // Arabic Presentation Forms-A
+  assert.equal(ClearTXT.isArabic(0xFE70), true); // Arabic Presentation Forms-B
+  assert.equal(ClearTXT.isArabic(0x0041), false); // A
+  assert.equal(ClearTXT.isArabic(0x05d0), false); // Hebrew א
+  // U+FEFF is numerically inside the Presentation Forms-B range, but
+  // processText's per-character loop classifies it as the BOM (invisible)
+  // before this check ever runs - isArabic in isolation still reports it
+  // as part of the range it's numerically in, since resolving that
+  // overlap is processText's job, not this range check's.
+  assert.equal(ClearTXT.isArabic(0xFEFF), true);
 });
 
 test("isCyrillic recognizes the main Cyrillic block, supplement, and extended blocks, and nothing else", () => {

@@ -1,17 +1,29 @@
 (function (root) {
   "use strict";
 
-  var ZERO_WIDTH = new Set([
-    0x200B, 0x200C, 0x200D, 0x200E, 0x200F,
-    0x2028, 0x2029, 0x202A, 0x202B, 0x202C, 0x202D, 0x202E,
-    // Bidi "isolate" controls (U+2066-U+2069): newer siblings of the
-    // U+202A-U+202E embedding/override controls above, and the ones
-    // behind the "Trojan Source" technique (CVE-2021-42574) for making
-    // text/code display in an order different from how it actually reads.
-    0x2066, 0x2067, 0x2068, 0x2069,
-    0x2060, 0x2061, 0x2062, 0x2063, 0x2064,
-    0xFEFF
-  ]);
+  // Characters with no visible glyph of their own, matched via Unicode's
+  // own "Format" (Cf) general category instead of a hand-maintained list.
+  // This one test covers the zero-width spaces/joiners, the byte-order
+  // mark, the bidi embedding/override controls (U+202A-U+202E) and their
+  // newer "isolate" siblings (U+2066-U+2069, the ones behind the "Trojan
+  // Source" technique, CVE-2021-42574, for making text/code display in an
+  // order different from how it actually reads) - and also things a fixed
+  // list is easy to miss entirely: the soft hyphen (U+00AD, invisible in
+  // most rendering but not zero-width the way the others are), the Arabic
+  // Letter Mark (U+061C, the same bidi-direction-hinting family as the
+  // left/right-to-left marks above it, easy to overlook since it doesn't
+  // look like the others), deprecated format controls (U+206A-U+206F),
+  // interlinear annotation marks (U+FFF9-U+FFFB, a second, less-known way
+  // to attach hidden text to visible text, similar in spirit to the
+  // variation-selector smuggling channel below) - and whatever the Cf
+  // category picks up in future Unicode versions, with no maintenance
+  // needed here. U+2028/U+2029 (line/paragraph separator) are Zl/Zp, not
+  // Cf, but are invisible the same way, so they're included alongside it.
+  var FORMAT_CHAR_RE = /\p{Cf}/u;
+  var LINE_PARAGRAPH_SEPARATORS = new Set([0x2028, 0x2029]);
+  function isFormatChar(cp) {
+    return LINE_PARAGRAPH_SEPARATORS.has(cp) || FORMAT_CHAR_RE.test(String.fromCodePoint(cp));
+  }
 
   // Unicode Tag characters (U+E0000-U+E007F): originally for obsolete
   // language tagging, but zero-width and freely combinable, they're the
@@ -51,6 +63,22 @@
   // presentation-forms block (ligatures like "ﭏ" and pointed letters).
   var HEBREW_RANGES = [[0x0590, 0x05FF], [0xFB1D, 0xFB4F]];
 
+  // Arabic letters, diacritics and Arabic-Indic digits, across the main
+  // block plus the extended/supplement blocks covering Persian, Urdu and
+  // other Arabic-script languages, through the presentation-forms blocks
+  // (contextual/ligature glyph variants). U+FEFF (byte order mark) falls
+  // inside the Presentation Forms-B range numerically, but is caught
+  // earlier in processText's per-character loop as an invisible/format
+  // character before this check ever runs, so it's never treated as Arabic.
+  var ARABIC_RANGES = [
+    [0x0600, 0x06FF], // Arabic
+    [0x0750, 0x077F], // Arabic Supplement
+    [0x0870, 0x089F], // Arabic Extended-B
+    [0x08A0, 0x08FF], // Arabic Extended-A
+    [0xFB50, 0xFDFF], // Arabic Presentation Forms-A
+    [0xFE70, 0xFEFF]  // Arabic Presentation Forms-B
+  ];
+
   // Cyrillic letters/combining marks across the blocks covering everyday
   // use (Russian, Ukrainian, Bulgarian, Serbian, Belarusian, Mongolian, ...)
   // through the Extended blocks used for a handful of minority languages
@@ -67,6 +95,9 @@
   // have no visible glyph of their own, so the diff view can show
   // something in their place instead of literally nothing.
   var INVISIBLE_NAMES = {
+    0x00AD: { label: "SHY", name: "soft hyphen" },
+    0x061C: { label: "ALM", name: "Arabic letter mark" },
+    0x180E: { label: "MVS", name: "Mongolian vowel separator" },
     0x200B: { label: "ZWSP", name: "zero-width space" },
     0x200C: { label: "ZWNJ", name: "zero-width non-joiner" },
     0x200D: { label: "ZWJ", name: "zero-width joiner" },
@@ -88,7 +119,10 @@
     0x2067: { label: "RLI", name: "right-to-left isolate" },
     0x2068: { label: "FSI", name: "first strong isolate" },
     0x2069: { label: "PDI", name: "pop directional isolate" },
-    0xFEFF: { label: "BOM", name: "byte order mark" }
+    0xFEFF: { label: "BOM", name: "byte order mark" },
+    0xFFF9: { label: "IAA", name: "interlinear annotation anchor" },
+    0xFFFA: { label: "IAS", name: "interlinear annotation separator" },
+    0xFFFB: { label: "IAT", name: "interlinear annotation terminator" }
   };
 
   // Standard short names for the C0 control characters (index = code point).
@@ -124,6 +158,7 @@
     accent: "accents",
     quote: "quotes",
     hebrew: "Hebrew",
+    arabic: "Arabic",
     cyrillic: "Cyrillic",
     currency: "currency symbols",
     tab: "tabs",
@@ -155,6 +190,14 @@
   function isCyrillic(cp) {
     for (var i = 0; i < CYRILLIC_RANGES.length; i++) {
       var r = CYRILLIC_RANGES[i];
+      if (cp >= r[0] && cp <= r[1]) return true;
+    }
+    return false;
+  }
+
+  function isArabic(cp) {
+    for (var i = 0; i < ARABIC_RANGES.length; i++) {
+      var r = ARABIC_RANGES[i];
       if (cp >= r[0] && cp <= r[1]) return true;
     }
     return false;
@@ -217,7 +260,7 @@
     for (var ch of src) {
       var cp = ch.codePointAt(0);
 
-      if (ZERO_WIDTH.has(cp) || isControl(cp) || isHiddenPayloadRange(cp)) {
+      if (isFormatChar(cp) || isControl(cp) || isHiddenPayloadRange(cp)) {
         if (opts.stripInvisible) {
           changes.push({ ch: ch, type: "removed", category: "invisible", replacement: "" });
         } else {
@@ -239,6 +282,15 @@
           changes.push({ ch: ch, type: "removed", category: "hebrew", replacement: "" });
         } else {
           changes.push({ ch: ch, type: "kept", category: "hebrew", replacement: ch });
+        }
+        continue;
+      }
+
+      if (isArabic(cp)) {
+        if (opts.stripArabic) {
+          changes.push({ ch: ch, type: "removed", category: "arabic", replacement: "" });
+        } else {
+          changes.push({ ch: ch, type: "kept", category: "arabic", replacement: ch });
         }
         continue;
       }
@@ -679,7 +731,9 @@
     escapeHtml: escapeHtml,
     invisibleInfo: invisibleInfo,
     isHiddenPayloadRange: isHiddenPayloadRange,
+    isFormatChar: isFormatChar,
     isHebrew: isHebrew,
+    isArabic: isArabic,
     isCyrillic: isCyrillic,
     foldAccent: foldAccent,
     slugForFilename: slugForFilename,
@@ -805,6 +859,7 @@
       ["optConvertDashes", "convertDashes", true, "typography"],
       ["optFoldAccents", "foldAccents", true, "languages"],
       ["optStripHebrew", "stripHebrew", true, "languages"],
+      ["optStripArabic", "stripArabic", true, "languages"],
       ["optStripCyrillic", "stripCyrillic", true, "languages"],
       ["optStripEmoji", "stripEmoji", true, "symbols"],
       ["optStripCurrency", "stripCurrency", true, "symbols"],
