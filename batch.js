@@ -57,10 +57,17 @@
     return { time: time, date: day };
   }
 
+  // Fixed values from the ZIP file format spec (PKWARE APPNOTE.TXT), named
+  // here instead of left as inline hex/magic numbers in buildZip below.
+  var ZIP_LOCAL_FILE_HEADER_SIG = 0x04034b50;
+  var ZIP_CENTRAL_DIR_HEADER_SIG = 0x02014b50;
+  var ZIP_END_OF_CENTRAL_DIR_SIG = 0x06054b50;
+  var ZIP_VERSION = 20;              // "version needed to extract" / "version made by" - 2.0, covers everything this writer uses
+  var ZIP_FLAG_UTF8_NAME = 0x0800;   // general purpose bit 11: file name is UTF-8
+  var ZIP_METHOD_STORED = 0;         // compression method: none (stored as-is)
+
   // Builds a single valid, uncompressed ZIP archive from `entries`
-  // ([{ name, data: Uint8Array }]) and returns it as a Uint8Array. General
-  // purpose bit 11 (0x0800) marks file names as UTF-8, so non-ASCII
-  // filenames round-trip correctly in any modern unzip tool.
+  // ([{ name, data: Uint8Array }]) and returns it as a Uint8Array.
   function buildZip(entries) {
     var dt = dosDateTime(new Date());
     var localAndData = [];
@@ -74,22 +81,23 @@
       var localOffset = offset;
 
       var local = concatBytes([
-        u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(dt.time), u16(dt.date),
-        u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0), nameBytes
+        u32(ZIP_LOCAL_FILE_HEADER_SIG), u16(ZIP_VERSION), u16(ZIP_FLAG_UTF8_NAME), u16(ZIP_METHOD_STORED),
+        u16(dt.time), u16(dt.date), u32(crc), u32(data.length), u32(data.length),
+        u16(nameBytes.length), u16(0), nameBytes
       ]);
       localAndData.push(local, data);
       offset += local.length + data.length;
 
       centralParts.push(concatBytes([
-        u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(dt.time), u16(dt.date),
-        u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0), u16(0),
-        u16(0), u16(0), u32(0), u32(localOffset), nameBytes
+        u32(ZIP_CENTRAL_DIR_HEADER_SIG), u16(ZIP_VERSION), u16(ZIP_VERSION), u16(ZIP_FLAG_UTF8_NAME), u16(ZIP_METHOD_STORED),
+        u16(dt.time), u16(dt.date), u32(crc), u32(data.length), u32(data.length),
+        u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(localOffset), nameBytes
       ]));
     });
 
     var centralDir = concatBytes(centralParts);
     var end = concatBytes([
-      u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length),
+      u32(ZIP_END_OF_CENTRAL_DIR_SIG), u16(0), u16(0), u16(entries.length), u16(entries.length),
       u32(centralDir.length), u32(offset), u16(0)
     ]);
 
