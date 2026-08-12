@@ -160,11 +160,11 @@
         <li><b>Digits</b> — <code>0–9</code></li>
         <li><b>Punctuation</b> — <code>. , ; : ! ? ' " ( ) [ ] { }</code> and friends</li>
         <li><b>En dashes &amp; hyphens</b> — <code>-</code> <code>‐</code> <code>–</code></li>
-        <li><b>Math signs</b> — <code>+ - * / = &lt; &gt; % ^</code> and <code>± × ÷ − ≠ ≤ ≥ ≈ √ ∞ ∑ ∏ ∫ ∂ ° π</code></li>
+        <li><b>Math signs</b> — the ASCII ones only: <code>+ - * / = &lt; &gt; % ^</code></li>
         <li><b>Markdown syntax</b> — <code># * _ ` > | ~ [ ] ( ) !</code> (all standard ASCII, already kept)</li>
         <li><b>Whitespace</b> — spaces, tabs, and line breaks are preserved</li>
       </ul>
-      <p style="color:var(--muted);font-size:.9rem;">Removed: emoji, accented/non-Latin letters (é, ñ, ω, 日), smart “curly” quotes, em dashes, control characters, and any other symbol not listed above.</p>
+      <p style="color:var(--muted);font-size:.9rem;">Removed: emoji, accented/non-Latin letters (é, ñ, ω, 日), smart “curly” quotes, em dashes, Unicode math symbols (± × ÷ ≤ ≥ √ …), control characters, and all zero-width / invisible characters (ZWSP, ZWJ, BOM, directional marks).</p>
     </details>
   </div>
 
@@ -172,32 +172,40 @@
 (function () {
   "use strict";
 
-  // Explicit set of allowed non-ASCII code points (dashes + math signs).
+  // Explicit set of allowed non-ASCII code points (dashes only).
   var EXTRA = new Set([
     0x2010, // ‐ hyphen
     0x2011, // ‑ non-breaking hyphen
-    0x2013, // – en dash
-    0x2212, // − minus sign
-    0x00B1, // ± plus-minus
-    0x00D7, // × multiplication
-    0x00F7, // ÷ division
-    0x2260, // ≠ not equal
-    0x2264, // ≤ less-or-equal
-    0x2265, // ≥ greater-or-equal
-    0x2248, // ≈ approximately
-    0x221A, // √ square root
-    0x221E, // ∞ infinity
-    0x2211, // ∑ summation
-    0x220F, // ∏ product
-    0x222B, // ∫ integral
-    0x2202, // ∂ partial differential
-    0x2207, // ∇ nabla
-    0x2208, // ∈ element of
-    0x00B0, // ° degree
-    0x03C0  // π pi
+    0x2013  // – en dash
+  ]);
+
+  // Invisible / zero-width code points that must ALWAYS be removed, even
+  // though the whitelist below would already exclude them. Explicit deny so
+  // the guarantee holds regardless of future changes to the allow-list.
+  var ZERO_WIDTH = new Set([
+    0x200B, // zero width space
+    0x200C, // zero width non-joiner
+    0x200D, // zero width joiner
+    0x200E, // left-to-right mark
+    0x200F, // right-to-left mark
+    0x2028, // line separator
+    0x2029, // paragraph separator
+    0x202A, // left-to-right embedding
+    0x202B, // right-to-left embedding
+    0x202C, // pop directional formatting
+    0x202D, // left-to-right override
+    0x202E, // right-to-left override
+    0x2060, // word joiner
+    0x2061, // function application
+    0x2062, // invisible times
+    0x2063, // invisible separator
+    0x2064, // invisible plus
+    0xFEFF  // zero width no-break space / BOM
   ]);
 
   function isAllowed(cp) {
+    // Always strip invisible / zero-width characters first.
+    if (ZERO_WIDTH.has(cp)) return false;
     // Whitespace we want to preserve: tab, LF, CR, space.
     if (cp === 0x09 || cp === 0x0A || cp === 0x0D) return true;
     // Printable ASCII (space through tilde) — covers Latin letters, digits,
