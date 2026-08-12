@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearTXT — Text Filter</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2f3a;
+    --text: #e6e9ef;
+    --muted: #9aa3b2;
+    --accent: #4f9dff;
+    --accent-hover: #6bb0ff;
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    padding: 24px 20px 8px;
+    text-align: center;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    letter-spacing: -0.02em;
+  }
+  header p {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 16px 20px 40px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .field label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  textarea {
+    width: 100%;
+    min-height: 320px;
+    resize: vertical;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  textarea[readonly] { background: #12151b; }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 16px 0 4px;
+  }
+  button {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #061020; font-weight: 600; }
+  button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .stats {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .stats b { color: var(--text); }
+  .stats .removed { color: var(--danger); }
+  details {
+    margin-top: 22px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px 16px;
+  }
+  details summary {
+    cursor: pointer;
+    padding: 10px 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  details ul { margin: 4px 0 14px; padding-left: 20px; color: var(--muted); font-size: 0.9rem; }
+  details code { color: var(--accent); background: #0d1017; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>ClearTXT</h1>
+    <p>Strip text down to a clean, safe character set — everything else is removed.</p>
+  </header>
+
+  <div class="wrap">
+    <div class="grid">
+      <div class="field">
+        <label for="input">
+          <span>Input</span>
+          <span id="inCount"></span>
+        </label>
+        <textarea id="input" placeholder="Paste or type your text here…" autofocus></textarea>
+      </div>
+      <div class="field">
+        <label for="output">
+          <span>Output</span>
+          <span id="outCount"></span>
+        </label>
+        <textarea id="output" readonly placeholder="Filtered text appears here…"></textarea>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="primary" id="copyBtn">Copy output</button>
+      <button id="clearBtn">Clear</button>
+      <span class="stats" id="stats"></span>
+    </div>
+
+    <details>
+      <summary>What is kept, and what is removed?</summary>
+      <p style="color:var(--muted);font-size:.9rem;">The filter <b>keeps</b> the following characters and deletes everything else:</p>
+      <ul>
+        <li><b>Latin alphabet</b> — <code>a–z</code> and <code>A–Z</code></li>
+        <li><b>Digits</b> — <code>0–9</code></li>
+        <li><b>Punctuation</b> — <code>. , ; : ! ? ' " ( ) [ ] { }</code> and friends</li>
+        <li><b>En dashes &amp; hyphens</b> — <code>-</code> <code>‐</code> <code>–</code></li>
+        <li><b>Math signs</b> — the ASCII ones only: <code>+ - * / = &lt; &gt; % ^</code></li>
+        <li><b>Markdown syntax</b> — <code># * _ ` > | ~ [ ] ( ) !</code> (all standard ASCII, already kept)</li>
+        <li><b>Whitespace</b> — spaces, tabs, and line breaks are preserved</li>
+      </ul>
+      <p style="color:var(--muted);font-size:.9rem;">Before filtering, the text is <b>retyped</b> — normalized to Unicode NFKC form so ligatures (<code>ﬁ</code>→<code>fi</code>), full-width letters (<code>Ａ</code>→<code>A</code>) and superscripts (<code>²</code>→<code>2</code>) fold into plain forms, and the output is rebuilt as a fresh, canonical string.</p>
+      <p style="color:var(--muted);font-size:.9rem;">Removed: emoji, accented/non-Latin letters (é, ñ, ω, 日), smart “curly” quotes, em dashes, Unicode math symbols (± × ÷ ≤ ≥ √ …), control characters, and all zero-width / invisible characters (ZWSP, ZWJ, BOM, directional marks).</p>
+    </details>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Explicit set of allowed non-ASCII code points (dashes only).
+  var EXTRA = new Set([
+    0x2010, // ‐ hyphen
+    0x2011, // ‑ non-breaking hyphen
+    0x2013  // – en dash
+  ]);
+
+  // Invisible / zero-width code points that must ALWAYS be removed, even
+  // though the whitelist below would already exclude them. Explicit deny so
+  // the guarantee holds regardless of future changes to the allow-list.
+  var ZERO_WIDTH = new Set([
+    0x200B, // zero width space
+    0x200C, // zero width non-joiner
+    0x200D, // zero width joiner
+    0x200E, // left-to-right mark
+    0x200F, // right-to-left mark
+    0x2028, // line separator
+    0x2029, // paragraph separator
+    0x202A, // left-to-right embedding
+    0x202B, // right-to-left embedding
+    0x202C, // pop directional formatting
+    0x202D, // left-to-right override
+    0x202E, // right-to-left override
+    0x2060, // word joiner
+    0x2061, // function application
+    0x2062, // invisible times
+    0x2063, // invisible separator
+    0x2064, // invisible plus
+    0xFEFF  // zero width no-break space / BOM
+  ]);
+
+  function isAllowed(cp) {
+    // Always strip invisible / zero-width characters first.
+    if (ZERO_WIDTH.has(cp)) return false;
+    // Whitespace we want to preserve: tab, LF, CR, space.
+    if (cp === 0x09 || cp === 0x0A || cp === 0x0D) return true;
+    // Printable ASCII (space through tilde) — covers Latin letters, digits,
+    // all standard punctuation, ASCII math signs, and Markdown syntax.
+    if (cp >= 0x20 && cp <= 0x7E) return true;
+    // Curated dashes + math symbols.
+    return EXTRA.has(cp);
+  }
+
+  function filter(text) {
+    // "Retype" the text: normalize to canonical compatibility form (NFKC)
+    // first, so ligatures (ﬁ→fi), full-width letters (Ａ→A), superscripts
+    // (²→2) and decomposed accent sequences are folded into plain forms
+    // before the character filter runs. The output is then rebuilt from
+    // scratch, code point by code point — a fresh, canonical string.
+    var normalized = text.normalize ? text.normalize("NFKC") : text;
+    var out = "";
+    // Iterate by code point so astral characters (emoji) are handled correctly.
+    for (var ch of normalized) {
+      if (isAllowed(ch.codePointAt(0))) out += ch;
+    }
+    return out;
+  }
+
+  var input = document.getElementById("input");
+  var output = document.getElementById("output");
+  var inCount = document.getElementById("inCount");
+  var outCount = document.getElementById("outCount");
+  var stats = document.getElementById("stats");
+  var copyBtn = document.getElementById("copyBtn");
+  var clearBtn = document.getElementById("clearBtn");
+
+  function update() {
+    var src = input.value;
+    var res = filter(src);
+    output.value = res;
+
+    var inLen = [...src].length;
+    var outLen = [...res].length;
+    var removed = inLen - outLen;
+
+    inCount.textContent = inLen + " chars";
+    outCount.textContent = outLen + " chars";
+    if (inLen === 0) {
+      stats.innerHTML = '';
+    } else if (res === src) {
+      stats.innerHTML = 'Nothing changed — text is already clean';
+    } else if (removed > 0) {
+      stats.innerHTML = '<span class="removed">' + removed + '</span> character' + (removed === 1 ? '' : 's') + ' removed';
+    } else {
+      stats.innerHTML = 'Text cleaned &amp; normalized';
+    }
+  }
+
+  input.addEventListener("input", update);
+
+  copyBtn.addEventListener("click", function () {
+    output.select();
+    navigator.clipboard && navigator.clipboard.writeText(output.value);
+    var old = copyBtn.textContent;
+    copyBtn.textContent = "Copied!";
+    setTimeout(function () { copyBtn.textContent = old; }, 1200);
+  });
+
+  clearBtn.addEventListener("click", function () {
+    input.value = "";
+    update();
+    input.focus();
+  });
+
+  update();
+})();
+</script>
+</body>
+</html>
