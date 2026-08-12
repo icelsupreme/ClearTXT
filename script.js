@@ -393,6 +393,7 @@
   var outCount = document.getElementById("outCount");
   var stats = document.getElementById("stats");
   var copyBtn = document.getElementById("copyBtn");
+  var exportBtn = document.getElementById("exportBtn");
   var clearBtn = document.getElementById("clearBtn");
 
   var diffSummary = document.getElementById("diffSummary");
@@ -648,6 +649,31 @@
     var old = copyBtn.textContent;
     copyBtn.textContent = "Copied!";
     setTimeout(function () { copyBtn.textContent = old; }, 1200);
+  });
+
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+
+  function exportFilename() {
+    var d = new Date();
+    return "cleartxt-output-" + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
+      "-" + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds()) + ".txt";
+  }
+
+  exportBtn.addEventListener("click", function () {
+    if (!output.value.length) return;
+    var blob = new Blob([output.value], { type: "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = exportFilename();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    var old = exportBtn.textContent;
+    exportBtn.textContent = "Exported!";
+    setTimeout(function () { exportBtn.textContent = old; }, 1200);
   });
 
   clearBtn.addEventListener("click", function () {
