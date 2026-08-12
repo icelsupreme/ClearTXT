@@ -392,6 +392,8 @@
   var inCount = document.getElementById("inCount");
   var outCount = document.getElementById("outCount");
   var stats = document.getElementById("stats");
+  var importBtn = document.getElementById("importBtn");
+  var importFile = document.getElementById("importFile");
   var copyBtn = document.getElementById("copyBtn");
   var exportBtn = document.getElementById("exportBtn");
   var clearBtn = document.getElementById("clearBtn");
@@ -642,6 +644,29 @@
   });
 
   optEls.forEach(function (el) { el.addEventListener("change", update); });
+
+  importBtn.addEventListener("click", function () {
+    importFile.click();
+  });
+
+  importFile.addEventListener("change", function () {
+    var file = importFile.files && importFile.files[0];
+    if (!file) return;
+    file.text()
+      .then(function (text) {
+        input.value = text;
+        update();
+        input.focus();
+      })
+      .catch(function () {
+        // No toast/notification system to surface a read failure through;
+        // the input is simply left as it was.
+      })
+      .finally(function () {
+        // Reset so choosing the same file again still fires "change".
+        importFile.value = "";
+      });
+  });
 
   copyBtn.addEventListener("click", function () {
     output.select();

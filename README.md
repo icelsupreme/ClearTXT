@@ -22,7 +22,7 @@ It's a single static page: no backend, no build step, no data ever leaves your b
   A fix that's turned off leaves its characters exactly as typed; a character only gets removed once none of the applicable fixes can convert it.
 - **"What changed?" diff view.** A collapsible panel shows a per-category breakdown of what was removed vs. converted, plus a highlighted side-by-side view of the input and output.
 - **Line numbers** on both text boxes, kept aligned even when lines wrap.
-- **Copy or export the output** — copy to the clipboard, or download it as a timestamped `.txt` file.
+- **Import, copy, or export** — load a text file straight into the input, copy the output to the clipboard, or download it as a timestamped `.txt` file.
 - **Your fix preferences persist** across visits via `localStorage`.
 
 ## Usage
@@ -68,6 +68,9 @@ CI runs lint and tests on every push to `main` and on every pull request (see `.
 ## Version history
 
 Versioned per [Semantic Versioning](https://semver.org/) — `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change — those are called out explicitly below.
+
+### 0.6.0
+- **Feature:** an "Import from file" button loads a text file's contents straight into the input box.
 
 ### 0.5.0
 - **Feature:** an "Export to file" button downloads the output as a timestamped `.txt` file, alongside the existing "Copy output" button.
