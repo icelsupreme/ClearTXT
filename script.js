@@ -1,4 +1,4 @@
-(function () {
+(function (root) {
   "use strict";
 
   var ZERO_WIDTH = new Set([
@@ -274,6 +274,28 @@
   // highlighting entirely.
   var MAX_DIFF_CHARS = 20000;
 
+  // Everything above this point is pure text-processing logic with no DOM
+  // dependency, exported below for unit testing (see test/). Everything
+  // below wires that logic up to the actual page and only runs in a
+  // browser, where `document` exists.
+  var ClearTXT = {
+    processText: processText,
+    applyWhitespaceCleanup: applyWhitespaceCleanup,
+    summarizeChanges: summarizeChanges,
+    formatCatCounts: formatCatCounts,
+    buildRuns: buildRuns,
+    isHebrew: isHebrew,
+    foldAccent: foldAccent
+  };
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = ClearTXT;
+  } else {
+    root.ClearTXT = ClearTXT;
+  }
+
+  if (typeof document === "undefined") return;
+
   var input = document.getElementById("input");
   var output = document.getElementById("output");
   var inGutter = document.getElementById("inGutter");
@@ -538,4 +560,4 @@
 
   applySavedOpts();
   update();
-})();
+})(typeof window !== "undefined" ? window : this);
