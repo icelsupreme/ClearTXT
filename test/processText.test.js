@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const ClearTXT = require("../script.js");
+const ClearTXT = require("../docs/script.js");
 
 // Mirrors the checkbox defaults in index.html.
 const DEFAULT_OPTS = {
