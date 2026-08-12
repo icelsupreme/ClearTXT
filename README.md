@@ -70,6 +70,13 @@ The `?v=` matters functionally, not just cosmetically: without it, browsers (esp
 
 Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change - those are called out explicitly below.
 
+### 0.15.0
+- **Accessibility:** the focus indicator on the input/output boxes is now a visible ring around the whole box, not just a 1px border-color change - the previous version was too subtle to rely on for keyboard navigation.
+- **Accessibility:** every button on the page now meets the 44x44px minimum touch-target size (previously as low as ~28px for the diff-nav buttons).
+- **Accessibility:** the group toggle checkboxes in the Fixes panel now expose their "indeterminate" (mixed on/off) state to screen readers via `aria-checked="mixed"`, not just visually.
+- **Fix (mobile):** the input/output boxes' font size is now 16px below 760px viewport width, instead of ~15px - under 16px, iOS Safari auto-zooms the whole page when a text box is focused.
+- **Fix:** a failed file import (e.g. an unreadable file) now shows "Import failed" on the button briefly, instead of failing silently with no feedback at all.
+
 ### 0.14.0
 - **Feature (UI rework):** the 12 fix toggles in the "Fixes & explanation" drawer are now organized into three groups - Typography & normalization, Symbols/scripts/invisible characters, and Whitespace cleanup - each with its own header checkbox that turns every fix in that group on or off at once, showing the standard "indeterminate" dash when the group is a mix of on/off. Purely a UI grouping layer - saved preferences, defaults, and every fix's own behavior are unchanged.
 
