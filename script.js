@@ -14,10 +14,11 @@
     [0x2039, "<"], [0x203A, ">"]
   ]);
 
-  // All dash-like code points that "convert dashes" will turn into "-".
-  var DASH_SET = new Set([0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2015, 0x2212]);
-  // Subset kept as-is (legacy behavior) when "convert dashes" is off.
-  var CURATED_DASHES = new Set([0x2010, 0x2011, 0x2013]);
+  // Only the em dash is ever converted. Every other dash-like character
+  // (en dash, hyphen, non-breaking hyphen, figure dash, horizontal bar,
+  // minus sign) is always preserved exactly as typed.
+  var EM_DASH = 0x2014;
+  var PRESERVED_DASHES = new Set([0x2010, 0x2011, 0x2012, 0x2013, 0x2015, 0x2212]);
 
   // Hebrew letters, points (niqqud/cantillation) and punctuation, plus the
   // presentation-forms block (ligatures like "ﭏ" and pointed letters).
@@ -105,16 +106,14 @@
         continue;
       }
 
-      if (DASH_SET.has(cp)) {
-        if (opts.convertDashes) {
-          out += "-";
-          changes.push({ ch: ch, type: "converted", category: "dash", replacement: "-" });
-        } else if (CURATED_DASHES.has(cp)) {
-          out += ch;
-          changes.push({ ch: ch, type: "kept", category: "dash", replacement: ch });
-        } else {
-          changes.push({ ch: ch, type: "removed", category: "dash", replacement: "" });
-        }
+      if (PRESERVED_DASHES.has(cp)) {
+        out += ch;
+        changes.push({ ch: ch, type: "kept", category: "dash", replacement: ch });
+        continue;
+      }
+      if (cp === EM_DASH && opts.convertDashes) {
+        out += "-";
+        changes.push({ ch: ch, type: "converted", category: "dash", replacement: "-" });
         continue;
       }
 
@@ -156,6 +155,44 @@
   function escapeHtml(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
+
+  // Collapses consecutive same-type changes into a single run, so a long
+  // stretch of removed or unchanged text becomes one span/text node
+  // instead of one per character — this is what lets highlighting stay on
+  // for large inputs instead of being switched off wholesale.
+  function buildRuns(changes) {
+    var runs = [];
+    for (var i = 0; i < changes.length; i++) {
+      var c = changes[i];
+      var last = runs[runs.length - 1];
+      if (last && last.type === c.type) {
+        last.text += c.ch;
+        last.count++;
+      } else {
+        runs.push({ type: c.type, text: c.ch, count: 1, replacement: c.replacement });
+      }
+    }
+    return runs;
+  }
+
+  function runHtml(type, text, count, replacement) {
+    var esc = escapeHtml(text);
+    if (type === "removed") {
+      return '<span class="rm" title="' + (count === 1 ? "removed" : "removed (" + count + " characters)") + '">' + esc + "</span>";
+    }
+    if (type === "converted") {
+      var title = count === 1 ? ("→ " + escapeHtml(replacement)) : ("converted (" + count + " characters)");
+      return '<span class="cv" title="' + title + '">' + esc + "</span>";
+    }
+    return esc;
+  }
+
+  // Character budget for the highlighted view. Runs already keep the DOM
+  // node count far below this in normal text; this cap only guards against
+  // pathological inputs (huge blocks that alternate kept/removed/converted
+  // every character) and truncates gracefully rather than dropping
+  // highlighting entirely.
+  var MAX_DIFF_CHARS = 20000;
 
   var input = document.getElementById("input");
   var output = document.getElementById("output");
@@ -306,29 +343,35 @@
       return;
     }
 
-    if (changes.length > 4000) {
-      diffBefore.textContent = result.normalizedInput;
-      diffAfter.textContent = result.output;
-      diffNote.textContent = "Text is long — highlighting is disabled above, showing plain text instead.";
-      diffNote.style.display = "";
-      return;
+    var runs = buildRuns(changes);
+    var html = [];
+    var shown = 0;
+    var truncated = false;
+    for (var i = 0; i < runs.length; i++) {
+      var r = runs[i];
+      if (shown + r.count > MAX_DIFF_CHARS) {
+        var remaining = MAX_DIFF_CHARS - shown;
+        if (remaining > 0) {
+          var partial = [...r.text].slice(0, remaining).join("");
+          html.push(runHtml(r.type, partial, remaining, r.replacement));
+          shown += remaining;
+        }
+        truncated = true;
+        break;
+      }
+      html.push(runHtml(r.type, r.text, r.count, r.replacement));
+      shown += r.count;
     }
 
-    diffNote.style.display = "none";
-    var html = [];
-    for (var i = 0; i < changes.length; i++) {
-      var c = changes[i];
-      var esc = escapeHtml(c.ch);
-      if (c.type === "removed") {
-        html.push('<span class="rm" title="removed">' + esc + "</span>");
-      } else if (c.type === "converted") {
-        html.push('<span class="cv" title="→ ' + escapeHtml(c.replacement) + '">' + esc + "</span>");
-      } else {
-        html.push(esc);
-      }
-    }
     diffBefore.innerHTML = html.join("");
-    diffAfter.textContent = result.output;
+    if (truncated) {
+      diffAfter.textContent = [...result.output].slice(0, MAX_DIFF_CHARS).join("");
+      diffNote.textContent = "Showing highlights for the first " + shown.toLocaleString() + " of " + changes.length.toLocaleString() + " characters — the rest is omitted here for performance (the counts above cover the full text).";
+      diffNote.style.display = "";
+    } else {
+      diffAfter.textContent = result.output;
+      diffNote.style.display = "none";
+    }
   }
 
   function update() {
