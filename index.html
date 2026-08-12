@@ -9,11 +9,11 @@
      (especially over file://, which this page is often opened with
      directly) don't keep serving a stale cached copy, and so the on-page
      version is always accurate. -->
-<link rel="stylesheet" href="styles.css?v=0.12.0">
+<link rel="stylesheet" href="styles.css?v=0.13.0">
 </head>
 <body>
   <header>
-    <h1>ClearTXT <span class="version" title="Version, matches package.json">v0.12.0</span></h1>
+    <h1>ClearTXT <span class="version" title="Version, matches package.json">v0.13.0</span></h1>
     <p>Strip text down to a clean, safe character set - everything else is removed.</p>
   </header>
 
@@ -52,19 +52,19 @@
         <div class="toolbar">
           <button id="copyBtn">Copy output</button>
           <button id="exportBtn">Export to file</button>
-          <span class="stats" id="stats"></span>
+          <span class="stats" id="stats" aria-live="polite"></span>
         </div>
       </div>
     </div>
 
     <div class="diffNav" id="diffNav" style="display:none;">
-      <button id="diffPrevBtn" title="Scroll to the previous changed line">&uarr; Previous change</button>
-      <span class="diffNavCount" id="diffNavCount"></span>
-      <button id="diffNextBtn" title="Scroll to the next changed line">&darr; Next change</button>
+      <button id="diffPrevBtn" title="Scroll to the previous changed line (Alt+↑)">&uarr; Previous change</button>
+      <span class="diffNavCount" id="diffNavCount" aria-live="polite"></span>
+      <button id="diffNextBtn" title="Scroll to the next changed line (Alt+↓)">&darr; Next change</button>
     </div>
 
     <details id="diffDetails">
-      <summary>What changed? <span id="diffSummary" style="color:var(--muted);"></span></summary>
+      <summary>What changed? <span id="diffSummary" style="color:var(--muted);" aria-live="polite"></span></summary>
       <p style="color:var(--muted);font-size:.9rem;margin-top:4px;">Removed and converted characters are highlighted directly in the input and output boxes above - a line containing any change also gets a full-row tint, GitHub-diff style, so changed lines are easy to spot at a glance.</p>
       <div class="diffCounts" id="diffCounts"></div>
       <div id="diffNote" class="muted" style="display:none;font-size:.8rem;margin-top:6px;color:var(--muted);"></div>
@@ -121,6 +121,13 @@
           </span>
         </label>
         <label class="fixRow">
+          <input type="checkbox" id="optKeepCurrency">
+          <span class="fixText">
+            <strong>Keep currency symbols</strong>
+            <div>Preserves currency symbols (<code>€ £ ¥ ₹ ₩ ₽ ¢</code> …) instead of stripping them along with other symbols. The ASCII dollar sign (<code>$</code>) is always kept regardless of this or the toggle above.</div>
+          </span>
+        </label>
+        <label class="fixRow">
           <input type="checkbox" id="optStripInvisible" checked>
           <span class="fixText">
             <strong>Strip invisible &amp; control characters</strong>
@@ -168,6 +175,10 @@
     </details>
   </div>
 
-<script src="script.js?v=0.12.0"></script>
+  <footer class="stickyFooter" id="stickyFooter" style="display:none;">
+    <span id="stickyFooterCounts" aria-hidden="true"></span>
+  </footer>
+
+<script src="script.js?v=0.13.0"></script>
 </body>
 </html>

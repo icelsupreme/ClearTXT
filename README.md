@@ -9,13 +9,14 @@ It's a single static page: no backend, no build step, no data ever leaves your b
 ## Features
 
 - **Side-by-side filtering.** Paste or type into the input box; the cleaned result appears in the output box as you type, with live character counts.
-- **Inline highlighting.** Removed and converted characters are highlighted directly inside the input and output boxes themselves (no separate/duplicate diff view to keep in sync) - red for removed, blue for converted, a thin ring for invisible/control characters (which have no width of their own to highlight). Any line containing a change also gets a full-row tint, GitHub-diff style, with its line number bolded and colored in the gutter, so changed lines are easy to spot at a glance even before reading the character-level marks. "Previous change" / "Next change" buttons step through the changed lines one at a time, scrolling and centering each one (in both boxes at once) with a stronger highlight than the rest. A collapsible "What changed?" panel below has the removed/converted counts by category.
+- **Inline highlighting.** Removed and converted characters are highlighted directly inside the input and output boxes themselves (no separate/duplicate diff view to keep in sync) - red for removed, blue for converted, a thin ring for invisible/control characters (which have no width of their own to highlight). Any line containing a change also gets a full-row tint, GitHub-diff style, with its line number bolded and colored in the gutter, so changed lines are easy to spot at a glance even before reading the character-level marks. "Previous change" / "Next change" buttons (or Alt+Down / Alt+Up, or clicking a changed line number directly) step through the changed lines one at a time, scrolling and centering each one (in both boxes at once) with a stronger highlight than the rest. A collapsible "What changed?" panel below has the removed/converted counts by category, and a sticky footer keeps the same removed/converted counts visible even while you're scrolled down configuring fixes.
 - **Configurable fixes.** The "Fixes & explanation" drawer lists every transformation as an independent toggle, so you choose exactly what gets touched:
   - Normalize Unicode (NFKC) - folds ligatures, full-width letters, and superscripts into plain forms
   - Fold accented letters to their plain ASCII base (`é` -> `e`)
   - Straighten smart quotes (`“ ” ‘ ’` -> `" '`)
   - Convert em dashes to a hyphen or an en dash (`—` -> `-` or `–`, your choice) - every other dash (en dash, hyphen, non-breaking hyphen, figure dash, horizontal bar, minus sign) is always preserved exactly as typed
   - Strip emoji & symbols
+  - Keep currency symbols (`€ £ ¥ ₹ ₩ ₽ ¢` …) as an exception to the toggle above - off by default. The ASCII dollar sign (`$`) is always kept regardless.
   - Strip invisible & control characters - zero-width spaces, directional marks and isolates (including the ones behind the "Trojan Source" bidi-spoofing technique), control characters, Unicode tag characters (used to hide invisible payloads in otherwise normal-looking text, sometimes called "ASCII smuggling"), and deprecated variation selectors
   - Allow Hebrew characters (off by default, since the base filter targets Latin/ASCII text)
   - Remove tabs, remove extra spaces, remove line breaks, remove paragraph breaks
@@ -74,6 +75,15 @@ The `?v=` matters functionally, not just cosmetically: without it, browsers (esp
 ## Version history
 
 Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change - those are called out explicitly below.
+
+### 0.13.0
+- **Feature:** Alt+Down / Alt+Up step through changed lines from anywhere on the page, same as the Previous/Next change buttons.
+- **Feature:** clicking a changed line number directly in either gutter jumps straight to it, instead of only being reachable by stepping through Previous/Next.
+- **Feature:** a sticky footer mirrors the removed/converted counts at the bottom of the viewport, so they stay visible while you're scrolled down toggling fixes far below the boxes themselves.
+- **Feature:** a new "Keep currency symbols" toggle carves currency symbols (`€ £ ¥ ₹ ₩ ₽ ¢` …) out of "Strip emoji & symbols" so they can be preserved independently - off by default. The ASCII dollar sign (`$`) was always kept regardless and still is.
+- **Accessibility:** the removed/converted counts and the diff-navigation position are now `aria-live` regions, so a screen reader announces them as they update.
+- **Performance:** typing/pasting no longer re-runs the full filtering pipeline (including the wrapped-row measurements behind the gutter and diff navigation) on every single keystroke - it's now debounced by 80ms, flushed immediately by anything that needs current results right away (the nav buttons, leaving the input box).
+- **Fix:** the highlight overlay and gutter could end up showing a different scroll position than the actual text after typing or pasting - they weren't resynced to the textarea's own scroll position after being rebuilt, only after an explicit scroll. Most visible with content taller than the box, right after a paste.
 
 ### 0.12.0
 - **Feature:** "Previous change" / "Next change" buttons below the input/output boxes step through the changed lines one at a time - each click scrolls both boxes to center that line and marks it with a stronger highlight than the surrounding changed lines, so it's clear which one is current. Wraps around at either end; hidden entirely when there's nothing to navigate.
