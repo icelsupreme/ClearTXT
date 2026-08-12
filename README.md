@@ -61,13 +61,22 @@ npm test      # unit tests (node:test) against the filtering logic in script.js
 
 CI runs lint and tests on every push to `main` and on every pull request (see `.github/workflows/ci.yml`), plus a non-blocking `npm audit` check.
 
-### Cache-busting
+### Versioning and cache-busting
 
-`index.html` loads `styles.css` and `script.js` with a `?v=N` query string. There's no build step or asset hashing here, so bump that version number whenever either file changes — otherwise browsers (especially since this page is often opened directly over `file://`) can keep serving an old cached copy, e.g. making a checkbox toggle look like it silently stopped updating the output when it's actually just running stale JS. A plain hard refresh (Ctrl/Cmd+Shift+R) works around it for one visit, but the version bump is what prevents it for everyone else.
+There's no build step here, so the version number is kept in sync by hand in three places — bump all three together on every release:
+
+1. `version` in `package.json`
+2. the `?v=` query string on both `styles.css` and `script.js` in `index.html`
+3. the `v0.x.y` badge next to the title in `index.html`'s `<header>`
+
+The `?v=` matters functionally, not just cosmetically: without it, browsers (especially since this page is often opened directly over `file://`) can keep serving an old cached copy of `styles.css`/`script.js`, e.g. making a checkbox toggle look like it silently stopped updating the output when it's actually just running stale JS. A plain hard refresh (Ctrl/Cmd+Shift+R) works around that for one visit, but the version bump is what prevents it for everyone else. The on-page badge exists so you can tell at a glance, without opening dev tools, whether the copy you're looking at is current — compare it against the latest entry below.
 
 ## Version history
 
 Versioned per [Semantic Versioning](https://semver.org/) — `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change — those are called out explicitly below.
+
+### 0.7.0
+- **Feature:** a version badge next to the title, so you can tell at a glance whether the copy you're looking at is current. Also consolidates the previously-arbitrary `?v=` cache-busting counter to match `package.json`'s version number, so there's one number to bump per release instead of two unrelated ones.
 
 ### 0.6.0
 - **Feature:** an "Import from file" button loads a text file's contents straight into the input box.
