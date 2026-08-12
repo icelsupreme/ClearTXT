@@ -207,7 +207,20 @@
     return base;
   }
 
-  function downloadEntry(entry) {
+  // Same transient-label pattern as script.js's Copy/Export buttons
+  // ("Copied!"/"Exported!") - without this, clicking Download gave no
+  // acknowledgement at all that anything happened.
+  var BUTTON_FEEDBACK_MS = 1200;
+
+  function flashButtonLabel(btn, text) {
+    if (!btn) return;
+    var label = btn.querySelector(".btnLabel") || btn;
+    var old = label.textContent;
+    label.textContent = text;
+    setTimeout(function () { label.textContent = old; }, BUTTON_FEEDBACK_MS);
+  }
+
+  function downloadEntry(entry, btn) {
     if (!entry.result) return;
     var blob = new Blob([entry.result.output], { type: "text/plain;charset=utf-8" });
     var url = URL.createObjectURL(blob);
@@ -218,6 +231,7 @@
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    flashButtonLabel(btn, "Downloaded!");
   }
 
   function escapeHtml(s) { return ClearTXT.escapeHtml(s); }
@@ -299,7 +313,8 @@
     var id = Number(row.dataset.id);
     var entry = files.find(function (f) { return f.id === id; });
     if (!entry) return;
-    if (e.target.closest(".downloadOneBtn")) downloadEntry(entry);
+    var downloadBtn = e.target.closest(".downloadOneBtn");
+    if (downloadBtn) downloadEntry(entry, downloadBtn);
     else if (e.target.closest(".removeOneBtn")) removeEntry(id);
   });
 
@@ -319,6 +334,7 @@
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    flashButtonLabel(downloadAllBtn, "Downloaded!");
   });
 
   clearAllBtn.addEventListener("click", function () {
