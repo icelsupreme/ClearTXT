@@ -15,6 +15,7 @@ const DEFAULT_OPTS = {
   stripCurrency: true,
   stripInvisible: true,
   stripHomoglyphs: true,
+  stripUnsafeLinks: true,
   stripHebrew: true,
   stripArabic: true,
   stripCyrillic: true,
@@ -235,6 +236,58 @@ test("findMixedScriptIndices flags only the non-Latin letters in a word that mix
 
   const pureLatin = Array.from("hello");
   assert.deepEqual([...ClearTXT.findMixedScriptIndices(pureLatin)], []);
+});
+
+test("a Markdown link whose target uses an unfamiliar protocol is stripped down to its plain display text by default, and left as-is when the toggle is off - CVE-2026-20841 (Windows Notepad) showed clicking an unexpected-protocol link in a Markdown-rendering app can load/run a file with no further warning", () => {
+  assert.equal(run("[Click here](search-ms:query=malware)"), "Click here");
+  assert.equal(run("[Click here](search-ms:query=malware)", { stripUnsafeLinks: false }), "[Click here](search-ms:query=malware)");
+});
+
+test("unsafe-link stripping is independent of \"strip emoji & symbols\", governed only by its own toggle", () => {
+  assert.equal(run("[bad](search-ms:evil)", { stripEmoji: false }), "bad");
+  assert.equal(run("[bad](search-ms:evil)", { stripEmoji: false, stripUnsafeLinks: false }), "[bad](search-ms:evil)");
+});
+
+test("links using http, https, mailto, tel, or no protocol at all (relative/same-page) are always left untouched, regardless of the toggle", () => {
+  assert.equal(run("[a](https://example.com)"), "[a](https://example.com)");
+  assert.equal(run("[a](http://example.com)"), "[a](http://example.com)");
+  assert.equal(run("[a](mailto:test@example.com)"), "[a](mailto:test@example.com)");
+  assert.equal(run("[a](tel:+15551234567)"), "[a](tel:+15551234567)");
+  assert.equal(run("[a](./relative/page.html)"), "[a](./relative/page.html)");
+  assert.equal(run("[a](#section)"), "[a](#section)");
+  assert.equal(run("[a](HTTPS://example.com)"), "[a](HTTPS://example.com)"); // scheme match is case-insensitive
+});
+
+test("image syntax (![alt](url)) is left alone even with an unsafe-looking protocol - an image isn't clicked to invoke a protocol handler the way a link is", () => {
+  assert.equal(run("![alt](search-ms:evil)"), "![alt](search-ms:evil)");
+});
+
+test("a scheme with its own nested parens (e.g. javascript:alert(1)) is still matched as one balanced link target, not cut short at the first inner \")\"", () => {
+  assert.equal(run("[Download](javascript:alert(1))"), "Download");
+  assert.equal(run("[x](javascript:void(0))"), "x");
+});
+
+test("a Markdown link's category is \"unsafelink\" when stripped, and multiple links in one string are handled independently", () => {
+  assert.equal(run("[good](https://ok.com) and [bad](search-ms:evil)"), "[good](https://ok.com) and bad");
+  const { changes } = ClearTXT.processText("[bad](search-ms:evil)", opts());
+  assert.ok(changes.some((c) => c.category === "unsafelink" && c.type === "removed"));
+});
+
+test("malformed or non-link bracket/paren text is left alone, not mistaken for a link", () => {
+  assert.equal(run("[oops(no closing paren"), "[oops(no closing paren");
+  assert.equal(run("array[0](x)"), "array[0](x)"); // no scheme in \"x\" - treated as a harmless relative target
+});
+
+test("isUnsafeLinkTarget recognizes http/https/mailto/tel (case-insensitively) and schemeless targets as safe, and flags anything else", () => {
+  assert.equal(ClearTXT.isUnsafeLinkTarget("https://example.com"), false);
+  assert.equal(ClearTXT.isUnsafeLinkTarget("HTTPS://example.com"), false);
+  assert.equal(ClearTXT.isUnsafeLinkTarget("mailto:test@example.com"), false);
+  assert.equal(ClearTXT.isUnsafeLinkTarget("tel:+15551234567"), false);
+  assert.equal(ClearTXT.isUnsafeLinkTarget("./relative.html"), false);
+  assert.equal(ClearTXT.isUnsafeLinkTarget("#fragment"), false);
+  assert.equal(ClearTXT.isUnsafeLinkTarget("search-ms:query=malware"), true);
+  assert.equal(ClearTXT.isUnsafeLinkTarget("javascript:alert(1)"), true);
+  assert.equal(ClearTXT.isUnsafeLinkTarget("file:///etc/passwd"), true);
 });
 
 test("deprecated variation selector supplement is stripped by default and kept when the toggle is off", () => {

@@ -161,6 +161,7 @@
     arabic: "Arabic",
     cyrillic: "Cyrillic",
     homoglyph: "look-alike characters",
+    unsafelink: "unsafe link protocols",
     currency: "currency symbols",
     tab: "tabs",
     linebreak: "line breaks",
@@ -267,6 +268,82 @@
     return flagged;
   }
 
+  // Markdown link targets this app trusts enough to leave clickable.
+  // Deliberately small and permissive-by-omission (unlike the mixed-script
+  // check above, which flags anything unusual): a link with no scheme at
+  // all (a relative path like "./page.html" or a same-page fragment like
+  // "#section") can't invoke a protocol handler either, so it's treated
+  // as safe the same way a listed scheme is.
+  var SAFE_LINK_SCHEMES = new Set(["http", "https", "mailto", "tel"]);
+  var LINK_SCHEME_RE = /^\s*<?\s*([a-zA-Z][a-zA-Z0-9+.-]*):/;
+
+  // True if `urlText` (a Markdown link's target, between the parens) uses
+  // a scheme outside the safe list above. Windows Notepad's Markdown mode
+  // shipped a vulnerability (CVE-2026-20841) where clicking a link with an
+  // unexpected/unverified protocol could load and run a local or remote
+  // file with no further warning - the same class of risk applies to any
+  // Markdown-rendering app a "cleaned" file might later be opened in
+  // (chat apps, note-taking apps, IDE previews, ...). A link with no
+  // scheme at all is left alone; see SAFE_LINK_SCHEMES above.
+  function isUnsafeLinkTarget(urlText) {
+    var m = LINK_SCHEME_RE.exec(urlText);
+    if (!m) return false;
+    return !SAFE_LINK_SCHEMES.has(m[1].toLowerCase());
+  }
+
+  // Finds every character that's part of an unsafe Markdown link's syntax
+  // wrapper - the square brackets and the parenthesized target - for a
+  // link (not an image; image syntax is `![alt](url)` and is left alone,
+  // since an image reference isn't something a reader clicks to invoke a
+  // protocol handler the way a link is) whose target uses a scheme
+  // outside SAFE_LINK_SCHEMES. The link's own display text is deliberately
+  // NOT included, so e.g. `[Click here](search-ms:evil)` reduces to plain
+  // `Click here` rather than disappearing entirely - the same "flatten a
+  // link down to its text" transformation stripMarkdown already does for
+  // every link when computing the word count, just applied here to only
+  // the unsafe ones, and to the real output rather than a word-count-only
+  // copy. A hand-rolled bracket/paren scanner over `chars` (rather than a
+  // regex run against the joined string) so match positions are already
+  // code-point indices - consistent with how findMixedScriptIndices above
+  // avoids the same UTF-16-code-unit-vs-code-point mismatch a raw string
+  // regex's `.index` would otherwise introduce for any text containing
+  // astral characters before a match. Not a full CommonMark parser -
+  // pragmatic bracket/paren matching that doesn't span a line break,
+  // matching stripMarkdown's own level of rigor.
+  //
+  // `chars` is an array of one entry per Unicode code point (as from
+  // Array.from(text)); returns a Set of indices into it.
+  function findUnsafeLinkRanges(chars) {
+    var toRemove = new Set();
+    var i = 0;
+    while (i < chars.length) {
+      if (chars[i] !== "[" || chars[i - 1] === "!") { i++; continue; }
+      var textEnd = i + 1;
+      while (textEnd < chars.length && chars[textEnd] !== "]" && chars[textEnd] !== "\n") textEnd++;
+      if (chars[textEnd] !== "]" || chars[textEnd + 1] !== "(") { i++; continue; }
+      // Paren-depth-aware, not just "scan to the next )" - a scheme like
+      // javascript: routinely has its own parens (e.g. "javascript:alert(1)"),
+      // and stopping at the first ")" would leave the link's real closing
+      // paren dangling as leftover text instead of part of the match.
+      var urlEnd = textEnd + 2;
+      var depth = 1;
+      while (urlEnd < chars.length && depth > 0) {
+        if (chars[urlEnd] === "\n") break;
+        if (chars[urlEnd] === "(") depth++;
+        else if (chars[urlEnd] === ")") { depth--; if (depth === 0) break; }
+        urlEnd++;
+      }
+      if (chars[urlEnd] !== ")") { i = textEnd + 1; continue; }
+
+      if (isUnsafeLinkTarget(chars.slice(textEnd + 2, urlEnd).join(""))) {
+        toRemove.add(i);
+        for (var k = textEnd; k <= urlEnd; k++) toRemove.add(k);
+      }
+      i = urlEnd + 1;
+    }
+    return toRemove;
+  }
+
   // Tries to fold a single character down to a plain-ASCII equivalent by
   // decomposing it (NFD) and stripping combining marks, e.g. é -> e.
   // Returns null when the character has no plain-ASCII base (CJK, emoji…).
@@ -322,6 +399,7 @@
     var changes = [];
     var chars = Array.from(src);
     var mixedScriptIdx = findMixedScriptIndices(chars);
+    var unsafeLinkIdx = findUnsafeLinkRanges(chars);
 
     for (var i = 0; i < chars.length; i++) {
       var ch = chars[i];
@@ -348,6 +426,15 @@
           changes.push({ ch: ch, type: "removed", category: "homoglyph", replacement: "" });
         } else {
           changes.push({ ch: ch, type: "kept", category: "homoglyph", replacement: ch });
+        }
+        continue;
+      }
+
+      if (unsafeLinkIdx.has(i)) {
+        if (opts.stripUnsafeLinks) {
+          changes.push({ ch: ch, type: "removed", category: "unsafelink", replacement: "" });
+        } else {
+          changes.push({ ch: ch, type: "kept", category: "unsafelink", replacement: ch });
         }
         continue;
       }
@@ -834,6 +921,8 @@
     isArabic: isArabic,
     isCyrillic: isCyrillic,
     findMixedScriptIndices: findMixedScriptIndices,
+    isUnsafeLinkTarget: isUnsafeLinkTarget,
+    findUnsafeLinkRanges: findUnsafeLinkRanges,
     foldAccent: foldAccent,
     slugForFilename: slugForFilename,
     exportFilename: exportFilename,
@@ -964,6 +1053,7 @@
       ["optStripCurrency", "stripCurrency", true, "symbols"],
       ["optStripInvisible", "stripInvisible", true, "symbols"],
       ["optStripHomoglyphs", "stripHomoglyphs", true, "symbols"],
+      ["optStripUnsafeLinks", "stripUnsafeLinks", true, "symbols"],
       ["optRemoveTabs", "removeTabs", false, "whitespace"],
       ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
       ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
