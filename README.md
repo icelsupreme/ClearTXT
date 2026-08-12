@@ -27,6 +27,10 @@ The page loads [Noto Sans](https://fonts.google.com/noto/specimen/Noto+Sans), [N
 
 This is the only network request the page makes on its own. If you want a copy that makes zero external requests, download the three families' `.woff2` files, add `@font-face` rules pointing at them in `styles.css`, and remove the Google Fonts `<link>` tags from `index.html` - the CSS `font-family` stacks (`--font-sans` / `--font-mono` in `styles.css`) already reference the right family names and don't need to change.
 
+## Icons
+
+Button icons are [Lucide](https://lucide.dev) (ISC License), embedded directly as inline `<svg>` markup in `index.html` - no icon font, no JS runtime, no extra network request. `stroke="currentColor"` is what lets them pick up each button's own text color automatically, including on hover.
+
 ## Usage
 
 This is a static page - no server or build required. Either:
@@ -76,6 +80,10 @@ The `?v=` matters functionally, not just cosmetically: without it, browsers (esp
 ## Version history
 
 Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change - those are called out explicitly below.
+
+### 0.19.0
+- **Feature (UI polish):** every button now has a matching [Lucide](https://lucide.dev) icon (import/clear/copy/export/previous/next/restore defaults), embedded as inline SVG - no icon font or added dependency. Buttons also get a subtle shadow, a real hover state (background tint, not just a border-color change), and a small press-down effect on click; the input/output boxes and the collapsible panels get a subtle drop shadow too, for a bit more depth against the flat background.
+- **Fix:** the transient button labels ("Copied!", "Exported!", "Import failed") now only replace the button's text, not its icon - they used to overwrite the whole button's content via `textContent`, which would have silently deleted the new icons the first time any of those fired.
 
 ### 0.18.0
 - **Feature (fonts):** the page now loads Noto Sans, Noto Sans Mono, and Noto Sans Hebrew from Google Fonts, instead of each OS/browser's own default font stack - previously nothing was explicitly set for most controls (buttons, the em dash `<select>`, the version badge), so they rendered in whatever the browser's own UI font happened to be, on top of the input/output boxes' monospace stack already varying between platforms. See the new "Fonts" section above for the self-hosting alternative if you'd rather avoid the external request.

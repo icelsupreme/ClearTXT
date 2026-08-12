@@ -85,6 +85,8 @@ header p {
   border: 1px solid var(--border);
   background: var(--panel);
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  transition: box-shadow .15s;
 }
 /* Replaces the native textarea:focus outline (removed below, since it
    doesn't follow the box's rounded corners) with a ring on the whole
@@ -204,15 +206,20 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 7px;
   border-radius: 8px;
   font-family: var(--font-sans);
   font-size: 0.9rem;
   cursor: pointer;
-  transition: border-color .15s, background .15s;
+  box-shadow: 0 1px 2px rgba(0,0,0,.2);
+  transition: border-color .15s, background .15s, box-shadow .15s, transform .1s;
 }
-button:hover { border-color: var(--accent); }
+button:hover { border-color: var(--accent); background: #1c2029; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+button:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.btnIcon { width: 16px; height: 16px; flex-shrink: 0; }
 @media (prefers-reduced-motion: reduce) {
   button { transition: none; }
+  button:active { transform: none; }
 }
 .stats {
   margin-left: auto;
@@ -254,6 +261,7 @@ details {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 4px 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
 }
 details summary {
   cursor: pointer;
