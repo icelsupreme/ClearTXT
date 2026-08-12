@@ -70,6 +70,9 @@ The `?v=` matters functionally, not just cosmetically: without it, browsers (esp
 
 Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change - those are called out explicitly below.
 
+### 0.17.1
+- **Refactor:** the copy/export/import-failure button feedback ("Copied!", "Exported!", "Import failed") shared the same set-label-then-revert logic three times over, with two different, undocumented timeout values (1200ms and 1500ms) split across them for no particular reason. Extracted into one `flashButtonLabel` helper backed by a single named constant - all three now revert after the same 1200ms.
+
 ### 0.17.0
 - **Feature:** the sticky footer now shows the input/output character counts (before -> after) and a word count, alongside the existing removed/converted counts. The word count strips common Markdown syntax first (headings, emphasis, links, images, code spans/blocks, block quotes, lists, horizontal rules, table pipes) so formatting characters don't inflate it - it's not a full CommonMark parser, just the syntax people actually type by hand.
 - **Feature:** a "Restore defaults" button in the "Fixes & explanation" drawer resets every fix toggle and the em dash target back to its default in one click, without needing to flip each one back by hand.

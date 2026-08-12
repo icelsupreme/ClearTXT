@@ -1143,6 +1143,16 @@
   }
   optConvertDashes.addEventListener("change", syncDashTargetEnabled);
 
+  // Milliseconds a button's label stays showing a transient status ("Copied!",
+  // "Exported!", "Import failed") before reverting to its normal text.
+  var BUTTON_FEEDBACK_MS = 1200;
+
+  function flashButtonLabel(btn, text) {
+    var old = btn.textContent;
+    btn.textContent = text;
+    setTimeout(function () { btn.textContent = old; }, BUTTON_FEEDBACK_MS);
+  }
+
   importBtn.addEventListener("click", function () {
     importFile.click();
   });
@@ -1160,9 +1170,7 @@
         // Same transient-label feedback pattern as copyBtn/exportBtn below,
         // so a failed read isn't a silent no-op - the input is left as it
         // was, but the user finds out the import didn't happen.
-        var old = importBtn.textContent;
-        importBtn.textContent = "Import failed";
-        setTimeout(function () { importBtn.textContent = old; }, 1500);
+        flashButtonLabel(importBtn, "Import failed");
       })
       .finally(function () {
         // Reset so choosing the same file again still fires "change".
@@ -1173,9 +1181,7 @@
   copyBtn.addEventListener("click", function () {
     output.select();
     navigator.clipboard && navigator.clipboard.writeText(output.value);
-    var old = copyBtn.textContent;
-    copyBtn.textContent = "Copied!";
-    setTimeout(function () { copyBtn.textContent = old; }, 1200);
+    flashButtonLabel(copyBtn, "Copied!");
   });
 
   exportBtn.addEventListener("click", function () {
@@ -1190,9 +1196,7 @@
     a.remove();
     URL.revokeObjectURL(url);
 
-    var old = exportBtn.textContent;
-    exportBtn.textContent = "Exported!";
-    setTimeout(function () { exportBtn.textContent = old; }, 1200);
+    flashButtonLabel(exportBtn, "Exported!");
   });
 
   clearBtn.addEventListener("click", function () {
