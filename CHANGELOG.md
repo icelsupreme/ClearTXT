@@ -2,6 +2,9 @@
 
 All notable changes to ClearTXT, versioned per [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`, tracked in `package.json`). A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix or docs change with no behavior change. Releases before 1.0.0 were pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release there could still include a behavior change - those are called out explicitly below.
 
+### 1.7.0
+- **Feature:** a proper social sharing card (`docs/social-card.png`, 1200x900, built from the header's own broom-sparkles icon) wired into `og:image`/`twitter:image` on every page, so links posted on social media, Slack, iMessage, etc. now show a real preview image instead of no image at all. `twitter:card` changed from `summary` to `summary_large_image` to match. Every page's `meta description`/`og:description`/`twitter:description` now also ends with "Made by Aviv M. Icel."
+
 ### 1.6.0
 - **Docs:** a new [documentation.html](docs/documentation.html) page, linked from every page's footer, explaining what ClearTXT actively defends against and how: hidden/invisible characters (zero-width characters, "Trojan Source" bidirectional overrides, Unicode Tag/variation-selector smuggling, plain control characters), look-alike (homoglyph) mixed-script characters, and script confusion (Hebrew/Arabic/Cyrillic) - each section names the toggle that governs it. Also includes a "what this page doesn't cover" section stating plainly that ClearTXT cleans characters, not meaning, and isn't a comprehensive security scanner. Written for a general reader, not a repeat of CHANGELOG.md's changelog-style technical detail - describes the current, steady-state behavior of each protection rather than the history of how it was added.
 

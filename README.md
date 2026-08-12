@@ -21,11 +21,11 @@ It's a single static page: no backend, no build step, and none of your text ever
 
 The page loads [Noto Sans](https://fonts.google.com/noto/specimen/Noto+Sans), [Noto Sans Mono](https://fonts.google.com/noto/specimen/Noto+Sans+Mono), [Noto Sans Hebrew](https://fonts.google.com/noto/specimen/Noto+Sans+Hebrew), and [Noto Sans Arabic](https://fonts.google.com/noto/specimen/Noto+Sans+Arabic) from Google Fonts, for consistent rendering across browsers/OSes - including Hebrew and Arabic text, which fall back to their own family per-character automatically. This is the only network request the page makes on its own.
 
-For a copy that makes zero external requests: download the three families' `.woff2` files, add `@font-face` rules pointing at them in `docs/styles.css`, and remove the Google Fonts `<link>` tags from `docs/index.html` - the existing `--font-sans`/`--font-mono` stacks in `docs/styles.css` already reference the right family names and don't need to change.
+For a copy that makes zero external requests: download the four families' `.woff2` files, add `@font-face` rules pointing at them in `docs/styles.css`, and remove the Google Fonts `<link>` tags from every page in `docs/` - the existing `--font-sans`/`--font-mono` stacks in `docs/styles.css` already reference the right family names and don't need to change.
 
 ## Icons
 
-Button icons are [Lucide](https://lucide.dev) (ISC License), embedded directly as inline `<svg>` markup in `docs/index.html` - no icon font, no JS runtime, no extra network request. `stroke="currentColor"` is what lets them pick up each button's own text color automatically, including on hover.
+Button icons are [Lucide](https://lucide.dev) (ISC License), embedded directly as inline `<svg>` markup in each page's own HTML - no icon font, no JS runtime, no extra network request. `stroke="currentColor"` is what lets them pick up each button's own text color automatically, including on hover.
 
 ## Usage
 
@@ -57,6 +57,7 @@ docs/
   script.js           filtering logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
   batch.js            batch page's DOM wiring, built on script.js's shared logic
   favicon.svg         browser tab icon, also embedded inline as the header's logo icon
+  social-card.png     social sharing preview image (og:image/twitter:image), built from favicon.svg's icon
 test/             unit tests for the filtering logic
 CHANGELOG.md      full version history
 ```
@@ -71,7 +72,7 @@ npm run lint  # ESLint
 npm test      # unit tests (node:test) against the filtering logic in docs/script.js
 ```
 
-`docs/script.js` runs as a plain browser script, but its pure text-processing functions (`processText`, `applyWhitespaceCleanup`, `buildRuns`, etc.) are also exposed via `module.exports` when loaded under Node, which is what `test/processText.test.js` exercises directly - no DOM or browser needed to run the test suite.
+`docs/script.js` runs as a plain browser script, but its pure text-processing functions (`processText`, `applyWhitespaceCleanup`, `inputHighlightHtml`, etc.) are also exposed via `module.exports` when loaded under Node, which is what `test/processText.test.js` exercises directly - no DOM or browser needed to run the test suite.
 
 CI runs lint and tests on every push to `main` and on every pull request (see `.github/workflows/ci.yml`), plus a non-blocking `npm audit` check.
 
