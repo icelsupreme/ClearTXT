@@ -305,3 +305,7 @@ details code { color: var(--accent); background: #0d1017; padding: 1px 5px; bord
 .legend .sw.removed { background: rgba(255,107,107,.5); }
 .legend .sw.converted { background: rgba(79,157,255,.4); }
 .legend .sw.invisible { background: transparent; box-shadow: 0 0 0 1.5px var(--invisible); }
+
+.pageCredit { text-align: center; color: var(--muted); font-size: 0.8rem; margin: 20px 0 0; }
+.pageCredit a { color: var(--muted); }
+.pageCredit a:hover { color: var(--accent); }

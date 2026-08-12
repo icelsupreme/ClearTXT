@@ -1,6 +1,7 @@
 # ClearTXT
 
 [![CI](https://github.com/icelsupreme/ClearTXT/actions/workflows/ci.yml/badge.svg)](https://github.com/icelsupreme/ClearTXT/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A small, dependency-free web tool that strips text down to a clean, safe character set - paste text in, get a filtered, normalized version out, side by side with a highlighted diff of exactly what changed.
 
@@ -69,6 +70,9 @@ The `?v=` matters functionally, not just cosmetically: without it, browsers (esp
 ## Version history
 
 Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change - those are called out explicitly below.
+
+### 0.17.2
+- **Docs:** added an MIT `LICENSE` file, plus `license`/`author` fields in `package.json`. Added License and Author sections to this README, and a small "Made by ..." credit line (linking to GitHub and Bluesky) at the bottom of the page itself.
 
 ### 0.17.1
 - **Refactor:** the copy/export/import-failure button feedback ("Copied!", "Exported!", "Import failed") shared the same set-label-then-revert logic three times over, with two different, undocumented timeout values (1200ms and 1500ms) split across them for no particular reason. Extracted into one `flashButtonLabel` helper backed by a single named constant - all three now revert after the same 1200ms.
@@ -164,3 +168,11 @@ Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, 
 
 ### 0.1.0
 - **Initial release:** a single-page text filter that strips input down to a printable-ASCII-plus-curated-dashes whitelist, after normalizing to Unicode NFKC (folding ligatures, full-width forms, superscripts, ...) and explicitly stripping zero-width/invisible characters. Copy/clear controls and an explanation of what's kept vs. removed.
+
+## License
+
+[MIT](LICENSE)
+
+## Author
+
+Aviv M. Icel - [GitHub](https://github.com/icelsupreme) - [Bluesky](https://bsky.app/profile/icel.me)
