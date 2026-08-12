@@ -624,7 +624,8 @@
     exportFilename: exportFilename,
     stripMarkdown: stripMarkdown,
     wordCount: wordCount,
-    createFixOptionsController: createFixOptionsController
+    createFixOptionsController: createFixOptionsController,
+    flashButtonLabel: flashButtonLabel
   };
 
   if (typeof module !== "undefined" && module.exports) {
@@ -634,6 +635,50 @@
   }
 
   if (typeof document === "undefined") return;
+
+  // Milliseconds a button's label stays showing a transient status
+  // ("Copied!", "Exported!", "Downloaded!", ...) before reverting to its
+  // normal text. Shared (via the ClearTXT export above) by both this
+  // page's own buttons below and batch.html's, so the pattern only has to
+  // live - and be fixed - in one place. This assignment (unlike a plain
+  // function declaration) has to run unconditionally, before the
+  // single-file-page-only "if (!input) return" below - a `var` only
+  // hoists its declaration, not its value, so placing this after that
+  // early return left BUTTON_FEEDBACK_MS permanently undefined on
+  // batch.html, which made every flash's setTimeout fire with an
+  // undefined delay (effectively 0ms) instead of actually holding for
+  // 1.2s.
+  var BUTTON_FEEDBACK_MS = 1200;
+
+  // Flashes `text` on `btn`'s label, then reverts to whatever it said
+  // before. A second call on the same button while a flash is still
+  // showing resets the timer instead of stacking a second one - the
+  // button's true original label is stashed in a dataset attribute rather
+  // than a closure variable specifically so a second call can find and
+  // preserve it instead of re-capturing the currently-showing flash text
+  // as the "original" to revert to. Without this, two clicks within the
+  // window could leave the button stuck showing the flash text forever:
+  // the first timer correctly reverts at t=1200ms, but the second timer
+  // (which captured "Copied!" as its own "original") then overwrites that
+  // correct revert right back to "Copied!" when it fires.
+  function flashButtonLabel(btn, text) {
+    if (!btn) return;
+    // Targets the .btnLabel span, not the button itself - buttons also
+    // contain an icon <svg>, and btn.textContent = ... would silently
+    // delete it (textContent replaces every child node, icon included).
+    var label = btn.querySelector(".btnLabel") || btn;
+    if (label.dataset.flashTimer) {
+      clearTimeout(Number(label.dataset.flashTimer));
+    } else {
+      label.dataset.flashOriginal = label.textContent;
+    }
+    label.textContent = text;
+    label.dataset.flashTimer = String(setTimeout(function () {
+      label.textContent = label.dataset.flashOriginal;
+      delete label.dataset.flashTimer;
+      delete label.dataset.flashOriginal;
+    }, BUTTON_FEEDBACK_MS));
+  }
 
   var input = document.getElementById("input");
   // Not the main single-editor page (e.g. batch.html, which loads this
@@ -1214,20 +1259,6 @@
       updateGutter(output, outGutter, lastOutLineChanged);
     });
   });
-
-  // Milliseconds a button's label stays showing a transient status ("Copied!",
-  // "Exported!", "Import failed") before reverting to its normal text.
-  var BUTTON_FEEDBACK_MS = 1200;
-
-  function flashButtonLabel(btn, text) {
-    // Targets the .btnLabel span, not the button itself - buttons also
-    // contain an icon <svg>, and btn.textContent = ... would silently
-    // delete it (textContent replaces every child node, icon included).
-    var label = btn.querySelector(".btnLabel") || btn;
-    var old = label.textContent;
-    label.textContent = text;
-    setTimeout(function () { label.textContent = old; }, BUTTON_FEEDBACK_MS);
-  }
 
   importBtn.addEventListener("click", function () {
     importFile.click();
