@@ -15,45 +15,48 @@ It's a single static page: no backend, no build step, and none of your text ever
 - **Line numbers** on both text boxes, kept aligned even when lines wrap.
 - **Import, copy, or export** - load any text file (plain text or source code) straight into the input, copy the output to the clipboard, or download it as a `.txt` file named after the output's first line.
 - **Your fix preferences persist** across visits via `localStorage`.
-- **Batch mode** ([batch.html](batch.html)) cleans multiple files at once - drag files in (or pick them), each is filtered with the same fixes and downloaded under its original filename. Fix preferences are shared with the single-file page.
+- **Batch mode** ([batch.html](docs/batch.html)) cleans multiple files at once - drag files in (or pick them), each is filtered with the same fixes and downloaded under its original filename. Fix preferences are shared with the single-file page.
 
 ## Fonts
 
 The page loads [Noto Sans](https://fonts.google.com/noto/specimen/Noto+Sans), [Noto Sans Mono](https://fonts.google.com/noto/specimen/Noto+Sans+Mono), and [Noto Sans Hebrew](https://fonts.google.com/noto/specimen/Noto+Sans+Hebrew) from Google Fonts, for consistent rendering across browsers/OSes - including Hebrew text, which falls back to the Hebrew family per-character automatically. This is the only network request the page makes on its own.
 
-For a copy that makes zero external requests: download the three families' `.woff2` files, add `@font-face` rules pointing at them in `styles.css`, and remove the Google Fonts `<link>` tags from `index.html` - the existing `--font-sans`/`--font-mono` stacks in `styles.css` already reference the right family names and don't need to change.
+For a copy that makes zero external requests: download the three families' `.woff2` files, add `@font-face` rules pointing at them in `docs/styles.css`, and remove the Google Fonts `<link>` tags from `docs/index.html` - the existing `--font-sans`/`--font-mono` stacks in `docs/styles.css` already reference the right family names and don't need to change.
 
 ## Icons
 
-Button icons are [Lucide](https://lucide.dev) (ISC License), embedded directly as inline `<svg>` markup in `index.html` - no icon font, no JS runtime, no extra network request. `stroke="currentColor"` is what lets them pick up each button's own text color automatically, including on hover.
+Button icons are [Lucide](https://lucide.dev) (ISC License), embedded directly as inline `<svg>` markup in `docs/index.html` - no icon font, no JS runtime, no extra network request. `stroke="currentColor"` is what lets them pick up each button's own text color automatically, including on hover.
 
 ## Usage
 
 This is a static page - no server or build required. Either:
 
-- Open `index.html` directly in a browser, or
+- Open `docs/index.html` directly in a browser, or
 - Serve the directory locally, e.g.:
 
   ```sh
-  python3 -m http.server 8000
+  cd docs && python3 -m http.server 8000
   ```
 
   then visit `http://localhost:8000`.
 
 ## Project structure
 
+The site itself lives in `docs/` - not because it's documentation, but because that's one of only two folder names ([along with repo root](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)) GitHub Pages' "Deploy from a branch" source can publish directly, with no build step or extra workflow needed. Everything else here is project housekeeping, not part of the deployed site.
+
 ```
-index.html      markup for the single-file page
-batch.html      markup for the batch (multi-file) page
-changelog.html  a condensed, user-facing "what's new," linked from every page's footer
-styles.css      shared styling
-batch.css       styling specific to the batch page
-changelog.css   styling specific to the changelog page
-script.js       filtering logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
-batch.js        batch page's DOM wiring, built on script.js's shared logic
-favicon.svg     browser tab icon, also embedded inline as the header's logo icon
-test/           unit tests for the filtering logic
-CHANGELOG.md    full version history
+docs/
+  index.html      markup for the single-file page
+  batch.html      markup for the batch (multi-file) page
+  changelog.html  a condensed, user-facing "what's new," linked from every page's footer
+  styles.css      shared styling
+  batch.css       styling specific to the batch page
+  changelog.css   styling specific to the changelog page
+  script.js       filtering logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
+  batch.js        batch page's DOM wiring, built on script.js's shared logic
+  favicon.svg     browser tab icon, also embedded inline as the header's logo icon
+test/             unit tests for the filtering logic
+CHANGELOG.md      full version history
 ```
 
 ## Development
@@ -63,10 +66,10 @@ Requires Node.js (for linting and tests only - the page itself has no runtime de
 ```sh
 npm install   # dev dependencies: eslint + test runner support
 npm run lint  # ESLint
-npm test      # unit tests (node:test) against the filtering logic in script.js
+npm test      # unit tests (node:test) against the filtering logic in docs/script.js
 ```
 
-`script.js` runs as a plain browser script, but its pure text-processing functions (`processText`, `applyWhitespaceCleanup`, `buildRuns`, etc.) are also exposed via `module.exports` when loaded under Node, which is what `test/processText.test.js` exercises directly - no DOM or browser needed to run the test suite.
+`docs/script.js` runs as a plain browser script, but its pure text-processing functions (`processText`, `applyWhitespaceCleanup`, `buildRuns`, etc.) are also exposed via `module.exports` when loaded under Node, which is what `test/processText.test.js` exercises directly - no DOM or browser needed to run the test suite.
 
 CI runs lint and tests on every push to `main` and on every pull request (see `.github/workflows/ci.yml`), plus a non-blocking `npm audit` check.
 
@@ -75,8 +78,8 @@ CI runs lint and tests on every push to `main` and on every pull request (see `.
 There's no build step here, so the version number is kept in sync by hand in three places - bump all three together on every release:
 
 1. `version` in `package.json`
-2. the `?v=` query string on `styles.css`, `script.js`, and `favicon.svg` in `index.html`
-3. the version badge next to the title in `index.html`'s `<header>`
+2. the `?v=` query string on every `.css`/`.js`/`.svg` reference across `docs/index.html`, `docs/batch.html`, and `docs/changelog.html`
+3. the version badge next to the title in each page's `<header>`
 
 The `?v=` matters functionally, not just cosmetically: without it, browsers (especially since this page is often opened directly over `file://`) can keep serving a stale cached copy of `styles.css`/`script.js` after an update. The on-page badge exists so you can tell at a glance whether the copy you're looking at is current.
 

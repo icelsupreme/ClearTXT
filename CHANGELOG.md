@@ -2,8 +2,12 @@
 
 All notable changes to ClearTXT, versioned per [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`, tracked in `package.json`). A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix or docs change with no behavior change. Releases before 1.0.0 were pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release there could still include a behavior change - those are called out explicitly below.
 
+### 1.3.1
+- **Docs:** the public [changelog.html](docs/changelog.html) page was missing an entry for 1.3.0 itself (the page that added it) - added.
+- **Reorg:** moved the deployed site (`index.html`, `batch.html`, `changelog.html`, every `.css`/`.js` file, `favicon.svg`) into a new `docs/` folder, separating it from project housekeeping (README, this file, `package.json`, `test/`, CI config) that stays at the repo root. `docs/` isn't documentation here - it's one of only two folder names GitHub Pages' "Deploy from a branch" source can publish directly (the other being the repo root itself), so the move needed no new build step or deploy workflow, just flipping the Pages source folder setting from "/ (root)" to "/docs" once. Updated every path reference accordingly: `eslint.config.js`'s per-file rules, `test/processText.test.js`'s `require()`, and this project's own docs.
+
 ### 1.3.0
-- **Feature:** a new [changelog.html](changelog.html) page - a condensed, user-facing "what's new," grouped by release, distinct from this file's full technical detail (which it links out to). Linked from every page's footer.
+- **Feature:** a new [changelog.html](docs/changelog.html) page - a condensed, user-facing "what's new," grouped by release, distinct from this file's full technical detail (which it links out to). Linked from every page's footer.
 - **Feature:** a "Share" button in every page's footer that copies the current page's URL to the clipboard, next to the existing "Made by ..." credit line.
 - **Cleanup:** removed `.claude/skills/ui-ux-pro-max/` (a Claude Code skill's own data files - CSVs, Python scripts, reference docs) from version control - it was never part of this project's own source, just accidentally committed alongside it. Added `.claude/` to `.gitignore` to keep it from happening again.
 - **Docs:** fixed a stray raw `<code>` HTML tag and an unintended italic in the 1.2.1 entry below, which should have used this file's usual backtick/plain-text style throughout.
@@ -34,7 +38,7 @@ All notable changes to ClearTXT, versioned per [Semantic Versioning](https://sem
 - **Fix (batch mode):** "Download all" now bundles every cleaned file into a single `.zip` and triggers one Save dialog, instead of one browser download per file (which the browser could treat as suspicious and block past a handful of files). Implemented as a small hand-written, uncompressed ZIP writer - no library added, keeping the app dependency-free. Individual per-file "Download" buttons are unchanged.
 
 ### 1.1.0
-- **Feature:** a new batch mode ([batch.html](batch.html)) cleans multiple files at once - drag files in or pick them, each is filtered live with the same fixes as the single-file page and downloaded under its original filename (individually or all at once). Fix preferences are shared with the single-file page via the same `localStorage` key.
+- **Feature:** a new batch mode ([batch.html](docs/batch.html)) cleans multiple files at once - drag files in or pick them, each is filtered live with the same fixes as the single-file page and downloaded under its original filename (individually or all at once). Fix preferences are shared with the single-file page via the same `localStorage` key.
 - **Refactor:** the "Fixes & explanation" panel's toggle/group/localStorage wiring, previously inline in `script.js`, is now a shared `createFixOptionsController` factory (also exported on `ClearTXT`) so both pages drive their own copy of the same panel without duplicating that logic. `script.js` now also no-ops the single-file page's own wiring when loaded on a page without its input/output boxes (i.e. batch.html), so it's safe to load there for the shared pure functions and the controller alone.
 
 ### 1.0.2
