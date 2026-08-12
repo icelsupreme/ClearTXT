@@ -487,6 +487,13 @@ test("slugForFilename strips characters illegal in filenames", () => {
   assert.equal(ClearTXT.slugForFilename('a/b\\c:d*e?f"g<h>i|j'), "abcdefghij");
 });
 
+test("slugForFilename strips Unicode Format/bidi-control characters unconditionally, so a right-to-left override in the text can't visually disguise the exported file's own extension (regardless of the \"strip invisible\" toggle, which only governs the text shown in the output box, not the filename an export becomes)", () => {
+  const rlo = String.fromCodePoint(0x202e); // right-to-left override
+  assert.equal(ClearTXT.slugForFilename("invoice" + rlo + "cod.exe"), "invoicecod.exe");
+  const zwsp = String.fromCodePoint(0x200b);
+  assert.equal(ClearTXT.slugForFilename("a" + zwsp + "b"), "ab");
+});
+
 test("slugForFilename truncates long first lines and trims a trailing hyphen left by truncation", () => {
   const longLine = "word ".repeat(20); // 100 chars, well past the 50-char cap
   const slug = ClearTXT.slugForFilename(longLine);

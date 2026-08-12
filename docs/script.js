@@ -716,9 +716,23 @@
   // just awkward) in a filename on common OSes, collapses whitespace to
   // hyphens, and truncates. Returns "" if there's nothing usable (empty
   // text, or a first line that's entirely unsafe/whitespace characters).
+  //
+  // Also strips Unicode Format-category/bidi-control characters (the same
+  // ones isFormatChar catches in the main pipeline) unconditionally, not
+  // just when "Strip invisible & control characters" is on: those govern
+  // what survives in the TEXT you see in the output box, but a filename
+  // is a different context entirely - it becomes a real OS-level name in
+  // a Save dialog and file listings, not scrollable text with room for a
+  // labeled marker. Left in, e.g. a right-to-left override (U+202E) could
+  // visually reverse part of the exported filename - the same "disguise
+  // an .exe as a .txt" trick documented as a real-world malware delivery
+  // technique - which this app of all things shouldn't hand back to you
+  // in a file it just generated.
   function slugForFilename(text) {
     var firstLine = (text.split("\n")[0] || "");
-    return firstLine
+    return Array.from(firstLine)
+      .filter(function (ch) { return !isFormatChar(ch.codePointAt(0)); })
+      .join("")
       // eslint-disable-next-line no-control-regex -- intentionally stripping control chars too
       .replace(/[\\/:*?"<>|\x00-\x1F]/g, "")
       .trim()
