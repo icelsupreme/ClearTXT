@@ -229,6 +229,12 @@ test("outputLineChanged flags lines in the OUTPUT text, which can differ from th
   assert.deepEqual(ClearTXT.outputLineChanged(changes), [true, false]);
 });
 
+test("changedLineNumbers extracts the indices of true flags, in order, and returns [] for null", () => {
+  assert.deepEqual(ClearTXT.changedLineNumbers([false, true, false, true, true]), [1, 3, 4]);
+  assert.deepEqual(ClearTXT.changedLineNumbers([false, false]), []);
+  assert.deepEqual(ClearTXT.changedLineNumbers(null), []);
+});
+
 test("summarizeChanges and formatCatCounts report accurate per-category totals", () => {
   const { changes } = ClearTXT.processText("café “world” 😀", opts());
   const sums = ClearTXT.summarizeChanges(changes);

@@ -530,6 +530,20 @@
   // highlighting entirely.
   var MAX_DIFF_CHARS = 20000;
 
+  // Turns a line-changed flags array (from inputLineChanged/outputLineChanged)
+  // into the plain list of changed line numbers - the sequence the
+  // prev/next diff-navigation buttons step through. Null in, empty list
+  // out, so callers don't need their own guard for the normalization-
+  // mismatch case.
+  function changedLineNumbers(flags) {
+    if (!flags) return [];
+    var out = [];
+    for (var i = 0; i < flags.length; i++) {
+      if (flags[i]) out.push(i);
+    }
+    return out;
+  }
+
   // Everything above this point is pure text-processing logic with no DOM
   // dependency, exported below for unit testing (see test/). Everything
   // below wires that logic up to the actual page and only runs in a
@@ -543,6 +557,7 @@
     outputHighlightHtml: outputHighlightHtml,
     inputLineChanged: inputLineChanged,
     outputLineChanged: outputLineChanged,
+    changedLineNumbers: changedLineNumbers,
     escapeHtml: escapeHtml,
     invisibleInfo: invisibleInfo,
     isHiddenPayloadRange: isHiddenPayloadRange,
@@ -578,6 +593,10 @@
   var diffSummary = document.getElementById("diffSummary");
   var diffCounts = document.getElementById("diffCounts");
   var diffNote = document.getElementById("diffNote");
+  var diffNav = document.getElementById("diffNav");
+  var diffPrevBtn = document.getElementById("diffPrevBtn");
+  var diffNextBtn = document.getElementById("diffNextBtn");
+  var diffNavCount = document.getElementById("diffNavCount");
 
   // [DOM id, opts key, default value] for every plain-checkbox fix toggle.
   // Adding a new checkbox-backed fix only needs a new row here, instead of
@@ -704,6 +723,92 @@
     gutter.innerHTML = out.join("\n");
   }
 
+  // Scrolls `ta` (and its paired gutter/highlight layer, which must always
+  // track the textarea's own scrollTop) so logical line `lineNo` is
+  // centered in the viewport. Reuses countWrappedRows so a wrapped line's
+  // true visual row offset is accounted for, same as the gutter numbering.
+  function scrollLineIntoView(ta, gutter, hl, lineNo) {
+    var logicalLines = ta.value.length ? ta.value.split("\n") : [""];
+    if (lineNo < 0 || lineNo >= logicalLines.length) return;
+
+    var cs = getComputedStyle(ta);
+    var lineHeight = parseFloat(cs.lineHeight);
+    if (!lineHeight || isNaN(lineHeight)) lineHeight = parseFloat(cs.fontSize) * 1.2;
+
+    var rowCounts = logicalLines.length > WRAP_MEASURE_LIMIT
+      ? logicalLines.map(function () { return 1; })
+      : countWrappedRows(ta, logicalLines);
+
+    var rowsBefore = 0;
+    for (var i = 0; i < lineNo; i++) rowsBefore += rowCounts[i];
+
+    var targetTop = rowsBefore * lineHeight;
+    var targetCenter = targetTop - (ta.clientHeight / 2) + (lineHeight / 2);
+    var maxScroll = Math.max(0, ta.scrollHeight - ta.clientHeight);
+    ta.scrollTop = Math.max(0, Math.min(maxScroll, targetCenter));
+    gutter.scrollTop = ta.scrollTop;
+    hl.scrollTop = ta.scrollTop;
+  }
+
+  // Marks/clears which single line (across both boxes) the diff-navigation
+  // buttons last jumped to, so it's visually distinguishable from the
+  // other (merely changed) highlighted lines currently in view.
+  function clearCurrentDiffLine() {
+    [inHighlight, outHighlight].forEach(function (hl) {
+      var el = hl.querySelector(".line-current");
+      if (el) el.classList.remove("line-current");
+    });
+  }
+
+  function markCurrentDiffLine(hl, lineNo) {
+    var el = hl.children[lineNo];
+    if (el) el.classList.add("line-current");
+  }
+
+  // The changed-line numbers the prev/next buttons currently step through
+  // (derived from the input's own line-changed flags - see updateDiffNav),
+  // and the index within that list gotoChange last jumped to.
+  var diffNavLines = [];
+  var diffNavIndex = -1;
+
+  // Re-derives diffNavLines from the latest render and resets diffNavIndex,
+  // since a fresh render invalidates any previous position (line numbers
+  // may have shifted, and the old highlight DOM nodes are already gone).
+  function updateDiffNav() {
+    diffNavLines = changedLineNumbers(lastInLineChanged || lastOutLineChanged);
+    diffNavIndex = -1;
+    if (diffNavLines.length === 0) {
+      diffNav.style.display = "none";
+      return;
+    }
+    diffNav.style.display = "";
+    diffNavCount.textContent = diffNavLines.length + (diffNavLines.length === 1 ? " changed line" : " changed lines");
+  }
+
+  // Jumps to the next (delta 1) or previous (delta -1) changed line,
+  // wrapping around at either end. The same logical line number is used
+  // for both boxes - correct whenever input/output share line structure,
+  // which holds unless a line/paragraph-break-removal fix is on; when the
+  // output has fewer lines it's clamped to the last one instead of
+  // resolving misleadingly to the wrong line.
+  function gotoChange(delta) {
+    if (!diffNavLines.length) return;
+    diffNavIndex = (diffNavIndex + delta + diffNavLines.length) % diffNavLines.length;
+    var lineNo = diffNavLines[diffNavIndex];
+
+    clearCurrentDiffLine();
+
+    scrollLineIntoView(input, inGutter, inHighlight, lineNo);
+    markCurrentDiffLine(inHighlight, lineNo);
+
+    var outLineCount = output.value.length ? output.value.split("\n").length : 1;
+    var outLineNo = Math.min(lineNo, outLineCount - 1);
+    scrollLineIntoView(output, outGutter, outHighlight, outLineNo);
+    markCurrentDiffLine(outHighlight, outLineNo);
+
+    diffNavCount.textContent = (diffNavIndex + 1) + " / " + diffNavLines.length;
+  }
+
   // Renders the removed/converted summary, and the highlight overlays that
   // sit behind the actual input/output textareas (see inputHighlightHtml /
   // outputHighlightHtml). `rawInput` is the input textarea's own raw
@@ -793,6 +898,7 @@
     lastOutLineChanged = outputLineChanged(result.changes);
     updateGutter(input, inGutter, lastInLineChanged);
     updateGutter(output, outGutter, lastOutLineChanged);
+    updateDiffNav();
   }
 
   input.addEventListener("input", update);
@@ -804,6 +910,9 @@
     outGutter.scrollTop = output.scrollTop;
     outHighlight.scrollTop = output.scrollTop;
   });
+
+  diffPrevBtn.addEventListener("click", function () { gotoChange(-1); });
+  diffNextBtn.addEventListener("click", function () { gotoChange(1); });
 
   // Wrapped row counts depend on the textarea's width, which changes on
   // viewport resize (the grid collapses to one column below 760px) — keep

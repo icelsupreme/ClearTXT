@@ -9,7 +9,7 @@ It's a single static page: no backend, no build step, no data ever leaves your b
 ## Features
 
 - **Side-by-side filtering.** Paste or type into the input box; the cleaned result appears in the output box as you type, with live character counts.
-- **Inline highlighting.** Removed and converted characters are highlighted directly inside the input and output boxes themselves (no separate/duplicate diff view to keep in sync) - red for removed, blue for converted, a thin ring for invisible/control characters (which have no width of their own to highlight). Any line containing a change also gets a full-row tint, GitHub-diff style, with its line number bolded and colored in the gutter, so changed lines are easy to spot at a glance even before reading the character-level marks. A collapsible "What changed?" panel below has the removed/converted counts by category.
+- **Inline highlighting.** Removed and converted characters are highlighted directly inside the input and output boxes themselves (no separate/duplicate diff view to keep in sync) - red for removed, blue for converted, a thin ring for invisible/control characters (which have no width of their own to highlight). Any line containing a change also gets a full-row tint, GitHub-diff style, with its line number bolded and colored in the gutter, so changed lines are easy to spot at a glance even before reading the character-level marks. "Previous change" / "Next change" buttons step through the changed lines one at a time, scrolling and centering each one (in both boxes at once) with a stronger highlight than the rest. A collapsible "What changed?" panel below has the removed/converted counts by category.
 - **Configurable fixes.** The "Fixes & explanation" drawer lists every transformation as an independent toggle, so you choose exactly what gets touched:
   - Normalize Unicode (NFKC) - folds ligatures, full-width letters, and superscripts into plain forms
   - Fold accented letters to their plain ASCII base (`é` -> `e`)
@@ -74,6 +74,9 @@ The `?v=` matters functionally, not just cosmetically: without it, browsers (esp
 ## Version history
 
 Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change - those are called out explicitly below.
+
+### 0.12.0
+- **Feature:** "Previous change" / "Next change" buttons below the input/output boxes step through the changed lines one at a time - each click scrolls both boxes to center that line and marks it with a stronger highlight than the surrounding changed lines, so it's clear which one is current. Wraps around at either end; hidden entirely when there's nothing to navigate.
 
 ### 0.11.0
 - **Feature (UI):** the row tint from a changed line now extends to its line number in the gutter (bolded, accent-colored), tying the two together so a changed line is unmistakable at a glance even without scanning the text itself.

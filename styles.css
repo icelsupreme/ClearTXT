@@ -136,6 +136,10 @@ header p {
    the textarea's own rendering of that blank line. */
 .highlight .line { min-height: 1.55em; }
 .highlight .line-changed { background: rgba(79,157,255,.14); box-shadow: inset 4px 0 0 0 rgba(79,157,255,.9); }
+/* Marks the line the diff-navigation buttons last jumped to - layered on
+   top of (and overriding) .line-changed's own box-shadow via source order,
+   since a class list always carries both together. */
+.highlight .line-current { background: rgba(79,157,255,.22); box-shadow: inset 4px 0 0 0 var(--accent-hover), inset 0 0 0 1px rgba(107,176,255,.5); }
 .highlight .rm { background: rgba(255,107,107,.55); border-radius: 2px; }
 .highlight .cv { background: rgba(79,157,255,.5); border-radius: 2px; }
 /* Purely a passive visual cue, not an interactive one: the real textarea
@@ -181,6 +185,15 @@ button:hover { border-color: var(--accent); }
 }
 .stats .removed { color: var(--danger); }
 .stats .converted { color: var(--accent); }
+.diffNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.diffNav button { font-size: 0.85rem; padding: 6px 12px; }
+.diffNavCount { color: var(--muted); font-size: 0.85rem; min-width: 60px; text-align: center; }
 details {
   margin-top: 22px;
   background: var(--panel);
