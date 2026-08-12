@@ -43,15 +43,17 @@ This is a static page - no server or build required. Either:
 ## Project structure
 
 ```
-index.html    markup for the single-file page
-batch.html    markup for the batch (multi-file) page
-styles.css    shared styling
-batch.css     styling specific to the batch page
-script.js     filtering logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
-batch.js      batch page's DOM wiring, built on script.js's shared logic
-favicon.svg   browser tab icon, also embedded inline as the header's logo icon
-test/         unit tests for the filtering logic
-CHANGELOG.md  full version history
+index.html      markup for the single-file page
+batch.html      markup for the batch (multi-file) page
+changelog.html  a condensed, user-facing "what's new," linked from every page's footer
+styles.css      shared styling
+batch.css       styling specific to the batch page
+changelog.css   styling specific to the changelog page
+script.js       filtering logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
+batch.js        batch page's DOM wiring, built on script.js's shared logic
+favicon.svg     browser tab icon, also embedded inline as the header's logo icon
+test/           unit tests for the filtering logic
+CHANGELOG.md    full version history
 ```
 
 ## Development

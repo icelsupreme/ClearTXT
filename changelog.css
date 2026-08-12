@@ -1,0 +1,39 @@
+/* Styles specific to changelog.html - shares :root tokens, header, and
+   button styling with styles.css, loaded alongside it. */
+
+.changelogIntro { color: var(--muted); font-size: 0.9rem; margin: 0 0 24px; }
+.changelogIntro a { color: var(--accent); }
+
+.changelogEntry {
+  margin-bottom: 22px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+.changelogEntry:last-of-type { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.changelogEntry h2 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+.changelogVer {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 8px;
+  vertical-align: middle;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.changelogEntry ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+.changelogEntry li { margin-bottom: 4px; }
+.changelogEntry li:last-child { margin-bottom: 0; }

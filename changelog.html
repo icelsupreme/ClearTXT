@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearTXT Changelog</title>
+<meta name="description" content="What's new in ClearTXT - a running history of features and fixes.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://icelsupreme.github.io/ClearTXT/changelog.html">
+<meta property="og:title" content="ClearTXT Changelog">
+<meta property="og:description" content="What's new in ClearTXT - a running history of features and fixes.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="ClearTXT Changelog">
+<meta name="twitter:description" content="What's new in ClearTXT - a running history of features and fixes.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.3.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Mono:wght@400;500;700&family=Noto+Sans+Hebrew:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=1.3.0">
+<link rel="stylesheet" href="changelog.css?v=1.3.0">
+</head>
+<body>
+  <header>
+    <h1><svg class="logoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2v2"/><path d="M12 3h-2"/><path d="M13.5 10.5 22 2"/><path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z"/><path d="M20 15v4"/><path d="M22 17h-4"/><path d="M4 4v4"/><path d="m5 18 2-2"/><path d="M6 6H2"/><path d="m7.699 10.7 5.602 5.601"/></svg>ClearTXT <span class="version" title="Version, matches package.json">v1.3.0</span></h1>
+    <p>What's new - a running history of features and fixes.</p>
+    <p class="batchNavLink"><a href="index.html">&larr; Back to ClearTXT</a></p>
+  </header>
+
+  <div class="wrap">
+    <p class="changelogIntro">The short version, grouped by release. For the full technical detail behind every change, see <a href="https://github.com/icelsupreme/ClearTXT/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">CHANGELOG.md</a> in the repo.</p>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">1.2</span>Language options &amp; Cyrillic support</h2>
+      <ul>
+        <li>Added an option to strip Cyrillic text (Russian, Ukrainian, and more), the same way Hebrew is already handled.</li>
+        <li>Grouped all language/script options together under "Languages &amp; scripts."</li>
+        <li>Fixed a rare bug where certain math symbols (like ℵ, used for aleph-null) could be mistaken for Hebrew letters and removed.</li>
+      </ul>
+    </section>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">1.1</span>Batch mode</h2>
+      <ul>
+        <li>Added Batch mode: clean multiple files at once, downloaded individually or all together as a single .zip.</li>
+        <li>Batch downloads now confirm when they're done, and are hardened against unsafe filenames.</li>
+      </ul>
+    </section>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">1.0</span>Public launch</h2>
+      <ul>
+        <li>ClearTXT went public, with a proper page title, favicon, and social preview cards.</li>
+        <li>Fixed line numbers drifting out of alignment on large documents.</li>
+      </ul>
+    </section>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">0.19</span>Icons and polish</h2>
+      <ul>
+        <li>Every button got a matching icon, plus a subtle visual refresh.</li>
+      </ul>
+    </section>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">0.18</span>Consistent fonts</h2>
+      <ul>
+        <li>The whole page now uses the same fonts everywhere, including proper support for Hebrew text.</li>
+      </ul>
+    </section>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">0.17</span>Restore defaults</h2>
+      <ul>
+        <li>Added a "Restore defaults" button, and more detailed character/word counts in the sticky footer.</li>
+      </ul>
+    </section>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">0.15</span>Accessibility</h2>
+      <ul>
+        <li>Bigger touch targets, clearer focus outlines, and better screen reader support throughout.</li>
+      </ul>
+    </section>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">0.14</span>Grouped fix options</h2>
+      <ul>
+        <li>Fix toggles got organized into groups you can turn on or off all at once.</li>
+      </ul>
+    </section>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">0.12-0.13</span>Jump between changes</h2>
+      <ul>
+        <li>Added Previous/Next buttons (and keyboard shortcuts) to jump between changed lines, plus a dedicated currency-symbol option.</li>
+      </ul>
+    </section>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">0.9-0.10</span>Inline highlighting</h2>
+      <ul>
+        <li>Highlighting moved directly into the text boxes, with a full-row tint on changed lines.</li>
+        <li>Added a choice of em dash replacement, and hardened invisible-character detection against text-spoofing tricks.</li>
+      </ul>
+    </section>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">0.4-0.8</span>Import, export &amp; invisible characters</h2>
+      <ul>
+        <li>Added "Import from file" and "Export to file."</li>
+        <li>Invisible/zero-width characters now show as labeled markers instead of disappearing without a trace.</li>
+        <li>Exported files are named after your text's first line.</li>
+      </ul>
+    </section>
+
+    <section class="changelogEntry">
+      <h2><span class="changelogVer">0.1-0.3</span>Early days</h2>
+      <ul>
+        <li>Initial release: a simple, safe-character-set text filter.</li>
+        <li>The fixed character filter became configurable, with independent toggles and a full diff view of what changed.</li>
+        <li>Text boxes wrap instead of scrolling sideways; added whitespace cleanup options.</li>
+      </ul>
+    </section>
+
+    <p class="pageCredit">Made by <a href="https://github.com/icelsupreme" target="_blank" rel="noopener noreferrer">Aviv M. Icel</a> &middot; <a href="https://bsky.app/profile/icel.me" target="_blank" rel="noopener noreferrer">Bluesky</a></p>
+    <div class="shareRow"><button id="shareBtn" title="Copy this page's link to your clipboard"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg><span class="btnLabel">Share</span></button></div>
+  </div>
+
+<script src="script.js?v=1.3.0"></script>
+</body>
+</html>
