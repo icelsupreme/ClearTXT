@@ -2,6 +2,10 @@
 
 All notable changes to ClearTXT, versioned per [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`, tracked in `package.json`). A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix or docs change with no behavior change. Releases before 1.0.0 were pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release there could still include a behavior change - those are called out explicitly below.
 
+### 1.1.3
+- **Fix (accessibility, batch mode):** the per-row Download/Remove buttons had shrunk to 36px, below the 44x44px minimum touch-target size every other button on the page has kept since 0.15.0 - restored.
+- **Fix (batch mode):** the per-file and "Download all" buttons now flash "Downloaded!" briefly after a click, the same transient-feedback pattern the single-file page's Copy/Export buttons already use - previously a click gave no acknowledgement at all.
+
 ### 1.1.2
 - **Security (batch mode):** a dropped file's name was written straight into the generated `.zip`'s entry name and into the single-file `download` attribute, with no path sanitization. A real OS file picker can't produce a name containing `/` or `..`, but a `File` object handed to the page via drag-and-drop has no such restriction (e.g. one built by another page's script), so a maliciously-named "file" (`../../../../etc/whatever`) could zip-slip its way outside the intended folder when a less-careful unzip tool extracts the downloaded archive. Fixed by reducing a file's name to a plain, control-character-free basename wherever it's used as an actual path component; the raw name is still shown as-is in the file list (already safely HTML-escaped there). The same sanitizer also caps the name at 255 characters - the ZIP format's "file name length" field is 16-bit (max 65535 bytes) and silently wraps rather than erroring on overflow, so an (equally synthetic) ~70,000-character name could otherwise write a length that doesn't match the name bytes actually present, corrupting the archive.
 

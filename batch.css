@@ -49,6 +49,9 @@
 .batchRowStats .converted { color: var(--accent); }
 .batchRowStats .error { color: var(--danger); }
 .batchRowActions { display: flex; gap: 6px; flex-shrink: 0; }
-.batchRowActions button { padding: 6px 10px; min-height: 36px; font-size: 0.8rem; }
-.batchRowActions button.iconOnly { padding: 6px; width: 36px; }
+/* min-height/width stay at the site-wide 44px touch-target minimum (see
+   button's own base rule in styles.css) - only padding/font-size shrink
+   to fit the row, same as .diffNav/.fixActions buttons on the main page. */
+.batchRowActions button { padding: 6px 10px; font-size: 0.8rem; }
+.batchRowActions button.iconOnly { padding: 6px; width: 44px; }
 .batchRowActions button.iconOnly .btnIcon { margin: 0; }
