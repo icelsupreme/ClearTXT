@@ -216,11 +216,13 @@
       }
 
       // A currency symbol would otherwise fall into the generic
-      // emoji/symbol bucket below and get stripped whenever that toggle is
-      // on; this carve-out keeps it independent of that decision.
+      // emoji/symbol bucket below - stripped only when BOTH toggles agree
+      // to strip it: the general "Strip emoji & symbols" switch, and this
+      // category's own toggle (checked = stripped, same "checked = the
+      // action happens" convention every other fix toggle uses).
       if (isCurrencySymbol(ch)) {
-        var keepCurrency = opts.keepCurrency || !opts.stripEmoji;
-        changes.push({ ch: ch, type: keepCurrency ? "kept" : "removed", category: "currency", replacement: keepCurrency ? ch : "" });
+        var stripThisCurrency = opts.stripCurrency && opts.stripEmoji;
+        changes.push({ ch: ch, type: stripThisCurrency ? "removed" : "kept", category: "currency", replacement: stripThisCurrency ? "" : ch });
         continue;
       }
 
@@ -631,7 +633,7 @@
     ["optStraightenQuotes", "straightenQuotes", true, "typography"],
     ["optConvertDashes", "convertDashes", true, "typography"],
     ["optStripEmoji", "stripEmoji", true, "symbols"],
-    ["optKeepCurrency", "keepCurrency", false, "symbols"],
+    ["optStripCurrency", "stripCurrency", true, "symbols"],
     ["optStripInvisible", "stripInvisible", true, "symbols"],
     ["optAllowHebrew", "allowHebrew", false, "symbols"],
     ["optRemoveTabs", "removeTabs", false, "whitespace"],
