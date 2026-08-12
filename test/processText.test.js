@@ -10,6 +10,7 @@ const DEFAULT_OPTS = {
   foldAccents: true,
   straightenQuotes: true,
   convertDashes: true,
+  dashTarget: "-",
   stripEmoji: true,
   stripInvisible: true,
   allowHebrew: false,
@@ -83,6 +84,15 @@ test("em dash is removed (not converted) when the toggle is off and emoji stripp
   assert.equal(run("em—dash", { convertDashes: false }), "emdash");
 });
 
+test("em dash converts to an en dash when dashTarget is set to en dash", () => {
+  assert.equal(run("em—dash", { dashTarget: "–" }), "em–dash");
+});
+
+test("an invalid dashTarget falls back to a hyphen", () => {
+  assert.equal(run("em—dash", { dashTarget: "not-a-real-option" }), "em-dash");
+  assert.equal(run("em—dash", { dashTarget: undefined }), "em-dash");
+});
+
 test("Hebrew is stripped by default and preserved when allowed", () => {
   // The word is removed and the two spaces that used to sandwich it
   // become adjacent, so the default-on "remove extra spaces" collapses
@@ -100,6 +110,28 @@ test("emoji and symbols are stripped by default and kept when the toggle is off"
 test("zero-width characters are stripped by default and kept when the toggle is off", () => {
   assert.equal(run("a​b"), "ab");
   assert.equal(run("a​b", { stripInvisible: false }), "a​b");
+});
+
+test("bidi isolate controls (Trojan Source vector) are stripped by default and kept when the toggle is off", () => {
+  const isolates = String.fromCodePoint(0x2066, 0x2067, 0x2068, 0x2069);
+  assert.equal(run("a" + isolates + "b"), "ab");
+  assert.equal(run("a" + isolates + "b", { stripInvisible: false }), "a" + isolates + "b");
+});
+
+test("Unicode tag characters (ASCII-smuggling vector) are stripped by default and kept when the toggle is off", () => {
+  const tag = String.fromCodePoint(0xe0068, 0xe0069); // TAG h, TAG i
+  assert.equal(run("a" + tag + "b"), "ab");
+  assert.equal(run("a" + tag + "b", { stripInvisible: false }), "a" + tag + "b");
+});
+
+test("deprecated variation selector supplement is stripped by default and kept when the toggle is off", () => {
+  const vs = String.fromCodePoint(0xe0100);
+  assert.equal(run("a" + vs + "b"), "ab");
+  assert.equal(run("a" + vs + "b", { stripInvisible: false }), "a" + vs + "b");
+});
+
+test("standard variation selectors (legitimate emoji presentation) are unaffected by the invisible-character ranges", () => {
+  assert.equal(ClearTXT.isHiddenPayloadRange(0xfe0f), false); // VS16, emoji presentation selector
 });
 
 test("remove tabs converts each tab to a single space", () => {
@@ -147,11 +179,10 @@ test("extra-space collapsing accounts for spaces newly exposed by a removed char
   assert.equal(run("hello 😀 world"), "hello world");
 });
 
-test("buildRuns groups consecutive same-type characters into a single run", () => {
-  const { changes } = ClearTXT.processText("ab😀😀cd", opts());
-  const runs = ClearTXT.buildRuns(changes);
-  const kinds = runs.map((r) => r.type + ":" + r.count);
-  assert.deepEqual(kinds, ["kept:2", "removed:2", "kept:2"]);
+test("inputHighlightHtml groups a consecutive same-type run into a single span", () => {
+  const raw = "ab😀😀cd";
+  const { changes } = ClearTXT.processText(raw, opts());
+  assert.equal(ClearTXT.inputHighlightHtml(raw, changes), 'ab<span class="rm">😀😀</span>cd');
 });
 
 test("summarizeChanges and formatCatCounts report accurate per-category totals", () => {
@@ -183,38 +214,69 @@ test("invisibleInfo labels named zero-width characters and C0 controls distinctl
   assert.equal(ClearTXT.invisibleInfo(0x1234).label, "U+1234"); // unmapped fallback
 });
 
-test("buildRuns never merges an invisible character into a surrounding run", () => {
+test("inputHighlightHtml never merges an invisible character into a surrounding run, and renders it with its actual (invisible) character for width alignment", () => {
+  const raw = "a​b";
+  const kept = ClearTXT.processText(raw, opts({ stripInvisible: false }));
+  assert.equal(
+    ClearTXT.inputHighlightHtml(raw, kept.changes),
+    'a<span class="iv" title="zero-width space (U+200B) (kept)">​</span>b'
+  );
+
+  const removed = ClearTXT.processText(raw, opts({ stripInvisible: true }));
+  assert.equal(
+    ClearTXT.inputHighlightHtml(raw, removed.changes),
+    'a<span class="iv rm" title="zero-width space (U+200B) (removed)">​</span>b'
+  );
+});
+
+test("inputHighlightHtml escapes HTML-significant characters in both plain and highlighted text", () => {
+  const plain = ClearTXT.processText("a<b>c", opts());
+  assert.equal(ClearTXT.inputHighlightHtml("a<b>c", plain.changes), "a&lt;b&gt;c");
+
+  // The overlay shows the RAW (pre-conversion) character under a "cv"
+  // highlight - the actual replacement only appears in the output box.
+  const converted = ClearTXT.processText("<em—dash>", opts());
+  assert.equal(
+    ClearTXT.inputHighlightHtml("<em—dash>", converted.changes),
+    '&lt;em<span class="cv">—</span>dash&gt;'
+  );
+});
+
+test("outputHighlightHtml escapes quote characters, not just angle brackets and ampersand", () => {
+  // Guards against attribute-context injection through a title="..."
+  // built from escaped text - nothing currently reaches that path with
+  // a quote in it, but the escaping itself must hold up regardless.
+  const html = ClearTXT.escapeHtml('a&b<c>d"e\'f');
+  assert.equal(html, "a&amp;b&lt;c&gt;d&quot;e&#39;f");
+});
+
+test("inputHighlightHtml returns null when normalization changes the character count, rather than misaligned highlights", () => {
+  // "ﬁ" (the "fi" ligature) expands to 2 characters under NFKC, so the
+  // normalized text is longer than the raw text - the 1:1 alignment this
+  // needs no longer holds.
+  const raw = "ﬁle";
+  const { changes } = ClearTXT.processText(raw, opts());
+  assert.notEqual([...raw].length, changes.length);
+  assert.equal(ClearTXT.inputHighlightHtml(raw, changes), null);
+});
+
+test("inputHighlightHtml stops detailed highlighting at the character budget but still renders the rest as plain, aligned text", () => {
+  const raw = "a😀b😀c";
+  const { changes } = ClearTXT.processText(raw, opts());
+  // Budget covers only the first emoji; the second is past it and shows
+  // as plain (unhighlighted) text instead of also being marked removed.
+  assert.equal(ClearTXT.inputHighlightHtml(raw, changes, 2), 'a<span class="rm">😀</span>b😀c');
+});
+
+test("outputHighlightHtml substitutes a visible marker for invisible characters that survive filtering", () => {
   const { changes } = ClearTXT.processText("a​b", opts({ stripInvisible: false }));
-  const runs = ClearTXT.buildRuns(changes);
-  assert.deepEqual(runs.map((r) => [r.type, r.count, !!r.invisible]), [
-    ["kept", 1, false],
-    ["kept", 1, true],
-    ["kept", 1, false]
-  ]);
+  const html = ClearTXT.outputHighlightHtml(changes, 1000);
+  assert.equal(html, 'a<span class="iv" title="zero-width space (U+200B) (kept)">​</span>b');
 });
 
-test("runHtml renders a labeled marker span for invisible runs, tagged removed or kept", () => {
-  const { changes } = ClearTXT.processText("​", opts({ stripInvisible: false }));
-  const kept = ClearTXT.buildRuns(changes)[0];
-  const keptHtml = ClearTXT.runHtml(kept);
-  assert.match(keptHtml, /class="iv"/);
-  assert.match(keptHtml, />ZWSP</);
-
-  const { changes: changes2 } = ClearTXT.processText("​", opts({ stripInvisible: true }));
-  const removed = ClearTXT.buildRuns(changes2)[0];
-  const removedHtml = ClearTXT.runHtml(removed);
-  assert.match(removedHtml, /class="iv rm"/);
-});
-
-test("outputHtml substitutes a visible marker for invisible characters that survive filtering", () => {
-  const { changes } = ClearTXT.processText("a​b", opts({ stripInvisible: false }));
-  const html = ClearTXT.outputHtml(changes, 1000);
-  assert.equal(html, 'a<span class="iv" title="zero-width space (U+200B) (kept)">ZWSP</span>b');
-});
-
-test("outputHtml never shows a marker for a stripped invisible character (it isn't in the output at all)", () => {
+test("outputHighlightHtml never shows a marker for a stripped invisible character (it isn't in the output at all)", () => {
   const { changes } = ClearTXT.processText("a​b", opts({ stripInvisible: true }));
-  const html = ClearTXT.outputHtml(changes, 1000);
+  const html = ClearTXT.outputHighlightHtml(changes, 1000);
   assert.equal(html, "ab");
 });
 

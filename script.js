@@ -4,9 +4,34 @@
   var ZERO_WIDTH = new Set([
     0x200B, 0x200C, 0x200D, 0x200E, 0x200F,
     0x2028, 0x2029, 0x202A, 0x202B, 0x202C, 0x202D, 0x202E,
+    // Bidi "isolate" controls (U+2066-U+2069): newer siblings of the
+    // U+202A-U+202E embedding/override controls above, and the ones
+    // behind the "Trojan Source" technique (CVE-2021-42574) for making
+    // text/code display in an order different from how it actually reads.
+    0x2066, 0x2067, 0x2068, 0x2069,
     0x2060, 0x2061, 0x2062, 0x2063, 0x2064,
     0xFEFF
   ]);
+
+  // Unicode Tag characters (U+E0000-U+E007F): originally for obsolete
+  // language tagging, but zero-width and freely combinable, they're the
+  // basis of "ASCII smuggling" - hiding arbitrary invisible text (including
+  // prompt-injection payloads) inside otherwise normal-looking text.
+  // Variation Selectors Supplement (U+E0100-U+E01EF): deprecated, no
+  // legitimate modern use, and has also been used as a steganographic
+  // channel. Both are ranges rather than a fixed set of code points, so
+  // they're checked separately from ZERO_WIDTH; the *standard* variation
+  // selectors (U+FE00-U+FE0F) are deliberately excluded here since those
+  // are legitimately used to select an emoji's presentation.
+  var HIDDEN_PAYLOAD_RANGES = [[0xE0000, 0xE007F], [0xE0100, 0xE01EF]];
+
+  function isHiddenPayloadRange(cp) {
+    for (var i = 0; i < HIDDEN_PAYLOAD_RANGES.length; i++) {
+      var r = HIDDEN_PAYLOAD_RANGES[i];
+      if (cp >= r[0] && cp <= r[1]) return true;
+    }
+    return false;
+  }
 
   var QUOTE_MAP = new Map([
     [0x2018, "'"], [0x2019, "'"], [0x201A, ","], [0x201B, "'"],
@@ -19,6 +44,8 @@
   // minus sign) is always preserved exactly as typed.
   var EM_DASH = 0x2014;
   var PRESERVED_DASHES = new Set([0x2010, 0x2011, 0x2012, 0x2013, 0x2015, 0x2212]);
+  // What "Convert em dashes" is allowed to turn an em dash into.
+  var DASH_TARGETS = new Set(["-", "–"]);
 
   // Hebrew letters, points (niqqud/cantillation) and punctuation, plus the
   // presentation-forms block (ligatures like "ﭏ" and pointed letters).
@@ -45,6 +72,10 @@
     0x2062: { label: "IT", name: "invisible times" },
     0x2063: { label: "IS", name: "invisible separator" },
     0x2064: { label: "IP", name: "invisible plus" },
+    0x2066: { label: "LRI", name: "left-to-right isolate" },
+    0x2067: { label: "RLI", name: "right-to-left isolate" },
+    0x2068: { label: "FSI", name: "first strong isolate" },
+    0x2069: { label: "PDI", name: "pop directional isolate" },
     0xFEFF: { label: "BOM", name: "byte order mark" }
   };
 
@@ -69,6 +100,8 @@
     if (special) return { label: special.label, name: special.name + " (" + hex4(cp) + ")" };
     if (cp <= 0x1F) return { label: String.fromCodePoint(0x2400 + cp), name: (CONTROL_NAMES[cp] || "control character") + " (" + hex4(cp) + ")" };
     if (cp === 0x7F) return { label: "␡", name: "DEL (" + hex4(cp) + ")" };
+    if (cp >= 0xE0000 && cp <= 0xE007F) return { label: "TAG", name: "Unicode tag character - can carry invisible hidden text (" + hex4(cp) + ")" };
+    if (cp >= 0xE0100 && cp <= 0xE01EF) return { label: "VS", name: "variation selector supplement, no legitimate modern use (" + hex4(cp) + ")" };
     return { label: hex4(cp), name: hex4(cp) };
   }
 
@@ -123,7 +156,7 @@
     for (var ch of src) {
       var cp = ch.codePointAt(0);
 
-      if (ZERO_WIDTH.has(cp) || isControl(cp)) {
+      if (ZERO_WIDTH.has(cp) || isControl(cp) || isHiddenPayloadRange(cp)) {
         if (opts.stripInvisible) {
           changes.push({ ch: ch, type: "removed", category: "invisible", replacement: "" });
         } else {
@@ -160,7 +193,8 @@
         continue;
       }
       if (cp === EM_DASH && opts.convertDashes) {
-        changes.push({ ch: ch, type: "converted", category: "dash", replacement: "-" });
+        var target = DASH_TARGETS.has(opts.dashTarget) ? opts.dashTarget : "-";
+        changes.push({ ch: ch, type: "converted", category: "dash", replacement: target });
         continue;
       }
 
@@ -280,75 +314,114 @@
     return keys.map(function (k) { return obj[k] + " " + (CAT_LABEL[k] || k); }).join(", ");
   }
 
+  // Escapes for both HTML text-content and (double- or single-quoted)
+  // attribute-value contexts uniformly, since this is used for both (see
+  // markerSpan's title="..."). Nothing currently reaching the attribute
+  // context can contain a quote character - invisibleInfo() only ever
+  // returns hardcoded strings or safely hex-formatted code points - but
+  // escaping defensively here means that stays true even if this function
+  // gets reused for less-constrained text later.
   function escapeHtml(s) {
-    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
-  // Collapses consecutive same-type changes into a single run, so a long
-  // stretch of removed or unchanged text becomes one span/text node
-  // instead of one per character — this is what lets highlighting stay on
-  // for large inputs instead of being switched off wholesale. Invisible
-  // characters are never merged into a run with anything else (including
-  // other invisible characters), since each needs its own visible label.
-  function buildRuns(changes) {
-    var runs = [];
-    for (var i = 0; i < changes.length; i++) {
-      var c = changes[i];
-      var isInvisible = c.category === "invisible";
-      var last = runs[runs.length - 1];
-      if (!isInvisible && last && !last.invisible && last.type === c.type) {
-        last.text += c.ch;
-        last.count++;
-      } else {
-        runs.push({
-          type: c.type,
-          text: c.ch,
-          count: 1,
-          replacement: c.replacement,
-          invisible: isInvisible,
-          cp: isInvisible ? c.ch.codePointAt(0) : undefined
-        });
-      }
-    }
-    return runs;
+  function markerSpan(cls, text, title) {
+    var esc = escapeHtml(text);
+    var t = title ? ' title="' + escapeHtml(title) + '"' : "";
+    return '<span class="' + cls + '"' + t + ">" + esc + "</span>";
   }
 
-  function runHtml(run) {
-    if (run.invisible) {
-      var info = invisibleInfo(run.cp);
-      var cls = "iv" + (run.type === "removed" ? " rm" : "");
-      var title = info.name + (run.type === "removed" ? " (removed)" : " (kept)");
-      return '<span class="' + cls + '" title="' + escapeHtml(title) + '">' + escapeHtml(info.label) + "</span>";
-    }
-    var esc = escapeHtml(run.text);
-    if (run.type === "removed") {
-      return '<span class="rm" title="' + (run.count === 1 ? "removed" : "removed (" + run.count + " characters)") + '">' + esc + "</span>";
-    }
-    if (run.type === "converted") {
-      var cvTitle = run.count === 1 ? ("→ " + escapeHtml(run.replacement)) : ("converted (" + run.count + " characters)");
-      return '<span class="cv" title="' + cvTitle + '">' + esc + "</span>";
-    }
-    return esc;
-  }
+  // Builds the highlight-overlay HTML for the INPUT box. This sits in a
+  // layer directly behind the live, editable textarea: its text is fully
+  // transparent (see CSS), so only the background/ring effects on the
+  // rm/cv/iv spans show through, appearing to highlight the real text
+  // above it. That only works if this HTML has EXACTLY the same
+  // characters, in the same order, as the textarea's own raw value — so
+  // this builds off `rawText` (not the NFKC-normalized `changes[i].ch`)
+  // and groups consecutive rm/cv runs into single spans (perf: fewer DOM
+  // nodes), while invisible characters always get their own span since
+  // each needs its own tooltip. `changes` must be `rawText`'s own
+  // per-character pipeline result — if normalization changed the
+  // character count (rare: mainly typographic ligatures), the 1:1
+  // assumption breaks and this returns null; the caller falls back to no
+  // overlay for that render rather than show misaligned highlights.
+  function inputHighlightHtml(rawText, changes, maxChars) {
+    var rawChars = [...rawText];
+    var n = rawChars.length;
+    if (n !== changes.length) return null;
+    var budget = maxChars == null ? n : Math.min(maxChars, n);
 
-  // Renders the final output as HTML, substituting a visible labeled
-  // marker for any invisible/control character that survived filtering
-  // (e.g. with "Strip invisible & control characters" off), since those
-  // are otherwise indistinguishable from nothing. Stops after `maxChars`
-  // output characters.
-  function outputHtml(changes, maxChars) {
     var html = [];
-    var shown = 0;
-    for (var i = 0; i < changes.length && shown < maxChars; i++) {
+    var i = 0;
+    while (i < budget) {
       var c = changes[i];
-      if (c.type === "removed") continue;
+      if (c.category === "invisible") {
+        var info = invisibleInfo(rawChars[i].codePointAt(0));
+        var cls = "iv" + (c.type === "removed" ? " rm" : "");
+        var title = info.name + (c.type === "removed" ? " (removed)" : " (kept)");
+        html.push(markerSpan(cls, rawChars[i], title));
+        i++;
+        continue;
+      }
+      if (c.type === "kept") {
+        html.push(escapeHtml(rawChars[i]));
+        i++;
+        continue;
+      }
+      var type = c.type;
+      var j = i;
+      var buf = "";
+      while (j < budget && changes[j].type === type && changes[j].category !== "invisible") {
+        buf += rawChars[j];
+        j++;
+      }
+      html.push(markerSpan(type === "removed" ? "rm" : "cv", buf));
+      i = j;
+    }
+    if (i < n) html.push(escapeHtml(rawChars.slice(i).join("")));
+    return html.join("");
+  }
+
+  // Same idea for the OUTPUT box. Output only ever contains non-removed
+  // segments, and output.value is always exactly their replacements
+  // joined together, so this is inherently 1:1 aligned (no null case).
+  function outputHighlightHtml(changes, maxChars) {
+    var kept = [];
+    for (var k = 0; k < changes.length; k++) {
+      if (changes[k].type !== "removed") kept.push(changes[k]);
+    }
+    var n = kept.length;
+    var budget = maxChars == null ? n : Math.min(maxChars, n);
+
+    var html = [];
+    var i = 0;
+    while (i < budget) {
+      var c = kept[i];
       if (c.category === "invisible") {
         var info = invisibleInfo(c.replacement.codePointAt(0));
-        html.push('<span class="iv" title="' + escapeHtml(info.name + " (kept)") + '">' + escapeHtml(info.label) + "</span>");
-      } else {
-        html.push(escapeHtml(c.replacement));
+        html.push(markerSpan("iv", c.replacement, info.name + " (kept)"));
+        i++;
+        continue;
       }
-      shown++;
+      if (c.type === "kept") {
+        html.push(escapeHtml(c.replacement));
+        i++;
+        continue;
+      }
+      var j = i;
+      var buf = "";
+      while (j < budget && kept[j].type === "converted" && kept[j].category !== "invisible") {
+        buf += kept[j].replacement;
+        j++;
+      }
+      html.push(markerSpan("cv", buf));
+      i = j;
+    }
+    if (i < n) {
+      var rest = "";
+      for (var m = i; m < n; m++) rest += kept[m].replacement;
+      html.push(escapeHtml(rest));
     }
     return html.join("");
   }
@@ -402,10 +475,11 @@
     applyWhitespaceCleanup: applyWhitespaceCleanup,
     summarizeChanges: summarizeChanges,
     formatCatCounts: formatCatCounts,
-    buildRuns: buildRuns,
-    runHtml: runHtml,
-    outputHtml: outputHtml,
+    inputHighlightHtml: inputHighlightHtml,
+    outputHighlightHtml: outputHighlightHtml,
+    escapeHtml: escapeHtml,
     invisibleInfo: invisibleInfo,
+    isHiddenPayloadRange: isHiddenPayloadRange,
     isHebrew: isHebrew,
     foldAccent: foldAccent,
     slugForFilename: slugForFilename,
@@ -424,6 +498,8 @@
   var output = document.getElementById("output");
   var inGutter = document.getElementById("inGutter");
   var outGutter = document.getElementById("outGutter");
+  var inHighlight = document.getElementById("inHighlight");
+  var outHighlight = document.getElementById("outHighlight");
   var inCount = document.getElementById("inCount");
   var outCount = document.getElementById("outCount");
   var stats = document.getElementById("stats");
@@ -435,14 +511,13 @@
 
   var diffSummary = document.getElementById("diffSummary");
   var diffCounts = document.getElementById("diffCounts");
-  var diffBefore = document.getElementById("diffBefore");
-  var diffAfter = document.getElementById("diffAfter");
   var diffNote = document.getElementById("diffNote");
 
   var optNormalize = document.getElementById("optNormalize");
   var optFoldAccents = document.getElementById("optFoldAccents");
   var optStraightenQuotes = document.getElementById("optStraightenQuotes");
   var optConvertDashes = document.getElementById("optConvertDashes");
+  var optDashTarget = document.getElementById("optDashTarget");
   var optStripEmoji = document.getElementById("optStripEmoji");
   var optStripInvisible = document.getElementById("optStripInvisible");
   var optAllowHebrew = document.getElementById("optAllowHebrew");
@@ -451,7 +526,7 @@
   var optRemoveExtraSpaces = document.getElementById("optRemoveExtraSpaces");
   var optRemoveTabs = document.getElementById("optRemoveTabs");
   var optEls = [
-    optNormalize, optFoldAccents, optStraightenQuotes, optConvertDashes, optStripEmoji, optStripInvisible, optAllowHebrew,
+    optNormalize, optFoldAccents, optStraightenQuotes, optConvertDashes, optDashTarget, optStripEmoji, optStripInvisible, optAllowHebrew,
     optRemoveLineBreaks, optRemoveParagraphBreaks, optRemoveExtraSpaces, optRemoveTabs
   ];
 
@@ -463,6 +538,7 @@
       foldAccents: optFoldAccents.checked,
       straightenQuotes: optStraightenQuotes.checked,
       convertDashes: optConvertDashes.checked,
+      dashTarget: optDashTarget.value,
       stripEmoji: optStripEmoji.checked,
       stripInvisible: optStripInvisible.checked,
       allowHebrew: optAllowHebrew.checked,
@@ -486,6 +562,7 @@
       optFoldAccents.checked = saved.foldAccents !== false;
       optStraightenQuotes.checked = saved.straightenQuotes !== false;
       optConvertDashes.checked = saved.convertDashes !== false;
+      optDashTarget.value = saved.dashTarget === "–" ? "–" : "-";
       optStripEmoji.checked = saved.stripEmoji !== false;
       optStripInvisible.checked = saved.stripInvisible !== false;
       optAllowHebrew.checked = saved.allowHebrew === true;
@@ -559,7 +636,12 @@
     gutter.textContent = out.join("\n");
   }
 
-  function renderDiff(result) {
+  // Renders the removed/converted summary, and the highlight overlays that
+  // sit behind the actual input/output textareas (see inputHighlightHtml /
+  // outputHighlightHtml). `rawInput` is the input textarea's own raw
+  // value - required (rather than reusing result.normalizedInput) so the
+  // overlay's characters line up 1:1 with what the textarea itself shows.
+  function renderDiff(rawInput, result) {
     var changes = result.changes;
     var sums = summarizeChanges(changes);
     var removedTotal = Object.keys(sums.removed).reduce(function (a, k) { return a + sums.removed[k]; }, 0);
@@ -581,46 +663,21 @@
     diffCounts.textContent = lines.join("   ·   ");
 
     if (!changes.length) {
-      diffBefore.textContent = "";
-      diffAfter.textContent = "";
+      inHighlight.innerHTML = "";
+      outHighlight.innerHTML = "";
       diffNote.style.display = "none";
       return;
     }
 
-    var runs = buildRuns(changes);
-    var html = [];
-    var shown = 0;
-    var truncated = false;
-    for (var i = 0; i < runs.length; i++) {
-      var r = runs[i];
-      if (shown + r.count > MAX_DIFF_CHARS) {
-        var remaining = MAX_DIFF_CHARS - shown;
-        if (remaining > 0) {
-          html.push(runHtml({
-            type: r.type,
-            text: [...r.text].slice(0, remaining).join(""),
-            count: remaining,
-            replacement: r.replacement,
-            invisible: r.invisible,
-            cp: r.cp
-          }));
-          shown += remaining;
-        }
-        truncated = true;
-        break;
-      }
-      html.push(runHtml(r));
-      shown += r.count;
-    }
+    var inputOverlay = inputHighlightHtml(rawInput, changes, MAX_DIFF_CHARS);
+    inHighlight.innerHTML = inputOverlay === null ? "" : inputOverlay;
+    outHighlight.innerHTML = outputHighlightHtml(changes, MAX_DIFF_CHARS);
 
-    diffBefore.innerHTML = html.join("");
-    // Every output character traces back to exactly one non-removed
-    // `changes` entry, so the output can never be longer than the input
-    // side's character count — reusing the same MAX_DIFF_CHARS budget and
-    // `truncated` flag here is always consistent with the note below.
-    diffAfter.innerHTML = outputHtml(changes, MAX_DIFF_CHARS);
-    if (truncated) {
-      diffNote.textContent = "Showing highlights for the first " + shown.toLocaleString() + " of " + changes.length.toLocaleString() + " characters - the rest is omitted here for performance (the counts above cover the full text).";
+    if (changes.length > MAX_DIFF_CHARS) {
+      diffNote.textContent = "Detailed highlighting covers the first " + MAX_DIFF_CHARS.toLocaleString() + " of " + changes.length.toLocaleString() + " characters, for performance (the counts above cover the full text).";
+      diffNote.style.display = "";
+    } else if (inputOverlay === null) {
+      diffNote.textContent = "Inline highlighting isn't available for this input (Unicode normalization changed its length) - the counts above are still accurate.";
       diffNote.style.display = "";
     } else {
       diffNote.style.display = "none";
@@ -657,14 +714,20 @@
       stats.innerHTML = parts.join(" &middot; ");
     }
 
-    renderDiff(result);
+    renderDiff(src, result);
     updateGutter(input, inGutter);
     updateGutter(output, outGutter);
   }
 
   input.addEventListener("input", update);
-  input.addEventListener("scroll", function () { inGutter.scrollTop = input.scrollTop; });
-  output.addEventListener("scroll", function () { outGutter.scrollTop = output.scrollTop; });
+  input.addEventListener("scroll", function () {
+    inGutter.scrollTop = input.scrollTop;
+    inHighlight.scrollTop = input.scrollTop;
+  });
+  output.addEventListener("scroll", function () {
+    outGutter.scrollTop = output.scrollTop;
+    outHighlight.scrollTop = output.scrollTop;
+  });
 
   // Wrapped row counts depend on the textarea's width, which changes on
   // viewport resize (the grid collapses to one column below 760px) — keep
@@ -679,6 +742,11 @@
   });
 
   optEls.forEach(function (el) { el.addEventListener("change", update); });
+
+  function syncDashTargetEnabled() {
+    optDashTarget.disabled = !optConvertDashes.checked;
+  }
+  optConvertDashes.addEventListener("change", syncDashTargetEnabled);
 
   importBtn.addEventListener("click", function () {
     importFile.click();
@@ -735,5 +803,6 @@
   });
 
   applySavedOpts();
+  syncDashTargetEnabled();
   update();
 })(typeof window !== "undefined" ? window : this);

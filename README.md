@@ -9,20 +9,20 @@ It's a single static page: no backend, no build step, no data ever leaves your b
 ## Features
 
 - **Side-by-side filtering.** Paste or type into the input box; the cleaned result appears in the output box as you type, with live character counts.
+- **Inline highlighting.** Removed and converted characters are highlighted directly inside the input and output boxes themselves (no separate/duplicate diff view to keep in sync) - red for removed, blue for converted, a thin ring for invisible/control characters (which have no width of their own to highlight). A collapsible "What changed?" panel below has the removed/converted counts by category.
 - **Configurable fixes.** The "Fixes & explanation" drawer lists every transformation as an independent toggle, so you choose exactly what gets touched:
   - Normalize Unicode (NFKC) - folds ligatures, full-width letters, and superscripts into plain forms
   - Fold accented letters to their plain ASCII base (`é` -> `e`)
   - Straighten smart quotes (`“ ” ‘ ’` -> `" '`)
-  - Convert em dashes to hyphens (`—` -> `-`) - every other dash (en dash, hyphen, non-breaking hyphen, figure dash, horizontal bar, minus sign) is always preserved exactly as typed
+  - Convert em dashes to a hyphen or an en dash (`—` -> `-` or `–`, your choice) - every other dash (en dash, hyphen, non-breaking hyphen, figure dash, horizontal bar, minus sign) is always preserved exactly as typed
   - Strip emoji & symbols
-  - Strip invisible & control characters (zero-width spaces, directional marks, BOM, ...)
+  - Strip invisible & control characters - zero-width spaces, directional marks and isolates (including the ones behind the "Trojan Source" bidi-spoofing technique), control characters, Unicode tag characters (used to hide invisible payloads in otherwise normal-looking text, sometimes called "ASCII smuggling"), and deprecated variation selectors
   - Allow Hebrew characters (off by default, since the base filter targets Latin/ASCII text)
   - Remove tabs, remove extra spaces, remove line breaks, remove paragraph breaks
 
   A fix that's turned off leaves its characters exactly as typed; a character only gets removed once none of the applicable fixes can convert it.
-- **"What changed?" diff view.** A collapsible panel shows a per-category breakdown of what was removed vs. converted, plus a highlighted side-by-side view of the input and output.
 - **Line numbers** on both text boxes, kept aligned even when lines wrap.
-- **Import, copy, or export** - load a text file straight into the input, copy the output to the clipboard, or download it as a `.txt` file named after the output's first line.
+- **Import, copy, or export** - load any text file (plain text or source code) straight into the input, copy the output to the clipboard, or download it as a `.txt` file named after the output's first line.
 - **Your fix preferences persist** across visits via `localStorage`.
 
 ## Usage
@@ -74,6 +74,13 @@ The `?v=` matters functionally, not just cosmetically: without it, browsers (esp
 ## Version history
 
 Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change - those are called out explicitly below.
+
+### 0.9.0
+- **Feature (UI rework):** removed/converted highlighting now shows directly inside the actual input and output boxes, instead of a separate "What changed?" panel with its own duplicate pair of read-only panes. Implemented as a transparent highlight layer positioned exactly behind each live textarea (character-for-character aligned with its raw text), so typing, clicking, and scrolling all keep working normally. The "What changed?" panel is now just the removed/converted counts and a legend.
+- **Feature:** the "Convert em dashes" fix now lets you choose the conversion target - a hyphen (`-`, the previous/default behavior) or an en dash (`–`) - via a dropdown next to the toggle.
+- **Security:** "Strip invisible & control characters" now also catches: the bidi *isolate* controls (U+2066-U+2069, the newer siblings of the embedding/override controls it already covered, and the ones behind the "Trojan Source" bidi-spoofing technique); Unicode Tag characters (U+E0000-U+E007F, the basis of "ASCII smuggling" - hiding invisible payloads, including prompt-injection text, inside normal-looking text); and the deprecated Variation Selectors Supplement (U+E0100-U+E01EF, no legitimate modern use and also seen used steganographically). The standard variation selectors (U+FE00-U+FE0F, used to select an emoji's presentation) are deliberately left alone.
+- **Feature:** broadened the file import picker's filter to include source code and config files (`.py`, `.js`, `.java`, `.go`, `.yaml`, `.env`, ...) in addition to plain text - these were always readable (they're plain text under the hood), the picker just wasn't surfacing them by default.
+- **Fix:** `escapeHtml` now also escapes quote characters, not just `&`/`<`/`>` - hardening for the attribute-value context (`title="..."`) introduced by the new invisible-character markers, even though nothing currently reachable through that path contains a quote.
 
 ### 0.8.1
 - **Docs:** run the README's own prose through the same default fixes ClearTXT applies to pasted text, and fix what they flagged - mainly decorative em dashes and `→` arrows in the prose, converted to plain hyphens/`->`. Left untouched: characters that are the actual subject of a sentence (e.g. the `é` in "folds accented letters ... `é` -> `e`"), and all markdown structure (list indentation, code block contents, headers).
