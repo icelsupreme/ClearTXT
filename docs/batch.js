@@ -204,16 +204,18 @@
   // could zip-slip its way outside the intended folder when a less
   // careful unzip tool extracts the downloaded archive.
   //
-  // Also strips Unicode Format-category/bidi-control characters
-  // (ClearTXT.isFormatChar - the same ones "Strip invisible & control
-  // characters" catches in pasted text) unconditionally: a dropped-in
-  // File's name never goes through that toggle-governed pipeline at all,
-  // so without this, a name containing e.g. a right-to-left override
-  // (U+202E) could visually disguise its own extension - the classic
-  // "invoice[RLO]txt.exe" trick, displaying as something like
-  // "invoice...exe.txt" - both in this app's own file list and in
-  // whatever it downloads or zips. A tool meant to expose exactly this
-  // kind of trick in text shouldn't launder it through in a filename.
+  // Also strips Unicode Format-category/bidi-control characters and the
+  // hidden-payload ranges (ClearTXT.isFormatChar / isHiddenPayloadRange -
+  // the same ones "Strip invisible & control characters" catches in
+  // pasted text) unconditionally: a dropped-in File's name never goes
+  // through that toggle-governed pipeline at all, so without this, a name
+  // containing e.g. a right-to-left override (U+202E) could visually
+  // disguise its own extension - the classic "invoice[RLO]txt.exe" trick,
+  // displaying as something like "invoice...exe.txt" - or carry
+  // ASCII-smuggled hidden payload characters straight through - both in
+  // this app's own file list and in whatever it downloads or zips. A tool
+  // meant to expose exactly this kind of trick in text shouldn't launder
+  // it through in a filename.
   //
   // Comfortably under both common filesystem path-component limits and
   // the ZIP format's 16-bit "file name length" field (65535 BYTES) - a
@@ -231,7 +233,8 @@
   function safeEntryName(name) {
     var base = name.split(/[\\/]/).pop() || "";
     base = Array.from(base).filter(function (ch) {
-      return !ClearTXT.isFormatChar(ch.codePointAt(0));
+      var cp = ch.codePointAt(0);
+      return !ClearTXT.isFormatChar(cp) && !ClearTXT.isHiddenPayloadRange(cp);
     }).join("");
     // eslint-disable-next-line no-control-regex -- intentionally stripping control chars
     base = base.replace(/[\x00-\x1F]/g, "").slice(0, ENTRY_NAME_MAX_LENGTH);

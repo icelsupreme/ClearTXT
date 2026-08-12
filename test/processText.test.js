@@ -267,6 +267,12 @@ test("a scheme with its own nested parens (e.g. javascript:alert(1)) is still ma
   assert.equal(run("[x](javascript:void(0))"), "x");
 });
 
+test("findUnsafeLinkRanges flags the brackets/parens/target of an unsafe link but not its display text, and leaves a safe link's indices untouched", () => {
+  const chars = Array.from("[bad](search-ms:evil) and [ok](https://x.com)");
+  assert.deepEqual([...ClearTXT.findUnsafeLinkRanges(chars)].sort((a, b) => a - b),
+    [0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+});
+
 test("a Markdown link's category is \"unsafelink\" when stripped, and multiple links in one string are handled independently", () => {
   assert.equal(run("[good](https://ok.com) and [bad](search-ms:evil)"), "[good](https://ok.com) and bad");
   const { changes } = ClearTXT.processText("[bad](search-ms:evil)", opts());
@@ -545,6 +551,13 @@ test("slugForFilename strips Unicode Format/bidi-control characters unconditiona
   assert.equal(ClearTXT.slugForFilename("invoice" + rlo + "cod.exe"), "invoicecod.exe");
   const zwsp = String.fromCodePoint(0x200b);
   assert.equal(ClearTXT.slugForFilename("a" + zwsp + "b"), "ab");
+});
+
+test("slugForFilename also strips hidden-payload range characters unconditionally (Unicode Tags and Variation Selectors Supplement aren't Cf category, so isFormatChar alone would miss them)", () => {
+  const tag = String.fromCodePoint(0xe0041); // Unicode Tag "A"
+  assert.equal(ClearTXT.slugForFilename("a" + tag + "b"), "ab");
+  const varSel = String.fromCodePoint(0xe0100); // Variation Selector Supplement
+  assert.equal(ClearTXT.slugForFilename("a" + varSel + "b"), "ab");
 });
 
 test("slugForFilename truncates long first lines and trims a trailing hyphen left by truncation", () => {
