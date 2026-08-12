@@ -332,8 +332,8 @@
     var lines = [];
     var removedLine = formatCatCounts(sums.removed);
     var convertedLine = formatCatCounts(sums.converted);
-    if (removedLine) lines.push("Removed — " + removedLine);
-    if (convertedLine) lines.push("Converted — " + convertedLine);
+    if (removedLine) lines.push("Removed - " + removedLine);
+    if (convertedLine) lines.push("Converted - " + convertedLine);
     diffCounts.textContent = lines.join("   ·   ");
 
     if (!changes.length) {
@@ -366,7 +366,7 @@
     diffBefore.innerHTML = html.join("");
     if (truncated) {
       diffAfter.textContent = [...result.output].slice(0, MAX_DIFF_CHARS).join("");
-      diffNote.textContent = "Showing highlights for the first " + shown.toLocaleString() + " of " + changes.length.toLocaleString() + " characters — the rest is omitted here for performance (the counts above cover the full text).";
+      diffNote.textContent = "Showing highlights for the first " + shown.toLocaleString() + " of " + changes.length.toLocaleString() + " characters - the rest is omitted here for performance (the counts above cover the full text).";
       diffNote.style.display = "";
     } else {
       diffAfter.textContent = result.output;
@@ -396,7 +396,7 @@
     if (inLen === 0) {
       stats.innerHTML = "";
     } else if (removedCount === 0 && convertedCount === 0) {
-      stats.innerHTML = "Nothing changed — text is already clean";
+      stats.innerHTML = "Nothing changed - text is already clean";
     } else {
       var parts = [];
       if (removedCount) parts.push('<span class="removed">' + removedCount + "</span> removed");
