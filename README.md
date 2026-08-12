@@ -59,3 +59,7 @@ npm test      # unit tests (node:test) against the filtering logic in script.js
 `script.js` runs as a plain browser script, but its pure text-processing functions (`processText`, `applyWhitespaceCleanup`, `buildRuns`, etc.) are also exposed via `module.exports` when loaded under Node, which is what `test/processText.test.js` exercises directly — no DOM or browser needed to run the test suite.
 
 CI runs lint and tests on every push to `main` and on every pull request (see `.github/workflows/ci.yml`), plus a non-blocking `npm audit` check.
+
+### Cache-busting
+
+`index.html` loads `styles.css` and `script.js` with a `?v=N` query string. There's no build step or asset hashing here, so bump that version number whenever either file changes — otherwise browsers (especially since this page is often opened directly over `file://`) can keep serving an old cached copy, e.g. making a checkbox toggle look like it silently stopped updating the output when it's actually just running stale JS. A plain hard refresh (Ctrl/Cmd+Shift+R) works around it for one visit, but the version bump is what prevents it for everyone else.
