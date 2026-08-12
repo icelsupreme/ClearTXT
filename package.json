@@ -1,6 +1,6 @@
 {
   "name": "cleartxt",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "Strip text down to a clean, safe character set.",
   "license": "MIT",
