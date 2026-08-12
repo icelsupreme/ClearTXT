@@ -207,19 +207,6 @@
     return base;
   }
 
-  // Same transient-label pattern as script.js's Copy/Export buttons
-  // ("Copied!"/"Exported!") - without this, clicking Download gave no
-  // acknowledgement at all that anything happened.
-  var BUTTON_FEEDBACK_MS = 1200;
-
-  function flashButtonLabel(btn, text) {
-    if (!btn) return;
-    var label = btn.querySelector(".btnLabel") || btn;
-    var old = label.textContent;
-    label.textContent = text;
-    setTimeout(function () { label.textContent = old; }, BUTTON_FEEDBACK_MS);
-  }
-
   function downloadEntry(entry, btn) {
     if (!entry.result) return;
     var blob = new Blob([entry.result.output], { type: "text/plain;charset=utf-8" });
@@ -231,7 +218,11 @@
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    flashButtonLabel(btn, "Downloaded!");
+    // Same transient-label pattern as script.js's Copy/Export buttons
+    // ("Copied!"/"Exported!") - without this, clicking Download gave no
+    // acknowledgement at all that anything happened. Shared implementation
+    // so a fix to the pattern only has to happen in one place.
+    ClearTXT.flashButtonLabel(btn, "Downloaded!");
   }
 
   function escapeHtml(s) { return ClearTXT.escapeHtml(s); }
@@ -258,6 +249,60 @@
     return bits.join(" · ");
   }
 
+  function rowHtml(entry) {
+    return '<div class="batchRow" data-id="' + entry.id + '">' +
+      '<div class="batchRowInfo">' +
+      '<div class="batchRowName" title="' + escapeHtml(entry.name) + '">' + escapeHtml(entry.name) + " &middot; " + humanSize(entry.size) + "</div>" +
+      '<div class="batchRowStats">' + rowStatsHtml(entry) + "</div>" +
+      "</div>" +
+      '<div class="batchRowActions">' +
+      '<button class="downloadOneBtn" ' + (entry.result ? "" : "disabled") + '><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg><span class="btnLabel">Download</span></button>' +
+      '<button class="removeOneBtn iconOnly" aria-label="Remove ' + escapeHtml(entry.name) + '" title="Remove"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>' +
+      "</div>" +
+      "</div>";
+  }
+
+  // Tracks each row's last-rendered HTML, keyed by entry id and computed
+  // purely from that entry's model data - deliberately never read back
+  // from the live DOM, since the live DOM can carry transient visual
+  // state (e.g. a "Downloaded!" flash - see flashButtonLabel) that isn't
+  // part of the entry's own data and shouldn't count as a "change".
+  var lastRowHtml = {};
+
+  // Patches batchList to match `files`, touching only the rows whose
+  // underlying data actually changed instead of rebuilding every row's
+  // DOM on every render() call. Files are only ever appended (addFiles)
+  // or removed (removeEntry/clearAllBtn) - existing entries never change
+  // position relative to each other - so this needs no reordering logic,
+  // just: drop rows for ids no longer present, patch rows whose computed
+  // HTML differs from last time, and append brand new ones. Rebuilding
+  // unconditionally (the previous approach) meant any render() triggered
+  // while a different button's feedback flash was still showing (e.g.
+  // another file finishing its async read, or toggling a fix) destroyed
+  // and recreated every row's DOM - including the one showing the flash -
+  // cutting the acknowledgement short before the user had time to see it.
+  function renderRows() {
+    var currentIds = {};
+    files.forEach(function (entry) {
+      currentIds[entry.id] = true;
+      var html = rowHtml(entry);
+      if (lastRowHtml[entry.id] === html) return;
+      lastRowHtml[entry.id] = html;
+      var existing = batchList.querySelector('.batchRow[data-id="' + entry.id + '"]');
+      var template = document.createElement("template");
+      template.innerHTML = html;
+      var newRow = template.content.firstElementChild;
+      if (existing) existing.replaceWith(newRow);
+      else batchList.appendChild(newRow);
+    });
+    Object.keys(lastRowHtml).forEach(function (id) {
+      if (currentIds[id]) return;
+      delete lastRowHtml[id];
+      var stale = batchList.querySelector('.batchRow[data-id="' + id + '"]');
+      if (stale) stale.remove();
+    });
+  }
+
   function render() {
     batchPanel.style.display = files.length ? "" : "none";
     dropzone.style.display = files.length ? "none" : "";
@@ -269,18 +314,7 @@
     batchSummary.textContent = summaryBits.join(" · ");
     downloadAllBtn.disabled = readyCount === 0;
 
-    batchList.innerHTML = files.map(function (entry) {
-      return '<div class="batchRow" data-id="' + entry.id + '">' +
-        '<div class="batchRowInfo">' +
-        '<div class="batchRowName" title="' + escapeHtml(entry.name) + '">' + escapeHtml(entry.name) + " &middot; " + humanSize(entry.size) + "</div>" +
-        '<div class="batchRowStats">' + rowStatsHtml(entry) + "</div>" +
-        "</div>" +
-        '<div class="batchRowActions">' +
-        '<button class="downloadOneBtn" ' + (entry.result ? "" : "disabled") + '><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg><span class="btnLabel">Download</span></button>' +
-        '<button class="removeOneBtn iconOnly" aria-label="Remove ' + escapeHtml(entry.name) + '" title="Remove"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>' +
-        "</div>" +
-        "</div>";
-    }).join("");
+    renderRows();
   }
 
   chooseFilesBtn.addEventListener("click", function () { filesInput.click(); });
@@ -334,7 +368,7 @@
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    flashButtonLabel(downloadAllBtn, "Downloaded!");
+    ClearTXT.flashButtonLabel(downloadAllBtn, "Downloaded!");
   });
 
   clearAllBtn.addEventListener("click", function () {

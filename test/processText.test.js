@@ -15,6 +15,7 @@ const DEFAULT_OPTS = {
   stripCurrency: true,
   stripInvisible: true,
   stripHebrew: true,
+  stripCyrillic: true,
   removeLineBreaks: false,
   removeParagraphBreaks: false,
   removeExtraSpaces: true,
@@ -101,6 +102,28 @@ test("Hebrew is stripped by default and preserved when \"strip Hebrew characters
   assert.equal(run("hello שלום world"), "hello world");
   assert.equal(run("hello שלום world", { removeExtraSpaces: false }), "hello  world");
   assert.equal(run("hello שלום world", { stripHebrew: false }), "hello שלום world");
+});
+
+test("the Letterlike Symbols math alef/bet/gimel/dalet (e.g. aleph-null, ℵ₀) are never silently folded into actual Hebrew letters by NFKC normalization, regardless of the Hebrew/emoji toggles", () => {
+  // Before the fix: normalize turned ℵ into Hebrew א before the pipeline
+  // ever saw it, so with stripHebrew on (default) it vanished with no
+  // trace, and with stripHebrew off it survived disguised as an actual
+  // Hebrew letter instead of itself.
+  assert.equal(run("ℵ"), ""); // still removed by default, but as a generic symbol now
+  assert.equal(run("ℵ", { stripEmoji: false }), "ℵ"); // governed by the symbol toggle, not Hebrew
+  assert.equal(run("ℵ", { stripHebrew: false }), ""); // NOT preserved disguised as א
+  assert.equal(ClearTXT.processText("ℵ", opts()).changes[0].category, "symbol");
+});
+
+test("Cyrillic is stripped by default and preserved when \"strip Cyrillic characters\" is off", () => {
+  assert.equal(run("hello привет world"), "hello world");
+  assert.equal(run("hello привет world", { removeExtraSpaces: false }), "hello  world");
+  assert.equal(run("hello привет world", { stripCyrillic: false }), "hello привет world");
+});
+
+test("Cyrillic stripping is independent of \"strip emoji & symbols\" - previously Cyrillic only fell through the generic symbol strip", () => {
+  assert.equal(run("привет", { stripEmoji: false }), "");
+  assert.equal(run("привет", { stripEmoji: false, stripCyrillic: false }), "привет");
 });
 
 test("emoji and symbols are stripped by default and kept when the toggle is off", () => {
@@ -262,6 +285,16 @@ test("isHebrew recognizes the Hebrew block and presentation forms, and nothing e
   assert.equal(ClearTXT.isHebrew(0x05d0), true); // א
   assert.equal(ClearTXT.isHebrew(0xfb1d), true);
   assert.equal(ClearTXT.isHebrew(0x0041), false); // A
+});
+
+test("isCyrillic recognizes the main Cyrillic block, supplement, and extended blocks, and nothing else", () => {
+  assert.equal(ClearTXT.isCyrillic(0x043f), true); // п
+  assert.equal(ClearTXT.isCyrillic(0x0500), true); // Cyrillic Supplement
+  assert.equal(ClearTXT.isCyrillic(0x2de0), true); // Cyrillic Extended-A
+  assert.equal(ClearTXT.isCyrillic(0xa640), true); // Cyrillic Extended-B
+  assert.equal(ClearTXT.isCyrillic(0x1c80), true); // Cyrillic Extended-C
+  assert.equal(ClearTXT.isCyrillic(0x0041), false); // A
+  assert.equal(ClearTXT.isCyrillic(0x05d0), false); // Hebrew א
 });
 
 test("foldAccent returns null for characters with no plain-ASCII base", () => {

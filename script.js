@@ -51,6 +51,18 @@
   // presentation-forms block (ligatures like "ﭏ" and pointed letters).
   var HEBREW_RANGES = [[0x0590, 0x05FF], [0xFB1D, 0xFB4F]];
 
+  // Cyrillic letters/combining marks across the blocks covering everyday
+  // use (Russian, Ukrainian, Bulgarian, Serbian, Belarusian, Mongolian, ...)
+  // through the Extended blocks used for a handful of minority languages
+  // and historic/academic text (Old Church Slavonic, Abkhaz, Bashkir, ...).
+  var CYRILLIC_RANGES = [
+    [0x0400, 0x04FF], // Cyrillic
+    [0x0500, 0x052F], // Cyrillic Supplement
+    [0x2DE0, 0x2DFF], // Cyrillic Extended-A
+    [0xA640, 0xA69F], // Cyrillic Extended-B
+    [0x1C80, 0x1C8F]  // Cyrillic Extended-C
+  ];
+
   // Short label + human name for zero-width/formatting characters that
   // have no visible glyph of their own, so the diff view can show
   // something in their place instead of literally nothing.
@@ -112,6 +124,7 @@
     accent: "accents",
     quote: "quotes",
     hebrew: "Hebrew",
+    cyrillic: "Cyrillic",
     currency: "currency symbols",
     tab: "tabs",
     linebreak: "line breaks",
@@ -139,6 +152,14 @@
     return false;
   }
 
+  function isCyrillic(cp) {
+    for (var i = 0; i < CYRILLIC_RANGES.length; i++) {
+      var r = CYRILLIC_RANGES[i];
+      if (cp >= r[0] && cp <= r[1]) return true;
+    }
+    return false;
+  }
+
   // Tries to fold a single character down to a plain-ASCII equivalent by
   // decomposing it (NFD) and stripping combining marks, e.g. é -> e.
   // Returns null when the character has no plain-ASCII base (CJK, emoji…).
@@ -152,6 +173,37 @@
     return d;
   }
 
+  // The "Letterlike Symbols" mathematical alef/bet/gimel/dalet (used e.g.
+  // for aleph-null, ℵ₀, in set theory) are NFKC-*compatibility*
+  // equivalents of the actual Hebrew letters they're shaped after - so
+  // plain `text.normalize("NFKC")` silently turns ℵ into א before the
+  // per-character loop below ever sees it, and with "Strip Hebrew
+  // characters" also at its default (on), that ℵ then vanishes entirely:
+  // normalized into Hebrew, then removed as Hebrew, with nothing to
+  // indicate a character went missing. A math symbol disappearing when
+  // neither toggle looks Hebrew-related is exactly the kind of surprise
+  // this app's own "off leaves it untouched" model is meant to avoid, so
+  // these four are protected from that specific compatibility mapping
+  // regardless of the Hebrew/normalize toggles - matching how a user
+  // pasting math notation would expect them to survive.
+  var PROTECTED_FROM_NORMALIZE_RE = /[ℵ-ℸ]/; // ℵ ℶ ℷ ℸ
+  var PROTECTED_FROM_NORMALIZE_SPLIT_RE = /([ℵ-ℸ])/; // same, capturing - split() keeps captured delimiters
+
+  // Same as `text.normalize("NFKC")`, except the protected characters
+  // above are split out first and rejoined afterward untouched, so they
+  // can't be folded into something else. Normalizes the surrounding runs
+  // rather than character-by-character, since NFKC needs to see multi-
+  // character sequences together (e.g. a base letter plus a following
+  // combining accent) to compose them correctly - and splitting into a
+  // handful of runs via native split()/join() is far faster than building
+  // the result one character at a time for large inputs.
+  function normalizeProtectingLetterlike(text) {
+    if (!PROTECTED_FROM_NORMALIZE_RE.test(text)) return text.normalize("NFKC");
+    return text.split(PROTECTED_FROM_NORMALIZE_SPLIT_RE)
+      .map(function (part, i) { return i % 2 === 1 ? part : part.normalize("NFKC"); })
+      .join("");
+  }
+
   // Runs the configurable pipeline over `text` and returns both the
   // filtered output and a per-character change log used to render the
   // before/after diff and the removed/converted summary. The output string
@@ -159,7 +211,7 @@
   // rather than built inline, since the whitespace pass can retroactively
   // turn an already-"kept" character into "removed"/"converted".
   function processText(text, opts) {
-    var src = (opts.normalize && text.normalize) ? text.normalize("NFKC") : text;
+    var src = (opts.normalize && text.normalize) ? normalizeProtectingLetterlike(text) : text;
     var changes = [];
 
     for (var ch of src) {
@@ -187,6 +239,15 @@
           changes.push({ ch: ch, type: "removed", category: "hebrew", replacement: "" });
         } else {
           changes.push({ ch: ch, type: "kept", category: "hebrew", replacement: ch });
+        }
+        continue;
+      }
+
+      if (isCyrillic(cp)) {
+        if (opts.stripCyrillic) {
+          changes.push({ ch: ch, type: "removed", category: "cyrillic", replacement: "" });
+        } else {
+          changes.push({ ch: ch, type: "kept", category: "cyrillic", replacement: ch });
         }
         continue;
       }
@@ -619,12 +680,14 @@
     invisibleInfo: invisibleInfo,
     isHiddenPayloadRange: isHiddenPayloadRange,
     isHebrew: isHebrew,
+    isCyrillic: isCyrillic,
     foldAccent: foldAccent,
     slugForFilename: slugForFilename,
     exportFilename: exportFilename,
     stripMarkdown: stripMarkdown,
     wordCount: wordCount,
-    createFixOptionsController: createFixOptionsController
+    createFixOptionsController: createFixOptionsController,
+    flashButtonLabel: flashButtonLabel
   };
 
   if (typeof module !== "undefined" && module.exports) {
@@ -634,6 +697,50 @@
   }
 
   if (typeof document === "undefined") return;
+
+  // Milliseconds a button's label stays showing a transient status
+  // ("Copied!", "Exported!", "Downloaded!", ...) before reverting to its
+  // normal text. Shared (via the ClearTXT export above) by both this
+  // page's own buttons below and batch.html's, so the pattern only has to
+  // live - and be fixed - in one place. This assignment (unlike a plain
+  // function declaration) has to run unconditionally, before the
+  // single-file-page-only "if (!input) return" below - a `var` only
+  // hoists its declaration, not its value, so placing this after that
+  // early return left BUTTON_FEEDBACK_MS permanently undefined on
+  // batch.html, which made every flash's setTimeout fire with an
+  // undefined delay (effectively 0ms) instead of actually holding for
+  // 1.2s.
+  var BUTTON_FEEDBACK_MS = 1200;
+
+  // Flashes `text` on `btn`'s label, then reverts to whatever it said
+  // before. A second call on the same button while a flash is still
+  // showing resets the timer instead of stacking a second one - the
+  // button's true original label is stashed in a dataset attribute rather
+  // than a closure variable specifically so a second call can find and
+  // preserve it instead of re-capturing the currently-showing flash text
+  // as the "original" to revert to. Without this, two clicks within the
+  // window could leave the button stuck showing the flash text forever:
+  // the first timer correctly reverts at t=1200ms, but the second timer
+  // (which captured "Copied!" as its own "original") then overwrites that
+  // correct revert right back to "Copied!" when it fires.
+  function flashButtonLabel(btn, text) {
+    if (!btn) return;
+    // Targets the .btnLabel span, not the button itself - buttons also
+    // contain an icon <svg>, and btn.textContent = ... would silently
+    // delete it (textContent replaces every child node, icon included).
+    var label = btn.querySelector(".btnLabel") || btn;
+    if (label.dataset.flashTimer) {
+      clearTimeout(Number(label.dataset.flashTimer));
+    } else {
+      label.dataset.flashOriginal = label.textContent;
+    }
+    label.textContent = text;
+    label.dataset.flashTimer = String(setTimeout(function () {
+      label.textContent = label.dataset.flashOriginal;
+      delete label.dataset.flashTimer;
+      delete label.dataset.flashOriginal;
+    }, BUTTON_FEEDBACK_MS));
+  }
 
   var input = document.getElementById("input");
   // Not the main single-editor page (e.g. batch.html, which loads this
@@ -682,13 +789,14 @@
     // to opts/localStorage.
     var FIX_TOGGLES = [
       ["optNormalize", "normalize", true, "typography"],
-      ["optFoldAccents", "foldAccents", true, "typography"],
       ["optStraightenQuotes", "straightenQuotes", true, "typography"],
       ["optConvertDashes", "convertDashes", true, "typography"],
+      ["optFoldAccents", "foldAccents", true, "languages"],
+      ["optStripHebrew", "stripHebrew", true, "languages"],
+      ["optStripCyrillic", "stripCyrillic", true, "languages"],
       ["optStripEmoji", "stripEmoji", true, "symbols"],
       ["optStripCurrency", "stripCurrency", true, "symbols"],
       ["optStripInvisible", "stripInvisible", true, "symbols"],
-      ["optStripHebrew", "stripHebrew", true, "symbols"],
       ["optRemoveTabs", "removeTabs", false, "whitespace"],
       ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
       ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
@@ -700,7 +808,7 @@
     // Group names in display order, matching the fixGroup sections in the
     // markup - drives both the "select whole group" header wiring below
     // and its indeterminate/checked state.
-    var FIX_GROUPS = ["typography", "symbols", "whitespace"];
+    var FIX_GROUPS = ["typography", "languages", "symbols", "whitespace"];
 
     function groupToggles(group) {
       return FIX_TOGGLES.filter(function (t) { return t.group === group; });
@@ -1214,20 +1322,6 @@
       updateGutter(output, outGutter, lastOutLineChanged);
     });
   });
-
-  // Milliseconds a button's label stays showing a transient status ("Copied!",
-  // "Exported!", "Import failed") before reverting to its normal text.
-  var BUTTON_FEEDBACK_MS = 1200;
-
-  function flashButtonLabel(btn, text) {
-    // Targets the .btnLabel span, not the button itself - buttons also
-    // contain an icon <svg>, and btn.textContent = ... would silently
-    // delete it (textContent replaces every child node, icon included).
-    var label = btn.querySelector(".btnLabel") || btn;
-    var old = label.textContent;
-    label.textContent = text;
-    setTimeout(function () { label.textContent = old; }, BUTTON_FEEDBACK_MS);
-  }
 
   importBtn.addEventListener("click", function () {
     importFile.click();
