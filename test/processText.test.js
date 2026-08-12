@@ -208,6 +208,27 @@ test("inputHighlightHtml gives a blank line its own (empty) line div instead of 
   );
 });
 
+test("inputLineChanged flags exactly the lines that contain a change, matching inputHighlightHtml's line-changed tags", () => {
+  const raw = "clean line\ncafé line\nanother clean line";
+  const { changes } = ClearTXT.processText(raw, opts());
+  assert.deepEqual(ClearTXT.inputLineChanged(raw, changes), [false, true, false]);
+});
+
+test("inputLineChanged flags a blank changed-adjacent line correctly and returns null on normalization length mismatch", () => {
+  const raw = "a\n\nb";
+  const { changes } = ClearTXT.processText(raw, opts());
+  assert.deepEqual(ClearTXT.inputLineChanged(raw, changes), [false, false, false]);
+
+  const ligature = "ﬁle";
+  const { changes: ligChanges } = ClearTXT.processText(ligature, opts());
+  assert.equal(ClearTXT.inputLineChanged(ligature, ligChanges), null);
+});
+
+test("outputLineChanged flags lines in the OUTPUT text, which can differ from the input's line-changed flags", () => {
+  const { changes } = ClearTXT.processText("café line\nclean line", opts());
+  assert.deepEqual(ClearTXT.outputLineChanged(changes), [true, false]);
+});
+
 test("summarizeChanges and formatCatCounts report accurate per-category totals", () => {
   const { changes } = ClearTXT.processText("café “world” 😀", opts());
   const sums = ClearTXT.summarizeChanges(changes);

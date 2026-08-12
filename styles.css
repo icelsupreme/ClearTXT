@@ -91,6 +91,9 @@ header p {
   overflow: hidden;
   user-select: none;
 }
+/* Ties a gutter's line number to its row's highlight, so a changed line
+   is visible in the gutter too, not just in the text itself. */
+.gutter .gutter-changed { color: var(--accent); font-weight: 700; }
 /* textWrap stacks two layers filling the same box: .highlight (behind,
    invisible text, only its rm/cv/iv marker effects are visible) and the
    real textarea (in front, normal visible text). Both must share
@@ -132,9 +135,9 @@ header p {
    collapsing to 0 height, which would desync every line after it from
    the textarea's own rendering of that blank line. */
 .highlight .line { min-height: 1.55em; }
-.highlight .line-changed { background: rgba(255,255,255,.045); box-shadow: inset 3px 0 0 0 rgba(79,157,255,.5); }
-.highlight .rm { background: rgba(255,107,107,.4); border-radius: 2px; }
-.highlight .cv { background: rgba(79,157,255,.35); border-radius: 2px; }
+.highlight .line-changed { background: rgba(79,157,255,.14); box-shadow: inset 4px 0 0 0 rgba(79,157,255,.9); }
+.highlight .rm { background: rgba(255,107,107,.55); border-radius: 2px; }
+.highlight .cv { background: rgba(79,157,255,.5); border-radius: 2px; }
 /* Purely a passive visual cue, not an interactive one: the real textarea
    sits on top of this whole layer (so clicking/typing anywhere always
    reaches it), which means nothing in this layer - however it's
