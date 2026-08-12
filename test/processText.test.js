@@ -157,6 +157,27 @@ test("Unicode tag characters (ASCII-smuggling vector) are stripped by default an
   assert.equal(run("a" + tag + "b", { stripInvisible: false }), "a" + tag + "b");
 });
 
+test("soft hyphen and Arabic letter mark are categorized as invisible (governed by \"strip invisible\"), not as a generic symbol - a codepoint-based Unicode Format (Cf) category scan found both previously fell through to the generic symbol strip instead", () => {
+  assert.equal(run("hyphen­ated"), "hyphenated");
+  assert.equal(run("hyphen­ated", { stripInvisible: false }), "hyphen­ated");
+  // Previously governed by stripEmoji instead of stripInvisible - would
+  // have survived here before the fix, unlike its LRM/RLM sibling marks.
+  assert.equal(run("hyphen­ated", { stripEmoji: false }), "hyphenated");
+
+  assert.equal(run("a؜b"), "ab");
+  assert.equal(run("a؜b", { stripInvisible: false }), "a؜b");
+  assert.equal(run("a؜b", { stripEmoji: false }), "ab");
+});
+
+test("isFormatChar matches Unicode's Format (Cf) general category plus the line/paragraph separators, and nothing else", () => {
+  assert.equal(ClearTXT.isFormatChar(0x00AD), true); // soft hyphen
+  assert.equal(ClearTXT.isFormatChar(0x061C), true); // Arabic letter mark
+  assert.equal(ClearTXT.isFormatChar(0x2028), true); // line separator (Zl, not Cf, included explicitly)
+  assert.equal(ClearTXT.isFormatChar(0x200B), true); // zero-width space
+  assert.equal(ClearTXT.isFormatChar(0x0041), false); // A
+  assert.equal(ClearTXT.isFormatChar(0x1F600), false); // 😀
+});
+
 test("deprecated variation selector supplement is stripped by default and kept when the toggle is off", () => {
   const vs = String.fromCodePoint(0xe0100);
   assert.equal(run("a" + vs + "b"), "ab");
