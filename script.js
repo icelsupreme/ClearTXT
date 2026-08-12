@@ -392,7 +392,10 @@
   var inCount = document.getElementById("inCount");
   var outCount = document.getElementById("outCount");
   var stats = document.getElementById("stats");
+  var importBtn = document.getElementById("importBtn");
+  var importFile = document.getElementById("importFile");
   var copyBtn = document.getElementById("copyBtn");
+  var exportBtn = document.getElementById("exportBtn");
   var clearBtn = document.getElementById("clearBtn");
 
   var diffSummary = document.getElementById("diffSummary");
@@ -642,12 +645,60 @@
 
   optEls.forEach(function (el) { el.addEventListener("change", update); });
 
+  importBtn.addEventListener("click", function () {
+    importFile.click();
+  });
+
+  importFile.addEventListener("change", function () {
+    var file = importFile.files && importFile.files[0];
+    if (!file) return;
+    file.text()
+      .then(function (text) {
+        input.value = text;
+        update();
+        input.focus();
+      })
+      .catch(function () {
+        // No toast/notification system to surface a read failure through;
+        // the input is simply left as it was.
+      })
+      .finally(function () {
+        // Reset so choosing the same file again still fires "change".
+        importFile.value = "";
+      });
+  });
+
   copyBtn.addEventListener("click", function () {
     output.select();
     navigator.clipboard && navigator.clipboard.writeText(output.value);
     var old = copyBtn.textContent;
     copyBtn.textContent = "Copied!";
     setTimeout(function () { copyBtn.textContent = old; }, 1200);
+  });
+
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+
+  function exportFilename() {
+    var d = new Date();
+    return "cleartxt-output-" + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
+      "-" + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds()) + ".txt";
+  }
+
+  exportBtn.addEventListener("click", function () {
+    if (!output.value.length) return;
+    var blob = new Blob([output.value], { type: "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = exportFilename();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    var old = exportBtn.textContent;
+    exportBtn.textContent = "Exported!";
+    setTimeout(function () { exportBtn.textContent = old; }, 1200);
   });
 
   clearBtn.addEventListener("click", function () {
