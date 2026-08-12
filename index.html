@@ -16,7 +16,7 @@
      page's own tagline ("a clean, safe character set"). Colors are
      hardcoded (not var(--accent)/var(--bg)) since a standalone favicon.svg
      has no access to the page's CSS custom properties. -->
-<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.2.0">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.2.1">
 <!-- Same typeface everywhere regardless of OS/browser, instead of each
      platform's own system-font stack (which is what made things look
      inconsistent). Noto Sans Hebrew is loaded alongside the Latin
@@ -33,11 +33,11 @@
      on every release, so browsers (especially over file://, which this
      page is often opened with directly) don't keep serving a stale
      cached copy, and so the on-page version is always accurate. -->
-<link rel="stylesheet" href="styles.css?v=1.2.0">
+<link rel="stylesheet" href="styles.css?v=1.2.1">
 </head>
 <body>
   <header>
-    <h1><svg class="logoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2v2"/><path d="M12 3h-2"/><path d="M13.5 10.5 22 2"/><path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z"/><path d="M20 15v4"/><path d="M22 17h-4"/><path d="M4 4v4"/><path d="m5 18 2-2"/><path d="M6 6H2"/><path d="m7.699 10.7 5.602 5.601"/></svg>ClearTXT <span class="version" title="Version, matches package.json">v1.2.0</span></h1>
+    <h1><svg class="logoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2v2"/><path d="M12 3h-2"/><path d="M13.5 10.5 22 2"/><path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z"/><path d="M20 15v4"/><path d="M22 17h-4"/><path d="M4 4v4"/><path d="m5 18 2-2"/><path d="M6 6H2"/><path d="m7.699 10.7 5.602 5.601"/></svg>ClearTXT <span class="version" title="Version, matches package.json">v1.2.1</span></h1>
     <p>Strip text down to a clean, safe character set - everything else is removed.</p>
     <p class="batchNavLink"><a href="batch.html">Clean multiple files at once &rarr;</a></p>
   </header>
@@ -90,19 +90,19 @@
 
     <details id="diffDetails">
       <summary>What changed? <span id="diffSummary" style="color:var(--muted);" aria-live="polite"></span></summary>
-      <p style="color:var(--muted);font-size:.9rem;margin-top:4px;">Removed and converted characters are highlighted directly in the input and output boxes above - a line containing any change also gets a full-row tint, GitHub-diff style, so changed lines are easy to spot at a glance.</p>
+      <p style="color:var(--muted);font-size:.9rem;margin-top:4px;">Removed and converted characters are highlighted directly in the input and output boxes above; a changed line also gets a full-row tint, GitHub-diff style.</p>
       <div class="diffCounts" id="diffCounts"></div>
       <div id="diffNote" class="muted" style="display:none;font-size:.8rem;margin-top:6px;color:var(--muted);"></div>
       <div class="legend">
         <span><i class="sw removed"></i>removed</span>
         <span><i class="sw converted"></i>converted (fixed, not deleted)</span>
-        <span><i class="sw invisible"></i>invisible/control character (shown as a thin ring, since it has no width of its own to highlight)</span>
+        <span><i class="sw invisible"></i>invisible/control character (a thin ring - it has no width of its own to highlight)</span>
       </div>
     </details>
 
     <details>
       <summary>Fixes &amp; explanation</summary>
-      <p style="color:var(--muted);font-size:.9rem;">Choose which fixes to apply, grouped below - each group's own checkbox turns every fix in it on or off at once. Characters a fix would otherwise touch are left exactly as typed when its toggle is off - and removed instead of fixed once none of the fixes below can convert them.</p>
+      <p style="color:var(--muted);font-size:.9rem;">Choose which fixes to apply, grouped below - each group's checkbox toggles every fix in it at once. A fix that's off leaves its characters untouched; anything none of them can convert is removed.</p>
       <div class="fixActions">
         <button id="restoreDefaultsBtn" title="Reset every fix (and the em dash target) back to its default"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span class="btnLabel">Restore defaults</span></button>
       </div>
@@ -117,14 +117,14 @@
             <input type="checkbox" id="optNormalize" checked>
             <span class="fixText">
               <strong>Normalize Unicode (NFKC)</strong>
-              <div>Folds ligatures (<code>ﬁ</code>→<code>fi</code>), full-width letters (<code>Ａ</code>→<code>A</code>) and superscripts (<code>²</code>→<code>2</code>) into plain forms before anything else runs.</div>
+              <div>Folds ligatures, full-width letters and superscripts into plain forms (<code>ﬁ</code>→<code>fi</code>, <code>Ａ</code>→<code>A</code>, <code>²</code>→<code>2</code>).</div>
             </span>
           </label>
           <label class="fixRow">
             <input type="checkbox" id="optStraightenQuotes" checked>
             <span class="fixText">
               <strong>Straighten smart quotes</strong>
-              <div>Converts curly quotes (<code>“ ” ‘ ’ „</code>) to plain <code>" '</code> instead of deleting them.</div>
+              <div>Converts curly quotes (<code>“ ” ‘ ’ „</code>) to plain <code>" '</code>.</div>
             </span>
           </label>
           <label class="fixRow">
@@ -136,7 +136,7 @@
                   <option value="–">to an en dash (–)</option>
                 </select>
               </strong>
-              <div>Converts em dashes (<code>—</code>) instead of deleting them. En dashes, hyphens and minus signs (<code>– − ‐ ‑</code>) are always preserved as typed, regardless of this toggle.</div>
+              <div>Converts em dashes (<code>—</code>). En dashes, hyphens and minus signs (<code>– − ‐ ‑</code>) are always preserved, regardless of this toggle.</div>
             </span>
           </label>
         </div>
@@ -150,21 +150,21 @@
             <input type="checkbox" id="optFoldAccents" checked>
             <span class="fixText">
               <strong>Fold accented letters</strong>
-              <div>Converts accented Latin letters to their plain ASCII base (<code>é</code>→<code>e</code>, <code>ñ</code>→<code>n</code>) instead of deleting them.</div>
+              <div>Converts accented Latin letters to their plain ASCII base (<code>é</code>→<code>e</code>, <code>ñ</code>→<code>n</code>).</div>
             </span>
           </label>
           <label class="fixRow">
             <input type="checkbox" id="optStripHebrew" checked>
             <span class="fixText">
               <strong>Strip Hebrew characters</strong>
-              <div>Removes Hebrew letters, niqqud/cantillation points and punctuation (<code>א–ת</code>). On by default since the base filter targets Latin/ASCII text - turn off to keep Hebrew text as-is.</div>
+              <div>Removes Hebrew letters, niqqud/cantillation points and punctuation (<code>א–ת</code>). Turn off to keep Hebrew text as-is.</div>
             </span>
           </label>
           <label class="fixRow">
             <input type="checkbox" id="optStripCyrillic" checked>
             <span class="fixText">
               <strong>Strip Cyrillic characters</strong>
-              <div>Removes Cyrillic letters and combining marks (<code>а–я А–Я</code>), covering everyday use (Russian, Ukrainian, Bulgarian, Serbian, ...) and a few historic/minority-language extensions. On by default since the base filter targets Latin/ASCII text - turn off to keep Cyrillic text as-is.</div>
+              <div>Removes Cyrillic letters and combining marks (<code>а–я А–Я</code>). Turn off to keep Cyrillic text as-is.</div>
             </span>
           </label>
         </div>
@@ -178,21 +178,21 @@
             <input type="checkbox" id="optStripEmoji" checked>
             <span class="fixText">
               <strong>Strip emoji &amp; symbols</strong>
-              <div>Removes emoji and Unicode symbols (<code>± × ÷ ≤ ≥ √</code> …) that none of the fixes above can convert. Turn off to keep them as-is.</div>
+              <div>Removes emoji and other symbols (<code>± × ÷ ≤ ≥ √</code> …) that nothing above converts. Turn off to keep them as-is.</div>
             </span>
           </label>
           <label class="fixRow">
             <input type="checkbox" id="optStripCurrency" checked>
             <span class="fixText">
               <strong>Strip currency symbols</strong>
-              <div>Removes currency symbols (<code>€ £ ¥ ₹ ₩ ₽ ¢</code> …) along with other symbols, when "Strip emoji &amp; symbols" above is also on. Turn off to keep them regardless. The ASCII dollar sign (<code>$</code>) is always kept.</div>
+              <div>Removes currency symbols (<code>€ £ ¥ ₹ ₩ ₽ ¢</code> …) when "Strip emoji &amp; symbols" above is also on. Turn off to keep them regardless. <code>$</code> is always kept.</div>
             </span>
           </label>
           <label class="fixRow">
             <input type="checkbox" id="optStripInvisible" checked>
             <span class="fixText">
               <strong>Strip invisible &amp; control characters</strong>
-              <div>Removes zero-width characters (ZWSP, ZWJ, BOM), directional marks and isolates (including the ones behind the "Trojan Source" bidi-spoofing technique), control characters, Unicode tag characters (used to hide invisible payloads in otherwise normal-looking text), and deprecated variation selectors. Turn off to keep them as-is.</div>
+              <div>Removes zero-width characters (ZWSP, ZWJ, BOM), bidi marks/isolates (used in "Trojan Source" spoofing), control characters, hidden Unicode tag characters, and deprecated variation selectors. Turn off to keep them as-is.</div>
             </span>
           </label>
         </div>
@@ -206,34 +206,34 @@
             <input type="checkbox" id="optRemoveTabs">
             <span class="fixText">
               <strong>Remove tabs</strong>
-              <div>Converts each tab character to a single space rather than deleting it outright, so tab-separated words don't get mashed together.</div>
+              <div>Converts each tab to a single space, so tab-separated words don't get mashed together.</div>
             </span>
           </label>
           <label class="fixRow">
             <input type="checkbox" id="optRemoveExtraSpaces" checked>
             <span class="fixText">
               <strong>Remove extra spaces</strong>
-              <div>Collapses runs of two or more spaces in a row down to a single space.</div>
+              <div>Collapses runs of two or more spaces into one.</div>
             </span>
           </label>
           <label class="fixRow">
             <input type="checkbox" id="optRemoveLineBreaks">
             <span class="fixText">
               <strong>Remove line breaks</strong>
-              <div>Joins wrapped lines within a paragraph by turning a lone line break into a space. Blank-line paragraph breaks are left alone — see the toggle below.</div>
+              <div>Turns a lone line break into a space, joining wrapped lines within a paragraph. Paragraph breaks are handled by the toggle below.</div>
             </span>
           </label>
           <label class="fixRow">
             <input type="checkbox" id="optRemoveParagraphBreaks">
             <span class="fixText">
               <strong>Remove paragraph breaks</strong>
-              <div>Collapses blank lines between paragraphs (two or more line breaks in a row) into a single space, merging paragraphs together. Single line breaks within a paragraph are left alone unless "Remove line breaks" is also on.</div>
+              <div>Collapses blank lines between paragraphs into a single space, merging them together. Single line breaks are left alone unless "Remove line breaks" is also on.</div>
             </span>
           </label>
         </div>
       </div>
 
-      <p style="color:var(--muted);font-size:.9rem;">Always kept, regardless of the toggles above: the <b>Latin alphabet</b> (<code>a–z A–Z</code>), <b>digits</b> (<code>0–9</code>), standard <b>punctuation</b> and ASCII <b>math signs</b> (<code>+ - * / = &lt; &gt; % ^</code>), Markdown syntax, and <b>whitespace</b> (spaces, tabs, line breaks).</p>
+      <p style="color:var(--muted);font-size:.9rem;">Always kept: the <b>Latin alphabet</b> (<code>a–z A–Z</code>), <b>digits</b> (<code>0–9</code>), standard <b>punctuation</b> and ASCII <b>math signs</b> (<code>+ - * / = &lt; &gt; % ^</code>), Markdown syntax, and <b>whitespace</b>.</p>
     </details>
 
     <p class="pageCredit">Made by <a href="https://github.com/icelsupreme" target="_blank" rel="noopener noreferrer">Aviv M. Icel</a> &middot; <a href="https://bsky.app/profile/icel.me" target="_blank" rel="noopener noreferrer">Bluesky</a></p>
@@ -243,6 +243,6 @@
     <span id="stickyFooterCounts" aria-hidden="true"></span>
   </footer>
 
-<script src="script.js?v=1.2.0"></script>
+<script src="script.js?v=1.2.1"></script>
 </body>
 </html>

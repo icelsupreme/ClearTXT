@@ -104,6 +104,17 @@ test("Hebrew is stripped by default and preserved when \"strip Hebrew characters
   assert.equal(run("hello שלום world", { stripHebrew: false }), "hello שלום world");
 });
 
+test("the Letterlike Symbols math alef/bet/gimel/dalet (e.g. aleph-null, ℵ₀) are never silently folded into actual Hebrew letters by NFKC normalization, regardless of the Hebrew/emoji toggles", () => {
+  // Before the fix: normalize turned ℵ into Hebrew א before the pipeline
+  // ever saw it, so with stripHebrew on (default) it vanished with no
+  // trace, and with stripHebrew off it survived disguised as an actual
+  // Hebrew letter instead of itself.
+  assert.equal(run("ℵ"), ""); // still removed by default, but as a generic symbol now
+  assert.equal(run("ℵ", { stripEmoji: false }), "ℵ"); // governed by the symbol toggle, not Hebrew
+  assert.equal(run("ℵ", { stripHebrew: false }), ""); // NOT preserved disguised as א
+  assert.equal(ClearTXT.processText("ℵ", opts()).changes[0].category, "symbol");
+});
+
 test("Cyrillic is stripped by default and preserved when \"strip Cyrillic characters\" is off", () => {
   assert.equal(run("hello привет world"), "hello world");
   assert.equal(run("hello привет world", { removeExtraSpaces: false }), "hello  world");

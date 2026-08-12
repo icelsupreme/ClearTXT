@@ -173,6 +173,37 @@
     return d;
   }
 
+  // The "Letterlike Symbols" mathematical alef/bet/gimel/dalet (used e.g.
+  // for aleph-null, ℵ₀, in set theory) are NFKC-*compatibility*
+  // equivalents of the actual Hebrew letters they're shaped after - so
+  // plain `text.normalize("NFKC")` silently turns ℵ into א before the
+  // per-character loop below ever sees it, and with "Strip Hebrew
+  // characters" also at its default (on), that ℵ then vanishes entirely:
+  // normalized into Hebrew, then removed as Hebrew, with nothing to
+  // indicate a character went missing. A math symbol disappearing when
+  // neither toggle looks Hebrew-related is exactly the kind of surprise
+  // this app's own "off leaves it untouched" model is meant to avoid, so
+  // these four are protected from that specific compatibility mapping
+  // regardless of the Hebrew/normalize toggles - matching how a user
+  // pasting math notation would expect them to survive.
+  var PROTECTED_FROM_NORMALIZE_RE = /[ℵ-ℸ]/; // ℵ ℶ ℷ ℸ
+  var PROTECTED_FROM_NORMALIZE_SPLIT_RE = /([ℵ-ℸ])/; // same, capturing - split() keeps captured delimiters
+
+  // Same as `text.normalize("NFKC")`, except the protected characters
+  // above are split out first and rejoined afterward untouched, so they
+  // can't be folded into something else. Normalizes the surrounding runs
+  // rather than character-by-character, since NFKC needs to see multi-
+  // character sequences together (e.g. a base letter plus a following
+  // combining accent) to compose them correctly - and splitting into a
+  // handful of runs via native split()/join() is far faster than building
+  // the result one character at a time for large inputs.
+  function normalizeProtectingLetterlike(text) {
+    if (!PROTECTED_FROM_NORMALIZE_RE.test(text)) return text.normalize("NFKC");
+    return text.split(PROTECTED_FROM_NORMALIZE_SPLIT_RE)
+      .map(function (part, i) { return i % 2 === 1 ? part : part.normalize("NFKC"); })
+      .join("");
+  }
+
   // Runs the configurable pipeline over `text` and returns both the
   // filtered output and a per-character change log used to render the
   // before/after diff and the removed/converted summary. The output string
@@ -180,7 +211,7 @@
   // rather than built inline, since the whitespace pass can retroactively
   // turn an already-"kept" character into "removed"/"converted".
   function processText(text, opts) {
-    var src = (opts.normalize && text.normalize) ? text.normalize("NFKC") : text;
+    var src = (opts.normalize && text.normalize) ? normalizeProtectingLetterlike(text) : text;
     var changes = [];
 
     for (var ch of src) {
