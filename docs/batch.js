@@ -194,15 +194,27 @@
   // Filesystem-safe basename for wherever a file's name is used as an
   // actual path component - a zip entry name, or the `download` attribute
   // (browsers sanitize the latter themselves, but this doesn't rely on
-  // that either). A real OS file picker can't produce "/" or ".." in a
-  // name, but a File object handed to the page via drag-and-drop has no
-  // such restriction (e.g. one built by another page's script and dropped
-  // in), so a name can't be trusted to already be a safe path component -
-  // without this, a maliciously-named "file" could zip-slip its way
-  // outside the intended folder when a less careful unzip tool extracts
-  // the downloaded archive. Display elsewhere still uses the raw name
-  // (already HTML-escaped there) - only this path-writing boundary needs
-  // the sanitized version.
+  // that either) - and also for how the name is displayed in this app's
+  // own file list (see rowHtml), so what you see here always matches
+  // what actually gets written. A real OS file picker can't produce "/"
+  // or ".." in a name, but a File object handed to the page via
+  // drag-and-drop has no such restriction (e.g. one built by another
+  // page's script and dropped in), so a name can't be trusted to already
+  // be a safe path component - without this, a maliciously-named "file"
+  // could zip-slip its way outside the intended folder when a less
+  // careful unzip tool extracts the downloaded archive.
+  //
+  // Also strips Unicode Format-category/bidi-control characters
+  // (ClearTXT.isFormatChar - the same ones "Strip invisible & control
+  // characters" catches in pasted text) unconditionally: a dropped-in
+  // File's name never goes through that toggle-governed pipeline at all,
+  // so without this, a name containing e.g. a right-to-left override
+  // (U+202E) could visually disguise its own extension - the classic
+  // "invoice[RLO]txt.exe" trick, displaying as something like
+  // "invoice...exe.txt" - both in this app's own file list and in
+  // whatever it downloads or zips. A tool meant to expose exactly this
+  // kind of trick in text shouldn't launder it through in a filename.
+  //
   // Comfortably under both common filesystem path-component limits and
   // the ZIP format's 16-bit "file name length" field (65535 BYTES) - a
   // character-count cap this small can't get anywhere near that field
@@ -218,6 +230,9 @@
 
   function safeEntryName(name) {
     var base = name.split(/[\\/]/).pop() || "";
+    base = Array.from(base).filter(function (ch) {
+      return !ClearTXT.isFormatChar(ch.codePointAt(0));
+    }).join("");
     // eslint-disable-next-line no-control-regex -- intentionally stripping control chars
     base = base.replace(/[\x00-\x1F]/g, "").slice(0, ENTRY_NAME_MAX_LENGTH);
     if (base === "" || base === "." || base === "..") base = "file";
@@ -267,14 +282,19 @@
   }
 
   function rowHtml(entry) {
+    // Displayed name is the same sanitized name Download/Download-all
+    // actually write to disk (see safeEntryName) - not the raw
+    // entry.name - so what's shown here can never visually diverge from
+    // what you actually get, including its extension.
+    var displayName = safeEntryName(entry.name);
     return '<div class="batchRow" data-id="' + entry.id + '">' +
       '<div class="batchRowInfo">' +
-      '<div class="batchRowName" title="' + escapeHtml(entry.name) + '">' + escapeHtml(entry.name) + " &middot; " + humanSize(entry.size) + "</div>" +
+      '<div class="batchRowName" title="' + escapeHtml(displayName) + '">' + escapeHtml(displayName) + " &middot; " + humanSize(entry.size) + "</div>" +
       '<div class="batchRowStats">' + rowStatsHtml(entry) + "</div>" +
       "</div>" +
       '<div class="batchRowActions">' +
       '<button class="downloadOneBtn" ' + (entry.result ? "" : "disabled") + '><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg><span class="btnLabel">Download</span></button>' +
-      '<button class="removeOneBtn iconOnly" aria-label="Remove ' + escapeHtml(entry.name) + '" title="Remove"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>' +
+      '<button class="removeOneBtn iconOnly" aria-label="Remove ' + escapeHtml(displayName) + '" title="Remove"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>' +
       "</div>" +
       "</div>";
   }
