@@ -186,10 +186,23 @@
   // the downloaded archive. Display elsewhere still uses the raw name
   // (already HTML-escaped there) - only this path-writing boundary needs
   // the sanitized version.
+  // Comfortably under both common filesystem path-component limits and
+  // the ZIP format's 16-bit "file name length" field (65535 BYTES) - a
+  // character-count cap this small can't get anywhere near that field
+  // overflowing even at 4 bytes/char, which a plain .slice() can't
+  // otherwise guarantee since it truncates by UTF-16 code unit, not by
+  // the resulting name's UTF-8 byte length. Without this, a synthetic
+  // File (see the comment above) with a ~70000-character `.name` would
+  // silently wrap that 16-bit field (DataView's setUint16 wraps rather
+  // than throwing on overflow), writing a length that doesn't match the
+  // name bytes actually present - a malformed archive that could confuse
+  // less careful unzip parsers.
+  var ENTRY_NAME_MAX_LENGTH = 255;
+
   function safeEntryName(name) {
     var base = name.split(/[\\/]/).pop() || "";
     // eslint-disable-next-line no-control-regex -- intentionally stripping control chars
-    base = base.replace(/[\x00-\x1F]/g, "");
+    base = base.replace(/[\x00-\x1F]/g, "").slice(0, ENTRY_NAME_MAX_LENGTH);
     if (base === "" || base === "." || base === "..") base = "file";
     return base;
   }
