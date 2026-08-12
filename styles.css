@@ -254,6 +254,8 @@ details summary {
 }
 details code { color: var(--accent); background: #0d1017; padding: 1px 5px; border-radius: 4px; }
 
+.fixActions { margin: 8px 0 4px; }
+.fixActions button { font-size: 0.85rem; padding: 6px 12px; }
 .fixList { margin: 4px 0 16px; }
 .fixGroup { margin-bottom: 6px; }
 .fixGroup:last-child { margin-bottom: 0; }
