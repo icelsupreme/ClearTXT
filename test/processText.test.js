@@ -14,6 +14,7 @@ const DEFAULT_OPTS = {
   stripEmoji: true,
   stripCurrency: true,
   stripInvisible: true,
+  stripHomoglyphs: true,
   stripHebrew: true,
   stripArabic: true,
   stripCyrillic: true,
@@ -188,6 +189,52 @@ test("isFormatChar matches Unicode's Format (Cf) general category plus the line/
   assert.equal(ClearTXT.isFormatChar(0x200B), true); // zero-width space
   assert.equal(ClearTXT.isFormatChar(0x0041), false); // A
   assert.equal(ClearTXT.isFormatChar(0x1F600), false); // 😀
+});
+
+test("a look-alike character mixed mid-word into otherwise-Latin text (the classic homoglyph domain-spoofing trick) is stripped by default and preserved when the toggle is off", () => {
+  // Greek omicron (U+03BF) standing in for the two "o"s in "google.com".
+  assert.equal(run("gοοgle.com"), "ggle.com");
+  assert.equal(run("gοοgle.com", { stripHomoglyphs: false }), "gοοgle.com");
+});
+
+test("look-alike stripping is independent of \"strip emoji & symbols\", governed only by its own toggle", () => {
+  const spoofed = "gοοgle.com";
+  assert.equal(run(spoofed, { stripEmoji: false }), "ggle.com");
+  assert.equal(run(spoofed, { stripEmoji: false, stripHomoglyphs: false }), spoofed);
+});
+
+test("a word written entirely in another script is left alone by the look-alike check - only script-mixing within a single word is flagged, not foreign-language text on its own", () => {
+  // "Ελληνικά" ("Greek") is pure Greek, no Latin letters mixed in.
+  assert.equal(run("Ελληνικά", { stripEmoji: false }), "Ελληνικά");
+});
+
+test("a script with its own dedicated toggle (Cyrillic) mixed mid-word into Latin text is still caught by the look-alike check, so turning that script's own toggle off doesn't leave a spoofed word untouched", () => {
+  const spoofed = "pаypal.com"; // Cyrillic а (U+0430) standing in for the "a" in "paypal.com"
+  assert.equal(run(spoofed, { stripCyrillic: false }), "pypal.com");
+  assert.equal(run(spoofed, { stripCyrillic: false, stripHomoglyphs: false }), spoofed);
+});
+
+test("an invisible character inserted between the halves of a spoofed word doesn't let it dodge look-alike detection by splitting it into two \"words\"", () => {
+  const zwsp = "​";
+  const spoofed = "p" + zwsp + "аypal.com"; // Cyrillic а with a zero-width space right before it
+  assert.equal(run(spoofed), "pypal.com");
+});
+
+test("a mixed-script character is categorized as \"homoglyph\", taking priority over its own script's category", () => {
+  const spoofed = "pаypal.com";
+  const { changes } = ClearTXT.processText(spoofed, opts());
+  assert.equal(changes[1].category, "homoglyph");
+});
+
+test("findMixedScriptIndices flags only the non-Latin letters in a word that mixes scripts, and nothing in a single-script word", () => {
+  const mixed = Array.from("gοοgle");
+  assert.deepEqual([...ClearTXT.findMixedScriptIndices(mixed)].sort(), [1, 2]);
+
+  const pureGreek = Array.from("Ελληνικά"); // "Ελληνικά"
+  assert.deepEqual([...ClearTXT.findMixedScriptIndices(pureGreek)], []);
+
+  const pureLatin = Array.from("hello");
+  assert.deepEqual([...ClearTXT.findMixedScriptIndices(pureLatin)], []);
 });
 
 test("deprecated variation selector supplement is stripped by default and kept when the toggle is off", () => {

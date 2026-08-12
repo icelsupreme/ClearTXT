@@ -160,6 +160,7 @@
     hebrew: "Hebrew",
     arabic: "Arabic",
     cyrillic: "Cyrillic",
+    homoglyph: "look-alike characters",
     currency: "currency symbols",
     tab: "tabs",
     linebreak: "line breaks",
@@ -201,6 +202,69 @@
       if (cp >= r[0] && cp <= r[1]) return true;
     }
     return false;
+  }
+
+  // Unicode's "Script" property identifies which alphabet a character
+  // belongs to. Latin is the alphabet this app otherwise assumes text is
+  // written in; "Common" (shared punctuation, digits, symbols) and
+  // "Inherited" (combining marks, which take on whatever script they're
+  // attached to) carry no script identity of their own and never make a
+  // word "mixed" on their own.
+  var LATIN_SCRIPT_RE = /\p{Script=Latin}/u;
+  var SCRIPTLESS_RE = /[\p{Script=Common}\p{Script=Inherited}]/u;
+  // A "word" for mixed-script purposes: letters, combining marks and
+  // digits - digits/marks don't carry script identity of their own but
+  // stay attached to the word around them (so "café2" or "naïve" read as
+  // one word), the same set as \p{L}\p{M}\p{Nd} used elsewhere for
+  // Markdown-aware word splitting.
+  var WORD_CHAR_RE = /[\p{L}\p{M}\p{Nd}]/u;
+
+  // Finds every character that's part of a "mixed-script" word - a run of
+  // letters containing both a Latin letter and a letter from some other
+  // script, with nothing but invisible/format characters between them.
+  // This is the classic homoglyph/confusable-character spoofing
+  // technique used to disguise a fake domain or brand name as the real
+  // one (e.g. "gοοgle.com" with Greek omicrons, "pаypal.com" with a
+  // Cyrillic а) - a word written in a single language never mixes
+  // scripts mid-word like this, so a word that does almost certainly
+  // isn't what it looks like. A word written entirely in some other
+  // script (an actual Greek or Russian sentence) is left alone - only
+  // the minority script character(s) inside an otherwise-Latin word are
+  // flagged, and only when there's a Latin letter in the same word to be
+  // confused with. Invisible/format characters (already handled by
+  // isFormatChar/isControl/isHiddenPayloadRange above) are treated as
+  // transparent rather than word-breaking, so a zero-width character
+  // deliberately inserted between the two halves of a spoofed word can't
+  // be used to dodge detection by splitting it into two "words".
+  //
+  // `chars` is an array of one entry per Unicode code point (as from
+  // Array.from(text)); returns a Set of indices into it that are
+  // suspicious mixed-script characters.
+  function findMixedScriptIndices(chars) {
+    var flagged = new Set();
+    var hasLatin = false;
+    var otherScriptIdx = [];
+
+    function flushWord() {
+      if (hasLatin && otherScriptIdx.length) {
+        for (var k = 0; k < otherScriptIdx.length; k++) flagged.add(otherScriptIdx[k]);
+      }
+      hasLatin = false;
+      otherScriptIdx = [];
+    }
+
+    for (var i = 0; i < chars.length; i++) {
+      var c = chars[i];
+      var cp = c.codePointAt(0);
+      if (isFormatChar(cp) || isControl(cp) || isHiddenPayloadRange(cp)) continue;
+      if (!WORD_CHAR_RE.test(c)) { flushWord(); continue; }
+      if (!SCRIPTLESS_RE.test(c)) {
+        if (LATIN_SCRIPT_RE.test(c)) hasLatin = true;
+        else otherScriptIdx.push(i);
+      }
+    }
+    flushWord();
+    return flagged;
   }
 
   // Tries to fold a single character down to a plain-ASCII equivalent by
@@ -256,8 +320,11 @@
   function processText(text, opts) {
     var src = (opts.normalize && text.normalize) ? normalizeProtectingLetterlike(text) : text;
     var changes = [];
+    var chars = Array.from(src);
+    var mixedScriptIdx = findMixedScriptIndices(chars);
 
-    for (var ch of src) {
+    for (var i = 0; i < chars.length; i++) {
+      var ch = chars[i];
       var cp = ch.codePointAt(0);
 
       if (isFormatChar(cp) || isControl(cp) || isHiddenPayloadRange(cp)) {
@@ -268,6 +335,23 @@
         }
         continue;
       }
+
+      // Checked before the script-specific toggles below (Hebrew/Arabic/
+      // Cyrillic) so a character from one of THOSE scripts, mixed
+      // mid-word into otherwise-Latin text, is caught here rather than
+      // by its own script toggle - meaning turning off e.g. "Strip
+      // Cyrillic characters" to preserve genuine Cyrillic prose elsewhere
+      // in the document doesn't also let a Cyrillic character hidden
+      // inside a spoofed Latin word slip through.
+      if (mixedScriptIdx.has(i)) {
+        if (opts.stripHomoglyphs) {
+          changes.push({ ch: ch, type: "removed", category: "homoglyph", replacement: "" });
+        } else {
+          changes.push({ ch: ch, type: "kept", category: "homoglyph", replacement: ch });
+        }
+        continue;
+      }
+
       if (cp === 0x09 || cp === 0x0A || cp === 0x0D) {
         changes.push({ ch: ch, type: "kept", category: "whitespace", replacement: ch });
         continue;
@@ -349,8 +433,8 @@
     applyWhitespaceCleanup(changes, opts);
 
     var out = "";
-    for (var i = 0; i < changes.length; i++) {
-      if (changes[i].type !== "removed") out += changes[i].replacement;
+    for (var o = 0; o < changes.length; o++) {
+      if (changes[o].type !== "removed") out += changes[o].replacement;
     }
 
     return { output: out, changes: changes, normalizedInput: src };
@@ -735,6 +819,7 @@
     isHebrew: isHebrew,
     isArabic: isArabic,
     isCyrillic: isCyrillic,
+    findMixedScriptIndices: findMixedScriptIndices,
     foldAccent: foldAccent,
     slugForFilename: slugForFilename,
     exportFilename: exportFilename,
@@ -864,6 +949,7 @@
       ["optStripEmoji", "stripEmoji", true, "symbols"],
       ["optStripCurrency", "stripCurrency", true, "symbols"],
       ["optStripInvisible", "stripInvisible", true, "symbols"],
+      ["optStripHomoglyphs", "stripHomoglyphs", true, "symbols"],
       ["optRemoveTabs", "removeTabs", false, "whitespace"],
       ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
       ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
