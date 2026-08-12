@@ -215,11 +215,67 @@
     } catch (e) { /* ignore malformed storage */ }
   }
 
+  // Hidden mirror element used to measure how many visual rows each
+  // logical line wraps to, so the gutter can show a blank instead of a
+  // number on continuation rows and stay aligned with wrapped text.
+  var ruler = document.createElement("div");
+  ruler.style.position = "absolute";
+  ruler.style.visibility = "hidden";
+  ruler.style.top = "0";
+  ruler.style.left = "-9999px";
+  ruler.style.height = "auto";
+  ruler.style.whiteSpace = "pre-wrap";
+  ruler.style.wordBreak = "break-word";
+  ruler.style.boxSizing = "border-box";
+  document.body.appendChild(ruler);
+
+  function countWrappedRows(ta, logicalLines) {
+    var cs = getComputedStyle(ta);
+    // Measure against the textarea's content-box width (no padding on the
+    // ruler itself), otherwise the ruler's own padding inflates scrollHeight
+    // and every line — even ones that fit on one row — looks wrapped.
+    var padLeft = parseFloat(cs.paddingLeft) || 0;
+    var padRight = parseFloat(cs.paddingRight) || 0;
+    ruler.style.width = Math.max(0, ta.clientWidth - padLeft - padRight) + "px";
+    ruler.style.padding = "0";
+    ruler.style.fontFamily = cs.fontFamily;
+    ruler.style.fontSize = cs.fontSize;
+    ruler.style.fontWeight = cs.fontWeight;
+    ruler.style.fontStyle = cs.fontStyle;
+    ruler.style.letterSpacing = cs.letterSpacing;
+
+    var lineHeight = parseFloat(cs.lineHeight);
+    if (!lineHeight || isNaN(lineHeight)) lineHeight = parseFloat(cs.fontSize) * 1.2;
+
+    var counts = [];
+    for (var i = 0; i < logicalLines.length; i++) {
+      ruler.textContent = logicalLines[i].length ? logicalLines[i] : "​";
+      counts.push(Math.max(1, Math.round(ruler.scrollHeight / lineHeight)));
+    }
+    return counts;
+  }
+
+  // Perf guard: measuring every logical line is O(n) DOM reflows, so skip
+  // wrap-aware numbering past this size and fall back to plain numbering.
+  var WRAP_MEASURE_LIMIT = 500;
+
   function updateGutter(ta, gutter) {
-    var lines = ta.value.length ? ta.value.split("\n").length : 1;
-    var arr = [];
-    for (var i = 1; i <= lines; i++) arr.push(i);
-    gutter.textContent = arr.join("\n");
+    var logicalLines = ta.value.length ? ta.value.split("\n") : [""];
+
+    if (logicalLines.length > WRAP_MEASURE_LIMIT) {
+      var arr = [];
+      for (var i = 1; i <= logicalLines.length; i++) arr.push(i);
+      gutter.textContent = arr.join("\n");
+      return;
+    }
+
+    var rowCounts = countWrappedRows(ta, logicalLines);
+    var out = [];
+    for (var n = 0; n < rowCounts.length; n++) {
+      out.push(String(n + 1));
+      for (var r = 1; r < rowCounts[n]; r++) out.push("");
+    }
+    gutter.textContent = out.join("\n");
   }
 
   function renderDiff(result) {
@@ -313,6 +369,18 @@
   input.addEventListener("input", update);
   input.addEventListener("scroll", function () { inGutter.scrollTop = input.scrollTop; });
   output.addEventListener("scroll", function () { outGutter.scrollTop = output.scrollTop; });
+
+  // Wrapped row counts depend on the textarea's width, which changes on
+  // viewport resize (the grid collapses to one column below 760px) — keep
+  // the gutters in sync without spamming layout during the resize.
+  var resizeFrame = null;
+  window.addEventListener("resize", function () {
+    if (resizeFrame) cancelAnimationFrame(resizeFrame);
+    resizeFrame = requestAnimationFrame(function () {
+      updateGutter(input, inGutter);
+      updateGutter(output, outGutter);
+    });
+  });
 
   optEls.forEach(function (el) { el.addEventListener("change", update); });
 
