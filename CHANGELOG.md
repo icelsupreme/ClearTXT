@@ -2,6 +2,9 @@
 
 All notable changes to ClearTXT, versioned per [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`, tracked in `package.json`). A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix or docs change with no behavior change. Releases before 1.0.0 were pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release there could still include a behavior change - those are called out explicitly below.
 
+### 1.1.2
+- **Security (batch mode):** a dropped file's name was written straight into the generated `.zip`'s entry name and into the single-file `download` attribute, with no path sanitization. A real OS file picker can't produce a name containing `/` or `..`, but a `File` object handed to the page via drag-and-drop has no such restriction (e.g. one built by another page's script), so a maliciously-named "file" (`../../../../etc/whatever`) could zip-slip its way outside the intended folder when a less-careful unzip tool extracts the downloaded archive. Fixed by reducing a file's name to a plain, control-character-free basename wherever it's used as an actual path component; the raw name is still shown as-is in the file list (already safely HTML-escaped there).
+
 ### 1.1.1
 - **Fix (batch mode):** "Download all" now bundles every cleaned file into a single `.zip` and triggers one Save dialog, instead of one browser download per file (which the browser could treat as suspicious and block past a handful of files). Implemented as a small hand-written, uncompressed ZIP writer - no library added, keeping the app dependency-free. Individual per-file "Download" buttons are unchanged.
 

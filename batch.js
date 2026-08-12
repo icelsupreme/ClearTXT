@@ -166,13 +166,33 @@
     render();
   }
 
+  // Filesystem-safe basename for wherever a file's name is used as an
+  // actual path component - a zip entry name, or the `download` attribute
+  // (browsers sanitize the latter themselves, but this doesn't rely on
+  // that either). A real OS file picker can't produce "/" or ".." in a
+  // name, but a File object handed to the page via drag-and-drop has no
+  // such restriction (e.g. one built by another page's script and dropped
+  // in), so a name can't be trusted to already be a safe path component -
+  // without this, a maliciously-named "file" could zip-slip its way
+  // outside the intended folder when a less careful unzip tool extracts
+  // the downloaded archive. Display elsewhere still uses the raw name
+  // (already HTML-escaped there) - only this path-writing boundary needs
+  // the sanitized version.
+  function safeEntryName(name) {
+    var base = name.split(/[\\/]/).pop() || "";
+    // eslint-disable-next-line no-control-regex -- intentionally stripping control chars
+    base = base.replace(/[\x00-\x1F]/g, "");
+    if (base === "" || base === "." || base === "..") base = "file";
+    return base;
+  }
+
   function downloadEntry(entry) {
     if (!entry.result) return;
     var blob = new Blob([entry.result.output], { type: "text/plain;charset=utf-8" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
-    a.download = entry.name;
+    a.download = safeEntryName(entry.name);
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -267,7 +287,7 @@
     if (!ready.length) return;
     var encoder = new TextEncoder();
     var zipBytes = buildZip(ready.map(function (entry) {
-      return { name: entry.name, data: encoder.encode(entry.result.output) };
+      return { name: safeEntryName(entry.name), data: encoder.encode(entry.result.output) };
     }));
     var blob = new Blob([zipBytes], { type: "application/zip" });
     var url = URL.createObjectURL(blob);
