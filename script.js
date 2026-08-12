@@ -742,6 +742,18 @@
     }, BUTTON_FEEDBACK_MS));
   }
 
+  // Copies the current page's URL - every page (index.html, batch.html,
+  // changelog.html) has this button, so it's wired here rather than in
+  // each page's own (or nonexistent) script, unconditional like
+  // flashButtonLabel above for the same reason.
+  var shareBtn = document.getElementById("shareBtn");
+  if (shareBtn) {
+    shareBtn.addEventListener("click", function () {
+      if (navigator.clipboard) navigator.clipboard.writeText(window.location.href);
+      flashButtonLabel(shareBtn, "Link copied!");
+    });
+  }
+
   var input = document.getElementById("input");
   // Not the main single-editor page (e.g. batch.html, which loads this
   // file only for the pure ClearTXT functions and drives its own copy of

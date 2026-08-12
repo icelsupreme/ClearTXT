@@ -339,3 +339,5 @@ details code { color: var(--accent); background: #0d1017; padding: 1px 5px; bord
 .pageCredit { text-align: center; color: var(--muted); font-size: 0.8rem; margin: 20px 0 0; }
 .pageCredit a { color: var(--muted); }
 .pageCredit a:hover { color: var(--accent); }
+.shareRow { display: flex; justify-content: center; margin-top: 10px; }
+.shareRow button { font-size: 0.8rem; padding: 6px 12px; }

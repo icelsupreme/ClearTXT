@@ -1,1 +1,4 @@
 node_modules/
+# Claude Code's own skill assets (e.g. .claude/skills/), not part of this
+# project's source - see eslint.config.js's ignores for the same reasoning.
+.claude/
