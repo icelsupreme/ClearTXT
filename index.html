@@ -16,7 +16,7 @@
      page's own tagline ("a clean, safe character set"). Colors are
      hardcoded (not var(--accent)/var(--bg)) since a standalone favicon.svg
      has no access to the page's CSS custom properties. -->
-<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.1.4">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.2.0">
 <!-- Same typeface everywhere regardless of OS/browser, instead of each
      platform's own system-font stack (which is what made things look
      inconsistent). Noto Sans Hebrew is loaded alongside the Latin
@@ -33,11 +33,11 @@
      on every release, so browsers (especially over file://, which this
      page is often opened with directly) don't keep serving a stale
      cached copy, and so the on-page version is always accurate. -->
-<link rel="stylesheet" href="styles.css?v=1.1.4">
+<link rel="stylesheet" href="styles.css?v=1.2.0">
 </head>
 <body>
   <header>
-    <h1><svg class="logoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2v2"/><path d="M12 3h-2"/><path d="M13.5 10.5 22 2"/><path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z"/><path d="M20 15v4"/><path d="M22 17h-4"/><path d="M4 4v4"/><path d="m5 18 2-2"/><path d="M6 6H2"/><path d="m7.699 10.7 5.602 5.601"/></svg>ClearTXT <span class="version" title="Version, matches package.json">v1.1.4</span></h1>
+    <h1><svg class="logoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2v2"/><path d="M12 3h-2"/><path d="M13.5 10.5 22 2"/><path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z"/><path d="M20 15v4"/><path d="M22 17h-4"/><path d="M4 4v4"/><path d="m5 18 2-2"/><path d="M6 6H2"/><path d="m7.699 10.7 5.602 5.601"/></svg>ClearTXT <span class="version" title="Version, matches package.json">v1.2.0</span></h1>
     <p>Strip text down to a clean, safe character set - everything else is removed.</p>
     <p class="batchNavLink"><a href="batch.html">Clean multiple files at once &rarr;</a></p>
   </header>
@@ -121,13 +121,6 @@
             </span>
           </label>
           <label class="fixRow">
-            <input type="checkbox" id="optFoldAccents" checked>
-            <span class="fixText">
-              <strong>Fold accented letters</strong>
-              <div>Converts accented Latin letters to their plain ASCII base (<code>é</code>→<code>e</code>, <code>ñ</code>→<code>n</code>) instead of deleting them.</div>
-            </span>
-          </label>
-          <label class="fixRow">
             <input type="checkbox" id="optStraightenQuotes" checked>
             <span class="fixText">
               <strong>Straighten smart quotes</strong>
@@ -150,8 +143,36 @@
 
         <div class="fixGroup">
           <div class="fixGroupHeader">
+            <input type="checkbox" id="groupToggle-languages" class="groupToggleInput">
+            <label for="groupToggle-languages" class="fixGroupTitle">Languages &amp; scripts</label>
+          </div>
+          <label class="fixRow">
+            <input type="checkbox" id="optFoldAccents" checked>
+            <span class="fixText">
+              <strong>Fold accented letters</strong>
+              <div>Converts accented Latin letters to their plain ASCII base (<code>é</code>→<code>e</code>, <code>ñ</code>→<code>n</code>) instead of deleting them.</div>
+            </span>
+          </label>
+          <label class="fixRow">
+            <input type="checkbox" id="optStripHebrew" checked>
+            <span class="fixText">
+              <strong>Strip Hebrew characters</strong>
+              <div>Removes Hebrew letters, niqqud/cantillation points and punctuation (<code>א–ת</code>). On by default since the base filter targets Latin/ASCII text - turn off to keep Hebrew text as-is.</div>
+            </span>
+          </label>
+          <label class="fixRow">
+            <input type="checkbox" id="optStripCyrillic" checked>
+            <span class="fixText">
+              <strong>Strip Cyrillic characters</strong>
+              <div>Removes Cyrillic letters and combining marks (<code>а–я А–Я</code>), covering everyday use (Russian, Ukrainian, Bulgarian, Serbian, ...) and a few historic/minority-language extensions. On by default since the base filter targets Latin/ASCII text - turn off to keep Cyrillic text as-is.</div>
+            </span>
+          </label>
+        </div>
+
+        <div class="fixGroup">
+          <div class="fixGroupHeader">
             <input type="checkbox" id="groupToggle-symbols" class="groupToggleInput">
-            <label for="groupToggle-symbols" class="fixGroupTitle">Symbols, scripts &amp; invisible characters</label>
+            <label for="groupToggle-symbols" class="fixGroupTitle">Symbols &amp; invisible characters</label>
           </div>
           <label class="fixRow">
             <input type="checkbox" id="optStripEmoji" checked>
@@ -172,13 +193,6 @@
             <span class="fixText">
               <strong>Strip invisible &amp; control characters</strong>
               <div>Removes zero-width characters (ZWSP, ZWJ, BOM), directional marks and isolates (including the ones behind the "Trojan Source" bidi-spoofing technique), control characters, Unicode tag characters (used to hide invisible payloads in otherwise normal-looking text), and deprecated variation selectors. Turn off to keep them as-is.</div>
-            </span>
-          </label>
-          <label class="fixRow">
-            <input type="checkbox" id="optStripHebrew" checked>
-            <span class="fixText">
-              <strong>Strip Hebrew characters</strong>
-              <div>Removes Hebrew letters, niqqud/cantillation points and punctuation (<code>א–ת</code>). On by default since the base filter targets Latin/ASCII text - turn off to keep Hebrew text as-is.</div>
             </span>
           </label>
         </div>
@@ -229,6 +243,6 @@
     <span id="stickyFooterCounts" aria-hidden="true"></span>
   </footer>
 
-<script src="script.js?v=1.1.4"></script>
+<script src="script.js?v=1.2.0"></script>
 </body>
 </html>

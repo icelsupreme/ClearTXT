@@ -51,6 +51,18 @@
   // presentation-forms block (ligatures like "ﭏ" and pointed letters).
   var HEBREW_RANGES = [[0x0590, 0x05FF], [0xFB1D, 0xFB4F]];
 
+  // Cyrillic letters/combining marks across the blocks covering everyday
+  // use (Russian, Ukrainian, Bulgarian, Serbian, Belarusian, Mongolian, ...)
+  // through the Extended blocks used for a handful of minority languages
+  // and historic/academic text (Old Church Slavonic, Abkhaz, Bashkir, ...).
+  var CYRILLIC_RANGES = [
+    [0x0400, 0x04FF], // Cyrillic
+    [0x0500, 0x052F], // Cyrillic Supplement
+    [0x2DE0, 0x2DFF], // Cyrillic Extended-A
+    [0xA640, 0xA69F], // Cyrillic Extended-B
+    [0x1C80, 0x1C8F]  // Cyrillic Extended-C
+  ];
+
   // Short label + human name for zero-width/formatting characters that
   // have no visible glyph of their own, so the diff view can show
   // something in their place instead of literally nothing.
@@ -112,6 +124,7 @@
     accent: "accents",
     quote: "quotes",
     hebrew: "Hebrew",
+    cyrillic: "Cyrillic",
     currency: "currency symbols",
     tab: "tabs",
     linebreak: "line breaks",
@@ -134,6 +147,14 @@
   function isHebrew(cp) {
     for (var i = 0; i < HEBREW_RANGES.length; i++) {
       var r = HEBREW_RANGES[i];
+      if (cp >= r[0] && cp <= r[1]) return true;
+    }
+    return false;
+  }
+
+  function isCyrillic(cp) {
+    for (var i = 0; i < CYRILLIC_RANGES.length; i++) {
+      var r = CYRILLIC_RANGES[i];
       if (cp >= r[0] && cp <= r[1]) return true;
     }
     return false;
@@ -187,6 +208,15 @@
           changes.push({ ch: ch, type: "removed", category: "hebrew", replacement: "" });
         } else {
           changes.push({ ch: ch, type: "kept", category: "hebrew", replacement: ch });
+        }
+        continue;
+      }
+
+      if (isCyrillic(cp)) {
+        if (opts.stripCyrillic) {
+          changes.push({ ch: ch, type: "removed", category: "cyrillic", replacement: "" });
+        } else {
+          changes.push({ ch: ch, type: "kept", category: "cyrillic", replacement: ch });
         }
         continue;
       }
@@ -619,6 +649,7 @@
     invisibleInfo: invisibleInfo,
     isHiddenPayloadRange: isHiddenPayloadRange,
     isHebrew: isHebrew,
+    isCyrillic: isCyrillic,
     foldAccent: foldAccent,
     slugForFilename: slugForFilename,
     exportFilename: exportFilename,
@@ -727,13 +758,14 @@
     // to opts/localStorage.
     var FIX_TOGGLES = [
       ["optNormalize", "normalize", true, "typography"],
-      ["optFoldAccents", "foldAccents", true, "typography"],
       ["optStraightenQuotes", "straightenQuotes", true, "typography"],
       ["optConvertDashes", "convertDashes", true, "typography"],
+      ["optFoldAccents", "foldAccents", true, "languages"],
+      ["optStripHebrew", "stripHebrew", true, "languages"],
+      ["optStripCyrillic", "stripCyrillic", true, "languages"],
       ["optStripEmoji", "stripEmoji", true, "symbols"],
       ["optStripCurrency", "stripCurrency", true, "symbols"],
       ["optStripInvisible", "stripInvisible", true, "symbols"],
-      ["optStripHebrew", "stripHebrew", true, "symbols"],
       ["optRemoveTabs", "removeTabs", false, "whitespace"],
       ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
       ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
@@ -745,7 +777,7 @@
     // Group names in display order, matching the fixGroup sections in the
     // markup - drives both the "select whole group" header wiring below
     // and its indeterminate/checked state.
-    var FIX_GROUPS = ["typography", "symbols", "whitespace"];
+    var FIX_GROUPS = ["typography", "languages", "symbols", "whitespace"];
 
     function groupToggles(group) {
       return FIX_TOGGLES.filter(function (t) { return t.group === group; });

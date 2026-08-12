@@ -15,6 +15,7 @@ const DEFAULT_OPTS = {
   stripCurrency: true,
   stripInvisible: true,
   stripHebrew: true,
+  stripCyrillic: true,
   removeLineBreaks: false,
   removeParagraphBreaks: false,
   removeExtraSpaces: true,
@@ -101,6 +102,17 @@ test("Hebrew is stripped by default and preserved when \"strip Hebrew characters
   assert.equal(run("hello שלום world"), "hello world");
   assert.equal(run("hello שלום world", { removeExtraSpaces: false }), "hello  world");
   assert.equal(run("hello שלום world", { stripHebrew: false }), "hello שלום world");
+});
+
+test("Cyrillic is stripped by default and preserved when \"strip Cyrillic characters\" is off", () => {
+  assert.equal(run("hello привет world"), "hello world");
+  assert.equal(run("hello привет world", { removeExtraSpaces: false }), "hello  world");
+  assert.equal(run("hello привет world", { stripCyrillic: false }), "hello привет world");
+});
+
+test("Cyrillic stripping is independent of \"strip emoji & symbols\" - previously Cyrillic only fell through the generic symbol strip", () => {
+  assert.equal(run("привет", { stripEmoji: false }), "");
+  assert.equal(run("привет", { stripEmoji: false, stripCyrillic: false }), "привет");
 });
 
 test("emoji and symbols are stripped by default and kept when the toggle is off", () => {
@@ -262,6 +274,16 @@ test("isHebrew recognizes the Hebrew block and presentation forms, and nothing e
   assert.equal(ClearTXT.isHebrew(0x05d0), true); // א
   assert.equal(ClearTXT.isHebrew(0xfb1d), true);
   assert.equal(ClearTXT.isHebrew(0x0041), false); // A
+});
+
+test("isCyrillic recognizes the main Cyrillic block, supplement, and extended blocks, and nothing else", () => {
+  assert.equal(ClearTXT.isCyrillic(0x043f), true); // п
+  assert.equal(ClearTXT.isCyrillic(0x0500), true); // Cyrillic Supplement
+  assert.equal(ClearTXT.isCyrillic(0x2de0), true); // Cyrillic Extended-A
+  assert.equal(ClearTXT.isCyrillic(0xa640), true); // Cyrillic Extended-B
+  assert.equal(ClearTXT.isCyrillic(0x1c80), true); // Cyrillic Extended-C
+  assert.equal(ClearTXT.isCyrillic(0x0041), false); // A
+  assert.equal(ClearTXT.isCyrillic(0x05d0), false); // Hebrew א
 });
 
 test("foldAccent returns null for characters with no plain-ASCII base", () => {
