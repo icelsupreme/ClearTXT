@@ -164,6 +164,7 @@
         <li><b>Markdown syntax</b> — <code># * _ ` > | ~ [ ] ( ) !</code> (all standard ASCII, already kept)</li>
         <li><b>Whitespace</b> — spaces, tabs, and line breaks are preserved</li>
       </ul>
+      <p style="color:var(--muted);font-size:.9rem;">Before filtering, the text is <b>retyped</b> — normalized to Unicode NFKC form so ligatures (<code>ﬁ</code>→<code>fi</code>), full-width letters (<code>Ａ</code>→<code>A</code>) and superscripts (<code>²</code>→<code>2</code>) fold into plain forms, and the output is rebuilt as a fresh, canonical string.</p>
       <p style="color:var(--muted);font-size:.9rem;">Removed: emoji, accented/non-Latin letters (é, ñ, ω, 日), smart “curly” quotes, em dashes, Unicode math symbols (± × ÷ ≤ ≥ √ …), control characters, and all zero-width / invisible characters (ZWSP, ZWJ, BOM, directional marks).</p>
     </details>
   </div>
@@ -216,9 +217,15 @@
   }
 
   function filter(text) {
+    // "Retype" the text: normalize to canonical compatibility form (NFKC)
+    // first, so ligatures (ﬁ→fi), full-width letters (Ａ→A), superscripts
+    // (²→2) and decomposed accent sequences are folded into plain forms
+    // before the character filter runs. The output is then rebuilt from
+    // scratch, code point by code point — a fresh, canonical string.
+    var normalized = text.normalize ? text.normalize("NFKC") : text;
     var out = "";
     // Iterate by code point so astral characters (emoji) are handled correctly.
-    for (var ch of text) {
+    for (var ch of normalized) {
       if (isAllowed(ch.codePointAt(0))) out += ch;
     }
     return out;
@@ -243,9 +250,15 @@
 
     inCount.textContent = inLen + " chars";
     outCount.textContent = outLen + " chars";
-    stats.innerHTML = removed > 0
-      ? '<span class="removed">' + removed + '</span> character' + (removed === 1 ? '' : 's') + ' removed'
-      : (inLen > 0 ? 'Nothing removed — text is already clean' : '');
+    if (inLen === 0) {
+      stats.innerHTML = '';
+    } else if (res === src) {
+      stats.innerHTML = 'Nothing changed — text is already clean';
+    } else if (removed > 0) {
+      stats.innerHTML = '<span class="removed">' + removed + '</span> character' + (removed === 1 ? '' : 's') + ' removed';
+    } else {
+      stats.innerHTML = 'Text cleaned &amp; normalized';
+    }
   }
 
   input.addEventListener("input", update);
