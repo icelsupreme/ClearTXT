@@ -46,17 +46,17 @@ The site itself lives in `docs/` - not because it's documentation, but because t
 
 ```
 docs/
-  index.html      markup for the single-file page
-  batch.html      markup for the batch (multi-file) page
-  changelog.html  a condensed, user-facing "what's new," linked from every page's footer
-  security.html   what ClearTXT defends against and how, linked from every page's footer
-  styles.css      shared styling
-  batch.css       styling specific to the batch page
-  changelog.css   styling specific to the changelog page
-  security.css    styling specific to the security page
-  script.js       filtering logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
-  batch.js        batch page's DOM wiring, built on script.js's shared logic
-  favicon.svg     browser tab icon, also embedded inline as the header's logo icon
+  index.html          markup for the single-file page
+  batch.html          markup for the batch (multi-file) page
+  changelog.html      a condensed, user-facing "what's new," linked from every page's footer
+  documentation.html  what ClearTXT defends against and how, linked from every page's footer
+  styles.css          shared styling
+  batch.css           styling specific to the batch page
+  changelog.css       styling specific to the changelog page
+  documentation.css   styling specific to the documentation page
+  script.js           filtering logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
+  batch.js            batch page's DOM wiring, built on script.js's shared logic
+  favicon.svg         browser tab icon, also embedded inline as the header's logo icon
 test/             unit tests for the filtering logic
 CHANGELOG.md      full version history
 ```
@@ -80,7 +80,7 @@ CI runs lint and tests on every push to `main` and on every pull request (see `.
 There's no build step here, so the version number is kept in sync by hand in three places - bump all three together on every release:
 
 1. `version` in `package.json`
-2. the `?v=` query string on every `.css`/`.js`/`.svg` reference across `docs/index.html`, `docs/batch.html`, `docs/changelog.html`, and `docs/security.html`
+2. the `?v=` query string on every `.css`/`.js`/`.svg` reference across `docs/index.html`, `docs/batch.html`, `docs/changelog.html`, and `docs/documentation.html`
 3. the version badge next to the title in each page's `<header>`
 
 The `?v=` matters functionally, not just cosmetically: without it, browsers (especially since this page is often opened directly over `file://`) can keep serving a stale cached copy of `styles.css`/`script.js` after an update. The on-page badge exists so you can tell at a glance whether the copy you're looking at is current.
