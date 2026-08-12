@@ -382,3 +382,25 @@ test("exportFilename falls back to a generic name when there's no usable slug", 
   const now = new Date(2026, 0, 5, 9, 3, 7);
   assert.equal(ClearTXT.exportFilename("", now), "cleartxt-output-20260105-090307.txt");
 });
+
+test("stripMarkdown strips headings, emphasis, links, images, code, quotes, lists, rules, and table syntax down to plain text", () => {
+  assert.equal(ClearTXT.stripMarkdown("# Heading One\nSome **bold** and *italic* text."), "Heading One\nSome bold and italic text.");
+  assert.equal(ClearTXT.stripMarkdown("- item one\n- item two\n1. numbered item"), "item one\nitem two\nnumbered item");
+  assert.equal(ClearTXT.stripMarkdown("> a quoted line\nnormal line"), "a quoted line\nnormal line");
+  assert.equal(ClearTXT.stripMarkdown("[a link](https://example.com) and ![an image](pic.png)"), "a link and an image");
+  assert.equal(ClearTXT.stripMarkdown("```\ncode block line\nanother line\n```"), "\ncode block line\nanother line\n");
+  assert.equal(ClearTXT.stripMarkdown("inline `code` here"), "inline code here");
+  assert.equal(ClearTXT.stripMarkdown("---\nafter rule"), "\nafter rule");
+  assert.equal(ClearTXT.stripMarkdown("| a | b |\n| - | - |\n| 1 | 2 |"), "  a   b  \n\n  1   2  ");
+  assert.equal(ClearTXT.stripMarkdown("~~strikethrough~~ text"), "strikethrough text");
+  assert.equal(ClearTXT.stripMarkdown("plain text with no markdown at all here"), "plain text with no markdown at all here");
+});
+
+test("wordCount counts words after stripping Markdown syntax, and handles empty/whitespace-only text", () => {
+  assert.equal(ClearTXT.wordCount("# Heading One\nSome **bold** and *italic* text."), 7);
+  assert.equal(ClearTXT.wordCount("- item one\n- item two\n1. numbered item"), 6);
+  assert.equal(ClearTXT.wordCount("| a | b |\n| - | - |\n| 1 | 2 |"), 4);
+  assert.equal(ClearTXT.wordCount("plain text with no markdown at all here"), 8);
+  assert.equal(ClearTXT.wordCount(""), 0);
+  assert.equal(ClearTXT.wordCount("   \n\t  "), 0);
+});

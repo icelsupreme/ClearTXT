@@ -564,6 +564,43 @@
     return out;
   }
 
+  // Strips common Markdown syntax down to its plain-text content, for
+  // word-counting purposes only (the actual filtering pipeline above
+  // deliberately leaves Markdown syntax untouched - this never affects
+  // the real output, just how the word count is computed from it).
+  // Pragmatic regex-based approach, not a full CommonMark parser: handles
+  // the syntax people actually type by hand (headings, emphasis, links,
+  // images, code spans/blocks, block quotes, lists, horizontal rules,
+  // table pipes) rather than every edge case the spec allows.
+  function stripMarkdown(text) {
+    var s = text;
+
+    s = s.replace(/^ {0,3}```.*$/gm, "");                      // fenced code block markers
+    s = s.replace(/`([^`]*)`/g, "$1");                          // inline code spans
+    s = s.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1");             // images
+    s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");              // links
+    s = s.replace(/^ {0,3}#{1,6}\s+/gm, "");                    // headings
+    s = s.replace(/^ {0,3}>\s?/gm, "");                         // block quotes
+    s = s.replace(/^ {0,3}([-*_])(?: *\1){2,} *$/gm, "");       // horizontal rules
+    s = s.replace(/^\s*(?:[-*+]|\d+\.)\s+/gm, "");              // list markers
+    s = s.replace(/^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$/gm, "");    // table header separators
+    s = s.replace(/\|/g, " ");                                  // remaining table pipes
+    s = s.replace(/(\*\*\*|___)([^*_]+)\1/g, "$2");             // bold+italic
+    s = s.replace(/(\*\*|__)([^*_]+)\1/g, "$2");                // bold
+    s = s.replace(/(\*|_)([^*_]+)\1/g, "$2");                   // italic
+    s = s.replace(/~~([^~]+)~~/g, "$1");                        // strikethrough
+
+    return s;
+  }
+
+  // Word count with Markdown syntax stripped out first, so headings/list
+  // markers/emphasis characters don't inflate the count.
+  function wordCount(text) {
+    var stripped = stripMarkdown(text);
+    var words = stripped.split(/\s+/).filter(function (w) { return w.length > 0; });
+    return words.length;
+  }
+
   // Everything above this point is pure text-processing logic with no DOM
   // dependency, exported below for unit testing (see test/). Everything
   // below wires that logic up to the actual page and only runs in a
@@ -584,7 +621,9 @@
     isHebrew: isHebrew,
     foldAccent: foldAccent,
     slugForFilename: slugForFilename,
-    exportFilename: exportFilename
+    exportFilename: exportFilename,
+    stripMarkdown: stripMarkdown,
+    wordCount: wordCount
   };
 
   if (typeof module !== "undefined" && module.exports) {
@@ -611,6 +650,7 @@
   var copyBtn = document.getElementById("copyBtn");
   var exportBtn = document.getElementById("exportBtn");
   var clearBtn = document.getElementById("clearBtn");
+  var restoreDefaultsBtn = document.getElementById("restoreDefaultsBtn");
 
   var diffSummary = document.getElementById("diffSummary");
   var diffCounts = document.getElementById("diffCounts");
@@ -996,10 +1036,16 @@
       statsHtml = parts.join(" &middot; ");
     }
     stats.innerHTML = statsHtml;
-    // Sticky footer mirrors the same counts for visibility while scrolled
-    // down configuring fixes, far below the toolbar `stats` normally lives
-    // in - hidden entirely (rather than shown empty) when there's no input.
-    stickyFooterCounts.innerHTML = statsHtml;
+    // Sticky footer adds the before/after char counts and a Markdown-aware
+    // word count on top of the same removed/converted counts shown in
+    // `stats`, so it stays useful while scrolled down configuring fixes,
+    // far below where those live - hidden entirely (rather than shown
+    // empty) when there's no input.
+    var wordsCount = wordCount(result.output);
+    var footerBits = [inLen + " → " + outLen + " chars"];
+    if (statsHtml) footerBits.push(statsHtml);
+    footerBits.push(wordsCount + (wordsCount === 1 ? " word" : " words"));
+    stickyFooterCounts.innerHTML = footerBits.join(" &middot; ");
     stickyFooter.style.display = inLen === 0 ? "none" : "";
 
     renderDiff(src, result);
@@ -1097,6 +1143,16 @@
   }
   optConvertDashes.addEventListener("change", syncDashTargetEnabled);
 
+  // Milliseconds a button's label stays showing a transient status ("Copied!",
+  // "Exported!", "Import failed") before reverting to its normal text.
+  var BUTTON_FEEDBACK_MS = 1200;
+
+  function flashButtonLabel(btn, text) {
+    var old = btn.textContent;
+    btn.textContent = text;
+    setTimeout(function () { btn.textContent = old; }, BUTTON_FEEDBACK_MS);
+  }
+
   importBtn.addEventListener("click", function () {
     importFile.click();
   });
@@ -1114,9 +1170,7 @@
         // Same transient-label feedback pattern as copyBtn/exportBtn below,
         // so a failed read isn't a silent no-op - the input is left as it
         // was, but the user finds out the import didn't happen.
-        var old = importBtn.textContent;
-        importBtn.textContent = "Import failed";
-        setTimeout(function () { importBtn.textContent = old; }, 1500);
+        flashButtonLabel(importBtn, "Import failed");
       })
       .finally(function () {
         // Reset so choosing the same file again still fires "change".
@@ -1127,9 +1181,7 @@
   copyBtn.addEventListener("click", function () {
     output.select();
     navigator.clipboard && navigator.clipboard.writeText(output.value);
-    var old = copyBtn.textContent;
-    copyBtn.textContent = "Copied!";
-    setTimeout(function () { copyBtn.textContent = old; }, 1200);
+    flashButtonLabel(copyBtn, "Copied!");
   });
 
   exportBtn.addEventListener("click", function () {
@@ -1144,15 +1196,21 @@
     a.remove();
     URL.revokeObjectURL(url);
 
-    var old = exportBtn.textContent;
-    exportBtn.textContent = "Exported!";
-    setTimeout(function () { exportBtn.textContent = old; }, 1200);
+    flashButtonLabel(exportBtn, "Exported!");
   });
 
   clearBtn.addEventListener("click", function () {
     input.value = "";
     update();
     input.focus();
+  });
+
+  restoreDefaultsBtn.addEventListener("click", function () {
+    FIX_TOGGLES.forEach(function (t) { t.el.checked = t.def; });
+    optDashTarget.value = "-";
+    syncDashTargetEnabled();
+    updateAllGroupHeaders();
+    update();
   });
 
   applySavedOpts();

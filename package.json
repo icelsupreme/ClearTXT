@@ -1,8 +1,13 @@
 {
   "name": "cleartxt",
-  "version": "0.16.0",
+  "version": "0.17.2",
   "private": true,
   "description": "Strip text down to a clean, safe character set.",
+  "license": "MIT",
+  "author": {
+    "name": "Aviv M. Icel",
+    "url": "https://github.com/icelsupreme"
+  },
   "scripts": {
     "lint": "eslint .",
     "test": "node --test test/**/*.test.js"

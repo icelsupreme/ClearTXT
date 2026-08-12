@@ -1,6 +1,7 @@
 # ClearTXT
 
 [![CI](https://github.com/icelsupreme/ClearTXT/actions/workflows/ci.yml/badge.svg)](https://github.com/icelsupreme/ClearTXT/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A small, dependency-free web tool that strips text down to a clean, safe character set - paste text in, get a filtered, normalized version out, side by side with a highlighted diff of exactly what changed.
 
@@ -9,8 +10,8 @@ It's a single static page: no backend, no build step, no data ever leaves your b
 ## Features
 
 - **Side-by-side filtering.** Paste or type into the input box; the cleaned result appears in the output box as you type, with live character counts.
-- **Inline highlighting.** Removed and converted characters are highlighted directly inside the input and output boxes themselves (no separate/duplicate diff view to keep in sync) - red for removed, blue for converted, a thin ring for invisible/control characters (which have no width of their own to highlight). Any line containing a change also gets a full-row tint, GitHub-diff style, with its line number bolded and colored in the gutter, so changed lines are easy to spot at a glance even before reading the character-level marks. "Previous change" / "Next change" buttons (or Alt+Down / Alt+Up, or clicking a changed line number directly) step through the changed lines one at a time, scrolling and centering each one (in both boxes at once) with a stronger highlight than the rest. A collapsible "What changed?" panel below has the removed/converted counts by category, and a sticky footer keeps the same removed/converted counts visible even while you're scrolled down configuring fixes.
-- **Configurable fixes.** The "Fixes & explanation" drawer lists every transformation as an independent toggle, organized into three groups - each with its own checkbox to turn every fix in that group on or off at once (showing indeterminate when the group is a mix of on/off):
+- **Inline highlighting.** Removed and converted characters are highlighted directly inside the input and output boxes themselves (no separate/duplicate diff view to keep in sync) - red for removed, blue for converted, a thin ring for invisible/control characters (which have no width of their own to highlight). Any line containing a change also gets a full-row tint, GitHub-diff style, with its line number bolded and colored in the gutter, so changed lines are easy to spot at a glance even before reading the character-level marks. "Previous change" / "Next change" buttons (or Alt+Down / Alt+Up, or clicking a changed line number directly) step through the changed lines one at a time, scrolling and centering each one (in both boxes at once) with a stronger highlight than the rest. A collapsible "What changed?" panel below has the removed/converted counts by category, and a sticky footer keeps the input/output character counts, removed/converted counts, and a Markdown-aware word count all visible even while you're scrolled down configuring fixes.
+- **Configurable fixes.** The "Fixes & explanation" drawer lists every transformation as an independent toggle, organized into three groups - each with its own checkbox to turn every fix in that group on or off at once (showing indeterminate when the group is a mix of on/off) - plus a "Restore defaults" button that resets every fix and the em dash target back to its default in one click:
   - **Typography & normalization:** Normalize Unicode (NFKC, folds ligatures/full-width letters/superscripts into plain forms), fold accented letters to their plain ASCII base (`é` -> `e`), straighten smart quotes (`“ ” ‘ ’` -> `" '`), convert em dashes to a hyphen or an en dash (`—` -> `-` or `–`, your choice) - every other dash (en dash, hyphen, non-breaking hyphen, figure dash, horizontal bar, minus sign) is always preserved exactly as typed
   - **Symbols, scripts & invisible characters:** strip emoji & symbols, strip currency symbols (`€ £ ¥ ₹ ₩ ₽ ¢` …) - a separate toggle from the one above, so you can keep currency symbols while still stripping other symbols; the ASCII dollar sign `$` is always kept regardless - strip invisible & control characters (zero-width spaces, directional marks and isolates including the ones behind the "Trojan Source" bidi-spoofing technique, control characters, Unicode tag characters used to hide invisible payloads, deprecated variation selectors), allow Hebrew characters (off by default, since the base filter targets Latin/ASCII text)
   - **Whitespace cleanup:** remove tabs, remove extra spaces, remove line breaks, remove paragraph breaks
@@ -69,6 +70,16 @@ The `?v=` matters functionally, not just cosmetically: without it, browsers (esp
 ## Version history
 
 Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change - those are called out explicitly below.
+
+### 0.17.2
+- **Docs:** added an MIT `LICENSE` file, plus `license`/`author` fields in `package.json`. Added License and Author sections to this README, and a small "Made by ..." credit line (linking to GitHub and Bluesky) at the bottom of the page itself.
+
+### 0.17.1
+- **Refactor:** the copy/export/import-failure button feedback ("Copied!", "Exported!", "Import failed") shared the same set-label-then-revert logic three times over, with two different, undocumented timeout values (1200ms and 1500ms) split across them for no particular reason. Extracted into one `flashButtonLabel` helper backed by a single named constant - all three now revert after the same 1200ms.
+
+### 0.17.0
+- **Feature:** the sticky footer now shows the input/output character counts (before -> after) and a word count, alongside the existing removed/converted counts. The word count strips common Markdown syntax first (headings, emphasis, links, images, code spans/blocks, block quotes, lists, horizontal rules, table pipes) so formatting characters don't inflate it - it's not a full CommonMark parser, just the syntax people actually type by hand.
+- **Feature:** a "Restore defaults" button in the "Fixes & explanation" drawer resets every fix toggle and the em dash target back to its default in one click, without needing to flip each one back by hand.
 
 ### 0.16.0
 - **Behavior change (naming consistency):** "Keep currency symbols" is renamed to "Strip currency symbols" and its checkbox is inverted to match every other fix toggle's convention (checked = the action happens), instead of being the one toggle phrased the opposite way. The resulting filtering behavior for any given combination of settings is unchanged - only the checkbox's own default state flipped (from unchecked to checked) to match, since "checked" now means the opposite of what it used to.
@@ -157,3 +168,11 @@ Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, 
 
 ### 0.1.0
 - **Initial release:** a single-page text filter that strips input down to a printable-ASCII-plus-curated-dashes whitelist, after normalizing to Unicode NFKC (folding ligatures, full-width forms, superscripts, ...) and explicitly stripping zero-width/invisible characters. Copy/clear controls and an explanation of what's kept vs. removed.
+
+## License
+
+[MIT](LICENSE)
+
+## Author
+
+Aviv M. Icel - [GitHub](https://github.com/icelsupreme) - [Bluesky](https://bsky.app/profile/icel.me)
