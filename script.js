@@ -430,10 +430,13 @@
     return buildLineHighlightHtml(rawChars, changes, budget);
   }
 
-  // Same idea for the OUTPUT box. Output only ever contains non-removed
-  // segments, and output.value is always exactly their replacements
-  // joined together, so this is inherently 1:1 aligned (no null case).
-  function outputHighlightHtml(changes, maxChars) {
+  // Shared by outputHighlightHtml/outputLineChanged: output only ever
+  // contains non-removed segments, and output.value is always exactly
+  // their replacements joined together, so filtering `changes` down to
+  // those (paired with their own replacement character) is inherently
+  // 1:1 aligned with the output textarea's value - no null case needed,
+  // unlike the input side.
+  function outputCharsAndEntries(changes) {
     var entries = [];
     var chars = [];
     for (var k = 0; k < changes.length; k++) {
@@ -442,8 +445,49 @@
         chars.push(changes[k].replacement);
       }
     }
-    var budget = maxChars == null ? chars.length : Math.min(maxChars, chars.length);
-    return buildLineHighlightHtml(chars, entries, budget);
+    return { chars: chars, entries: entries };
+  }
+
+  // Same idea for the OUTPUT box.
+  function outputHighlightHtml(changes, maxChars) {
+    var ce = outputCharsAndEntries(changes);
+    var budget = maxChars == null ? ce.chars.length : Math.min(maxChars, ce.chars.length);
+    return buildLineHighlightHtml(ce.chars, ce.entries, budget);
+  }
+
+  // Per-logical-line "did this line change" flags (one per line the text
+  // splits into on "\n"), covering the FULL text with no truncation
+  // budget - unlike the highlight HTML builders, this is cheap enough
+  // (one pass, no DOM) to always run over everything, and is used to tint
+  // the corresponding gutter line numbers alongside the highlighted row.
+  function lineChangedFlags(chars, entries) {
+    var flags = [];
+    var changed = false;
+    for (var i = 0; i < chars.length; i++) {
+      if (chars[i] === "\n") {
+        flags.push(changed);
+        changed = false;
+        continue;
+      }
+      if (entries[i].type !== "kept") changed = true;
+    }
+    flags.push(changed);
+    return flags;
+  }
+
+  // Line-changed flags for the INPUT box's gutter. Returns null under the
+  // same rare normalization-length-mismatch condition inputHighlightHtml
+  // does, since it relies on the same 1:1 alignment with rawText.
+  function inputLineChanged(rawText, changes) {
+    var rawChars = [...rawText];
+    if (rawChars.length !== changes.length) return null;
+    return lineChangedFlags(rawChars, changes);
+  }
+
+  // Line-changed flags for the OUTPUT box's gutter.
+  function outputLineChanged(changes) {
+    var ce = outputCharsAndEntries(changes);
+    return lineChangedFlags(ce.chars, ce.entries);
   }
 
   // Max length of the first-line-derived slug used in the exported
@@ -497,6 +541,8 @@
     formatCatCounts: formatCatCounts,
     inputHighlightHtml: inputHighlightHtml,
     outputHighlightHtml: outputHighlightHtml,
+    inputLineChanged: inputLineChanged,
+    outputLineChanged: outputLineChanged,
     escapeHtml: escapeHtml,
     invisibleInfo: invisibleInfo,
     isHiddenPayloadRange: isHiddenPayloadRange,
@@ -630,23 +676,32 @@
   // wrap-aware numbering past this size and fall back to plain numbering.
   var WRAP_MEASURE_LIMIT = 500;
 
-  function updateGutter(ta, gutter) {
+  // `lineChanged` is the per-line boolean array from inputLineChanged/
+  // outputLineChanged (or null, e.g. the normalization-mismatch case) -
+  // when a line is flagged, its number is wrapped so CSS can tint it the
+  // same way as its highlighted row, tying the gutter to the diff overlay.
+  function updateGutter(ta, gutter, lineChanged) {
     var logicalLines = ta.value.length ? ta.value.split("\n") : [""];
+
+    function numHtml(n) {
+      var s = String(n + 1);
+      return (lineChanged && lineChanged[n]) ? '<span class="gutter-changed">' + s + "</span>" : s;
+    }
 
     if (logicalLines.length > WRAP_MEASURE_LIMIT) {
       var arr = [];
-      for (var i = 1; i <= logicalLines.length; i++) arr.push(i);
-      gutter.textContent = arr.join("\n");
+      for (var i = 0; i < logicalLines.length; i++) arr.push(numHtml(i));
+      gutter.innerHTML = arr.join("\n");
       return;
     }
 
     var rowCounts = countWrappedRows(ta, logicalLines);
     var out = [];
     for (var n = 0; n < rowCounts.length; n++) {
-      out.push(String(n + 1));
+      out.push(numHtml(n));
       for (var r = 1; r < rowCounts[n]; r++) out.push("");
     }
-    gutter.textContent = out.join("\n");
+    gutter.innerHTML = out.join("\n");
   }
 
   // Renders the removed/converted summary, and the highlight overlays that
@@ -697,6 +752,12 @@
     }
   }
 
+  // Last-computed gutter line-changed flags, re-used by the resize handler
+  // below so it can re-run updateGutter (for wrap-count changes) without
+  // re-running the whole text pipeline just to recolor the same lines.
+  var lastInLineChanged = null;
+  var lastOutLineChanged = null;
+
   function update() {
     var opts = readOpts();
     saveOpts(opts);
@@ -728,8 +789,10 @@
     }
 
     renderDiff(src, result);
-    updateGutter(input, inGutter);
-    updateGutter(output, outGutter);
+    lastInLineChanged = inputLineChanged(src, result.changes);
+    lastOutLineChanged = outputLineChanged(result.changes);
+    updateGutter(input, inGutter, lastInLineChanged);
+    updateGutter(output, outGutter, lastOutLineChanged);
   }
 
   input.addEventListener("input", update);
@@ -749,8 +812,8 @@
   window.addEventListener("resize", function () {
     if (resizeFrame) cancelAnimationFrame(resizeFrame);
     resizeFrame = requestAnimationFrame(function () {
-      updateGutter(input, inGutter);
-      updateGutter(output, outGutter);
+      updateGutter(input, inGutter, lastInLineChanged);
+      updateGutter(output, outGutter, lastOutLineChanged);
     });
   });
 
