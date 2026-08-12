@@ -47,7 +47,9 @@ header p {
 .wrap {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 16px 20px 40px;
+  /* Extra bottom padding reserves room for .stickyFooter, so it never
+     overlaps the end of the "Fixes & explanation" panel when visible. */
+  padding: 16px 20px 64px;
 }
 .grid {
   display: grid;
@@ -92,8 +94,10 @@ header p {
   user-select: none;
 }
 /* Ties a gutter's line number to its row's highlight, so a changed line
-   is visible in the gutter too, not just in the text itself. */
-.gutter .gutter-changed { color: var(--accent); font-weight: 700; }
+   is visible in the gutter too, not just in the text itself. Clickable -
+   jumps straight to that line, same as stepping to it with Previous/Next. */
+.gutter .gutter-changed { color: var(--accent); font-weight: 700; cursor: pointer; }
+.gutter .gutter-changed:hover { text-decoration: underline; }
 /* textWrap stacks two layers filling the same box: .highlight (behind,
    invisible text, only its rm/cv/iv marker effects are visible) and the
    real textarea (in front, normal visible text). Both must share
@@ -194,6 +198,24 @@ button:hover { border-color: var(--accent); }
 }
 .diffNav button { font-size: 0.85rem; padding: 6px 12px; }
 .diffNavCount { color: var(--muted); font-size: 0.85rem; min-width: 60px; text-align: center; }
+/* Mirrors #stats so the removed/converted counts stay visible while
+   scrolled down configuring fixes, far below where #stats normally sits. */
+.stickyFooter {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+  box-shadow: 0 -4px 12px rgba(0,0,0,.3);
+  z-index: 10;
+}
+.stickyFooter .removed { color: var(--danger); }
+.stickyFooter .converted { color: var(--accent); }
 details {
   margin-top: 22px;
   background: var(--panel);
@@ -210,11 +232,29 @@ details summary {
 details code { color: var(--accent); background: #0d1017; padding: 1px 5px; border-radius: 4px; }
 
 .fixList { margin: 4px 0 16px; }
+.fixGroup { margin-bottom: 6px; }
+.fixGroup:last-child { margin-bottom: 0; }
+.fixGroupHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 6px;
+  border-bottom: 1px solid var(--border);
+}
+.fixGroupHeader input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); flex: 0 0 auto; }
+.fixGroupTitle {
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
 .fixRow {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 8px 0;
+  padding: 8px 0 8px 23px;
   border-bottom: 1px solid var(--border);
 }
 .fixRow:last-child { border-bottom: none; }

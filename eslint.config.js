@@ -2,6 +2,10 @@ const js = require("@eslint/js");
 const globals = require("globals");
 
 module.exports = [
+  // Claude Code skill assets, not part of this project's own source -
+  // linting them under app-specific rules (e.g. script.js's browser-only
+  // globals) doesn't apply and isn't this repo's responsibility to enforce.
+  { ignores: [".claude/**"] },
   js.configs.recommended,
   {
     files: ["eslint.config.js", "test/**/*.js"],

@@ -12,6 +12,7 @@ const DEFAULT_OPTS = {
   convertDashes: true,
   dashTarget: "-",
   stripEmoji: true,
+  keepCurrency: false,
   stripInvisible: true,
   allowHebrew: false,
   removeLineBreaks: false,
@@ -105,6 +106,14 @@ test("Hebrew is stripped by default and preserved when allowed", () => {
 test("emoji and symbols are stripped by default and kept when the toggle is off", () => {
   assert.equal(run("a😀b ±"), "ab ");
   assert.equal(run("a😀b ±", { stripEmoji: false }), "a😀b ±");
+});
+
+test("currency symbols are stripped along with other symbols by default, kept when \"keep currency symbols\" is on, and the ASCII dollar sign is always kept regardless", () => {
+  assert.equal(run("a€£¥b"), "ab");
+  assert.equal(run("a€£¥b", { keepCurrency: true }), "a€£¥b");
+  // Turning off symbol-stripping entirely already keeps them too, independent of keepCurrency.
+  assert.equal(run("a€b", { stripEmoji: false, keepCurrency: false }), "a€b");
+  assert.equal(run("a$b"), "a$b");
 });
 
 test("zero-width characters are stripped by default and kept when the toggle is off", () => {
@@ -240,6 +249,12 @@ test("summarizeChanges and formatCatCounts report accurate per-category totals",
   const sums = ClearTXT.summarizeChanges(changes);
   assert.equal(ClearTXT.formatCatCounts(sums.converted), "1 accents, 2 quotes");
   assert.equal(ClearTXT.formatCatCounts(sums.removed), "1 emoji/symbols");
+});
+
+test("formatCatCounts labels the currency category distinctly from generic emoji/symbols", () => {
+  const { changes } = ClearTXT.processText("a€b", opts());
+  const sums = ClearTXT.summarizeChanges(changes);
+  assert.equal(ClearTXT.formatCatCounts(sums.removed), "1 currency symbols");
 });
 
 test("isHebrew recognizes the Hebrew block and presentation forms, and nothing else", () => {

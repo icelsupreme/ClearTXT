@@ -112,6 +112,7 @@
     accent: "accents",
     quote: "quotes",
     hebrew: "Hebrew",
+    currency: "currency symbols",
     tab: "tabs",
     linebreak: "line breaks",
     paragraph: "paragraph breaks",
@@ -120,6 +121,14 @@
 
   function isControl(cp) {
     return (cp <= 0x1F && cp !== 0x09 && cp !== 0x0A && cp !== 0x0D) || cp === 0x7F;
+  }
+
+  // Unicode's own "Currency Symbol" general category (Sc) - covers €, £,
+  // ¥, ₹, ₩, ₽, ¢, ... The ASCII dollar sign ($) never reaches this check;
+  // it's already handled by the plain-ASCII passthrough above.
+  var CURRENCY_RE = /\p{Sc}/u;
+  function isCurrencySymbol(ch) {
+    return CURRENCY_RE.test(ch);
   }
 
   function isHebrew(cp) {
@@ -204,6 +213,15 @@
           changes.push({ ch: ch, type: "converted", category: "accent", replacement: folded });
           continue;
         }
+      }
+
+      // A currency symbol would otherwise fall into the generic
+      // emoji/symbol bucket below and get stripped whenever that toggle is
+      // on; this carve-out keeps it independent of that decision.
+      if (isCurrencySymbol(ch)) {
+        var keepCurrency = opts.keepCurrency || !opts.stripEmoji;
+        changes.push({ ch: ch, type: keepCurrency ? "kept" : "removed", category: "currency", replacement: keepCurrency ? ch : "" });
+        continue;
       }
 
       if (opts.stripEmoji) {
@@ -584,6 +602,8 @@
   var inCount = document.getElementById("inCount");
   var outCount = document.getElementById("outCount");
   var stats = document.getElementById("stats");
+  var stickyFooter = document.getElementById("stickyFooter");
+  var stickyFooterCounts = document.getElementById("stickyFooterCounts");
   var importBtn = document.getElementById("importBtn");
   var importFile = document.getElementById("importFile");
   var copyBtn = document.getElementById("copyBtn");
@@ -598,25 +618,55 @@
   var diffNextBtn = document.getElementById("diffNextBtn");
   var diffNavCount = document.getElementById("diffNavCount");
 
-  // [DOM id, opts key, default value] for every plain-checkbox fix toggle.
-  // Adding a new checkbox-backed fix only needs a new row here, instead of
-  // touching a separate element declaration, optEls entry, readOpts field,
-  // and applySavedOpts field individually.
+  // [DOM id, opts key, default value, fix-group] for every plain-checkbox
+  // fix toggle. Adding a new checkbox-backed fix only needs a new row
+  // here, instead of touching a separate element declaration, optEls
+  // entry, readOpts field, and applySavedOpts field individually. The
+  // group is a pure UI-grouping label (drives the "select whole group"
+  // header checkboxes below) - it's never read from or written to opts/
+  // localStorage.
   var FIX_TOGGLES = [
-    ["optNormalize", "normalize", true],
-    ["optFoldAccents", "foldAccents", true],
-    ["optStraightenQuotes", "straightenQuotes", true],
-    ["optConvertDashes", "convertDashes", true],
-    ["optStripEmoji", "stripEmoji", true],
-    ["optStripInvisible", "stripInvisible", true],
-    ["optAllowHebrew", "allowHebrew", false],
-    ["optRemoveLineBreaks", "removeLineBreaks", false],
-    ["optRemoveParagraphBreaks", "removeParagraphBreaks", false],
-    ["optRemoveExtraSpaces", "removeExtraSpaces", true],
-    ["optRemoveTabs", "removeTabs", false]
+    ["optNormalize", "normalize", true, "typography"],
+    ["optFoldAccents", "foldAccents", true, "typography"],
+    ["optStraightenQuotes", "straightenQuotes", true, "typography"],
+    ["optConvertDashes", "convertDashes", true, "typography"],
+    ["optStripEmoji", "stripEmoji", true, "symbols"],
+    ["optKeepCurrency", "keepCurrency", false, "symbols"],
+    ["optStripInvisible", "stripInvisible", true, "symbols"],
+    ["optAllowHebrew", "allowHebrew", false, "symbols"],
+    ["optRemoveTabs", "removeTabs", false, "whitespace"],
+    ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
+    ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
+    ["optRemoveParagraphBreaks", "removeParagraphBreaks", false, "whitespace"]
   ].map(function (t) {
-    return { el: document.getElementById(t[0]), key: t[1], def: t[2] };
+    return { el: document.getElementById(t[0]), key: t[1], def: t[2], group: t[3] };
   });
+
+  // Group names in display order, matching the fixGroup sections in the
+  // markup - drives both the "select whole group" header wiring below and
+  // its indeterminate/checked state.
+  var FIX_GROUPS = ["typography", "symbols", "whitespace"];
+
+  function groupToggles(group) {
+    return FIX_TOGGLES.filter(function (t) { return t.group === group; });
+  }
+
+  // Syncs one group's header checkbox to reflect its members: checked when
+  // all are on, unchecked when none are, indeterminate (the native
+  // "partially selected" dash) otherwise - same convention as "select all"
+  // checkboxes in file managers/mail clients.
+  function updateGroupHeader(group) {
+    var header = document.getElementById("groupToggle-" + group);
+    if (!header) return;
+    var toggles = groupToggles(group);
+    var onCount = toggles.filter(function (t) { return t.el.checked; }).length;
+    header.checked = onCount === toggles.length;
+    header.indeterminate = onCount > 0 && onCount < toggles.length;
+  }
+
+  function updateAllGroupHeaders() {
+    FIX_GROUPS.forEach(updateGroupHeader);
+  }
 
   // The one non-checkbox fix option (a <select>), handled alongside
   // FIX_TOGGLES but separately since it reads/writes .value, not .checked.
@@ -785,15 +835,17 @@
     diffNavCount.textContent = diffNavLines.length + (diffNavLines.length === 1 ? " changed line" : " changed lines");
   }
 
-  // Jumps to the next (delta 1) or previous (delta -1) changed line,
-  // wrapping around at either end. The same logical line number is used
-  // for both boxes - correct whenever input/output share line structure,
+  // Jumps straight to position `idx` within diffNavLines (wrapping into
+  // range), scrolling/marking both boxes. The same logical line number is
+  // used for both - correct whenever input/output share line structure,
   // which holds unless a line/paragraph-break-removal fix is on; when the
   // output has fewer lines it's clamped to the last one instead of
-  // resolving misleadingly to the wrong line.
-  function gotoChange(delta) {
+  // resolving misleadingly to the wrong line. Shared by gotoChange
+  // (sequential prev/next) and clicking a changed line number directly in
+  // either gutter.
+  function jumpToNavIndex(idx) {
     if (!diffNavLines.length) return;
-    diffNavIndex = (diffNavIndex + delta + diffNavLines.length) % diffNavLines.length;
+    diffNavIndex = ((idx % diffNavLines.length) + diffNavLines.length) % diffNavLines.length;
     var lineNo = diffNavLines[diffNavIndex];
 
     clearCurrentDiffLine();
@@ -807,6 +859,27 @@
     markCurrentDiffLine(outHighlight, outLineNo);
 
     diffNavCount.textContent = (diffNavIndex + 1) + " / " + diffNavLines.length;
+  }
+
+  // Jumps to the next (delta 1) or previous (delta -1) changed line,
+  // wrapping around at either end. Flushes any pending debounced update
+  // first, so a nav click right after fast typing steps through the
+  // current text's changes rather than a stale, about-to-be-replaced list.
+  function gotoChange(delta) {
+    flushUpdate();
+    if (!diffNavLines.length) return;
+    jumpToNavIndex(diffNavIndex + delta);
+  }
+
+  // Lets clicking a changed line number directly in either gutter jump
+  // straight to it, instead of only being reachable by stepping through
+  // Previous/Next. `lineNo` is 0-based; a raw line number not currently in
+  // diffNavLines (e.g. clicked in the output gutter when the two boxes'
+  // line counts have diverged) is silently ignored.
+  function jumpToLine(lineNo) {
+    flushUpdate();
+    var idx = diffNavLines.indexOf(lineNo);
+    if (idx !== -1) jumpToNavIndex(idx);
   }
 
   // Renders the removed/converted summary, and the highlight overlays that
@@ -863,6 +936,30 @@
   var lastInLineChanged = null;
   var lastOutLineChanged = null;
 
+  // The input handler is debounced (see scheduleUpdate below) so fast
+  // typing/pasting doesn't re-run the full pipeline - including the
+  // wrapped-row DOM measurements behind gutter/nav positioning - on every
+  // single keystroke. Anything that reads the result right after a
+  // keystroke (nav clicks, blurring the input) calls flushUpdate first so
+  // it never acts on stale data.
+  var UPDATE_DEBOUNCE_MS = 80;
+  var updateDebounceTimer = null;
+
+  function scheduleUpdate() {
+    if (updateDebounceTimer) clearTimeout(updateDebounceTimer);
+    updateDebounceTimer = setTimeout(function () {
+      updateDebounceTimer = null;
+      update();
+    }, UPDATE_DEBOUNCE_MS);
+  }
+
+  function flushUpdate() {
+    if (!updateDebounceTimer) return;
+    clearTimeout(updateDebounceTimer);
+    updateDebounceTimer = null;
+    update();
+  }
+
   function update() {
     var opts = readOpts();
     saveOpts(opts);
@@ -882,16 +979,23 @@
       else if (c.type === "converted") convertedCount++;
     });
 
+    var statsHtml;
     if (inLen === 0) {
-      stats.innerHTML = "";
+      statsHtml = "";
     } else if (removedCount === 0 && convertedCount === 0) {
-      stats.innerHTML = "Nothing changed - text is already clean";
+      statsHtml = "Nothing changed - text is already clean";
     } else {
       var parts = [];
       if (removedCount) parts.push('<span class="removed">' + removedCount + "</span> removed");
       if (convertedCount) parts.push('<span class="converted">' + convertedCount + "</span> converted");
-      stats.innerHTML = parts.join(" &middot; ");
+      statsHtml = parts.join(" &middot; ");
     }
+    stats.innerHTML = statsHtml;
+    // Sticky footer mirrors the same counts for visibility while scrolled
+    // down configuring fixes, far below the toolbar `stats` normally lives
+    // in - hidden entirely (rather than shown empty) when there's no input.
+    stickyFooterCounts.innerHTML = statsHtml;
+    stickyFooter.style.display = inLen === 0 ? "none" : "";
 
     renderDiff(src, result);
     lastInLineChanged = inputLineChanged(src, result.changes);
@@ -899,9 +1003,22 @@
     updateGutter(input, inGutter, lastInLineChanged);
     updateGutter(output, outGutter, lastOutLineChanged);
     updateDiffNav();
+
+    // Rebuilding the gutter/highlight content above doesn't move their own
+    // scrollTop, but it also doesn't account for the real textarea having
+    // scrolled on its own since the last sync (e.g. the browser jumping to
+    // show the caret after a paste, or after scheduleUpdate's debounce
+    // delay let a 'scroll' event slip by unhandled) - resync explicitly so
+    // the overlay never ends up showing a different position than the
+    // actual text.
+    inGutter.scrollTop = input.scrollTop;
+    inHighlight.scrollTop = input.scrollTop;
+    outGutter.scrollTop = output.scrollTop;
+    outHighlight.scrollTop = output.scrollTop;
   }
 
-  input.addEventListener("input", update);
+  input.addEventListener("input", scheduleUpdate);
+  input.addEventListener("blur", flushUpdate);
   input.addEventListener("scroll", function () {
     inGutter.scrollTop = input.scrollTop;
     inHighlight.scrollTop = input.scrollTop;
@@ -913,6 +1030,28 @@
 
   diffPrevBtn.addEventListener("click", function () { gotoChange(-1); });
   diffNextBtn.addEventListener("click", function () { gotoChange(1); });
+
+  // Alt+Down/Alt+Up step through changes from anywhere on the page,
+  // mirroring the buttons - matches the "next/previous change" shortcut
+  // convention used by VS Code's diff editor and similar tools. Neither
+  // combination has a standard browser binding, but preventDefault guards
+  // against any that do.
+  document.addEventListener("keydown", function (e) {
+    if (!e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); gotoChange(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); gotoChange(-1); }
+  });
+
+  // Clicking a changed line number in either gutter jumps straight to it.
+  // Only .gutter-changed spans are targets; clicks elsewhere in the gutter
+  // (unchanged numbers, blank continuation rows) are ignored.
+  function gutterClickHandler(e) {
+    var el = e.target.closest(".gutter-changed");
+    if (!el) return;
+    jumpToLine(parseInt(el.textContent, 10) - 1);
+  }
+  inGutter.addEventListener("click", gutterClickHandler);
+  outGutter.addEventListener("click", gutterClickHandler);
 
   // Wrapped row counts depend on the textarea's width, which changes on
   // viewport resize (the grid collapses to one column below 760px) — keep
@@ -926,7 +1065,27 @@
     });
   });
 
-  optEls.forEach(function (el) { el.addEventListener("change", update); });
+  optEls.forEach(function (el) {
+    el.addEventListener("change", function () {
+      updateAllGroupHeaders();
+      update();
+    });
+  });
+
+  // Clicking a group's header checkbox sets every fix in that group to
+  // match it (all on, or all off) - the header itself never ends up
+  // indeterminate from its own click, only from an individual toggle
+  // inside the group changing independently afterward.
+  FIX_GROUPS.forEach(function (group) {
+    var header = document.getElementById("groupToggle-" + group);
+    header.addEventListener("change", function () {
+      var checked = header.checked;
+      groupToggles(group).forEach(function (t) { t.el.checked = checked; });
+      header.indeterminate = false;
+      syncDashTargetEnabled();
+      update();
+    });
+  });
 
   function syncDashTargetEnabled() {
     optDashTarget.disabled = !optConvertDashes.checked;
@@ -989,5 +1148,6 @@
 
   applySavedOpts();
   syncDashTargetEnabled();
+  updateAllGroupHeaders();
   update();
 })(typeof window !== "undefined" ? window : this);
