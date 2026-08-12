@@ -172,3 +172,48 @@ test("foldAccent returns null for characters with no plain-ASCII base", () => {
   assert.equal(ClearTXT.foldAccent("😀"), null); // emoji
   assert.equal(ClearTXT.foldAccent("中"), null); // CJK
 });
+
+test("invisibleInfo labels named zero-width characters and C0 controls distinctly", () => {
+  assert.equal(ClearTXT.invisibleInfo(0x200b).label, "ZWSP");
+  assert.ok(ClearTXT.invisibleInfo(0x200b).name.includes("zero-width space"));
+  assert.equal(ClearTXT.invisibleInfo(0xfeff).label, "BOM");
+  assert.equal(ClearTXT.invisibleInfo(0x0007).label, "␇"); // control picture for BEL
+  assert.ok(ClearTXT.invisibleInfo(0x0007).name.includes("BEL"));
+  assert.equal(ClearTXT.invisibleInfo(0x007f).label, "␡"); // DEL picture
+  assert.equal(ClearTXT.invisibleInfo(0x1234).label, "U+1234"); // unmapped fallback
+});
+
+test("buildRuns never merges an invisible character into a surrounding run", () => {
+  const { changes } = ClearTXT.processText("a​b", opts({ stripInvisible: false }));
+  const runs = ClearTXT.buildRuns(changes);
+  assert.deepEqual(runs.map((r) => [r.type, r.count, !!r.invisible]), [
+    ["kept", 1, false],
+    ["kept", 1, true],
+    ["kept", 1, false]
+  ]);
+});
+
+test("runHtml renders a labeled marker span for invisible runs, tagged removed or kept", () => {
+  const { changes } = ClearTXT.processText("​", opts({ stripInvisible: false }));
+  const kept = ClearTXT.buildRuns(changes)[0];
+  const keptHtml = ClearTXT.runHtml(kept);
+  assert.match(keptHtml, /class="iv"/);
+  assert.match(keptHtml, />ZWSP</);
+
+  const { changes: changes2 } = ClearTXT.processText("​", opts({ stripInvisible: true }));
+  const removed = ClearTXT.buildRuns(changes2)[0];
+  const removedHtml = ClearTXT.runHtml(removed);
+  assert.match(removedHtml, /class="iv rm"/);
+});
+
+test("outputHtml substitutes a visible marker for invisible characters that survive filtering", () => {
+  const { changes } = ClearTXT.processText("a​b", opts({ stripInvisible: false }));
+  const html = ClearTXT.outputHtml(changes, 1000);
+  assert.equal(html, 'a<span class="iv" title="zero-width space (U+200B) (kept)">ZWSP</span>b');
+});
+
+test("outputHtml never shows a marker for a stripped invisible character (it isn't in the output at all)", () => {
+  const { changes } = ClearTXT.processText("a​b", opts({ stripInvisible: true }));
+  const html = ClearTXT.outputHtml(changes, 1000);
+  assert.equal(html, "ab");
+});
