@@ -305,3 +305,4 @@ User-agent: YiyanBot
 User-agent: YouBot
 User-agent: ZanistaBot
 Disallow: /
+Sitemap: https://icelsupreme.github.io/ClearTXT/sitemap.xml

@@ -2,6 +2,10 @@
 
 All notable changes to ClearTXT, versioned per [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`, tracked in `package.json`). A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix or docs change with no behavior change. Releases before 1.0.0 were pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release there could still include a behavior change - those are called out explicitly below.
 
+### 1.8.0
+- **Feature:** a new `docs/sitemap.xml` listing all four pages (index, batch, changelog, documentation), so search engines can discover and prioritize them without relying on crawling links alone.
+- **Fix:** moved `robots.txt` from the repo root into `docs/` - GitHub Pages serves this site from `docs/` only, so a root-level `robots.txt` was never actually reachable at the live site's URL (it 404'd) despite being present in the repo. Also added a `Sitemap:` directive pointing at the new `sitemap.xml`.
+
 ### 1.7.0
 - **Feature:** a proper social sharing card (`docs/social-card.png`, 1200x900, built from the header's own broom-sparkles icon) wired into `og:image`/`twitter:image` on every page, so links posted on social media, Slack, iMessage, etc. now show a real preview image instead of no image at all. `twitter:card` changed from `summary` to `summary_large_image` to match. Every page's `meta description`/`og:description`/`twitter:description` now also ends with "Made by Aviv M. Icel."
 
