@@ -1,6 +1,107 @@
 (function () {
   "use strict";
 
+  // Minimal ZIP writer (no compression - the "stored" method) so "Download
+  // all" can trigger a single Save dialog instead of one per file. Kept
+  // hand-written rather than pulling in a library, matching the rest of
+  // the app's zero-dependency approach; correctness over file size, since
+  // the inputs here are plain text.
+  var CRC_TABLE = (function () {
+    var table = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      table[n] = c >>> 0;
+    }
+    return table;
+  })();
+
+  function crc32(bytes) {
+    var crc = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) {
+      crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function u16(n) {
+    var b = new Uint8Array(2);
+    new DataView(b.buffer).setUint16(0, n, true);
+    return b;
+  }
+
+  function u32(n) {
+    var b = new Uint8Array(4);
+    new DataView(b.buffer).setUint32(0, n, true);
+    return b;
+  }
+
+  function concatBytes(parts) {
+    var total = 0;
+    for (var i = 0; i < parts.length; i++) total += parts[i].length;
+    var out = new Uint8Array(total);
+    var offset = 0;
+    for (var j = 0; j < parts.length; j++) {
+      out.set(parts[j], offset);
+      offset += parts[j].length;
+    }
+    return out;
+  }
+
+  // MS-DOS date/time format used by the ZIP local/central headers - not
+  // worth the file's real mtime (browsers don't expose it reliably anyway
+  // for File objects read via .text()), so every entry just gets "now".
+  function dosDateTime(date) {
+    var time = ((date.getHours() & 0x1F) << 11) | ((date.getMinutes() & 0x3F) << 5) | ((Math.floor(date.getSeconds() / 2)) & 0x1F);
+    var day = (((date.getFullYear() - 1980) & 0x7F) << 9) | (((date.getMonth() + 1) & 0xF) << 5) | (date.getDate() & 0x1F);
+    return { time: time, date: day };
+  }
+
+  // Builds a single valid, uncompressed ZIP archive from `entries`
+  // ([{ name, data: Uint8Array }]) and returns it as a Uint8Array. General
+  // purpose bit 11 (0x0800) marks file names as UTF-8, so non-ASCII
+  // filenames round-trip correctly in any modern unzip tool.
+  function buildZip(entries) {
+    var dt = dosDateTime(new Date());
+    var localAndData = [];
+    var centralParts = [];
+    var offset = 0;
+
+    entries.forEach(function (entry) {
+      var nameBytes = new TextEncoder().encode(entry.name);
+      var data = entry.data;
+      var crc = crc32(data);
+      var localOffset = offset;
+
+      var local = concatBytes([
+        u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(dt.time), u16(dt.date),
+        u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0), nameBytes
+      ]);
+      localAndData.push(local, data);
+      offset += local.length + data.length;
+
+      centralParts.push(concatBytes([
+        u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(dt.time), u16(dt.date),
+        u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0), u16(0),
+        u16(0), u16(0), u32(0), u32(localOffset), nameBytes
+      ]));
+    });
+
+    var centralDir = concatBytes(centralParts);
+    var end = concatBytes([
+      u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length),
+      u32(centralDir.length), u32(offset), u16(0)
+    ]);
+
+    return concatBytes(localAndData.concat([centralDir, end]));
+  }
+
+  function timestamp(d) {
+    function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+    return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
+      "-" + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
+  }
+
   var dropzone = document.getElementById("dropzone");
   var chooseFilesBtn = document.getElementById("chooseFilesBtn");
   var filesInput = document.getElementById("filesInput");
@@ -162,11 +263,21 @@
   });
 
   downloadAllBtn.addEventListener("click", function () {
-    // Sequential downloads, not a single zip: keeps this page dependency-
-    // free like the rest of the app, at the cost of the browser treating
-    // each as its own download (it may prompt to allow multiple downloads
-    // the first time, for more than a handful of files at once).
-    files.forEach(function (entry) { if (entry.result) downloadEntry(entry); });
+    var ready = files.filter(function (f) { return f.result; });
+    if (!ready.length) return;
+    var encoder = new TextEncoder();
+    var zipBytes = buildZip(ready.map(function (entry) {
+      return { name: entry.name, data: encoder.encode(entry.result.output) };
+    }));
+    var blob = new Blob([zipBytes], { type: "application/zip" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "cleartxt-batch-" + timestamp(new Date()) + ".zip";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   });
 
   clearAllBtn.addEventListener("click", function () {
