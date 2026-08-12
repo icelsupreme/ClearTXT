@@ -183,10 +183,10 @@
       }
 
       if (isHebrew(cp)) {
-        if (opts.allowHebrew) {
-          changes.push({ ch: ch, type: "kept", category: "hebrew", replacement: ch });
-        } else {
+        if (opts.stripHebrew) {
           changes.push({ ch: ch, type: "removed", category: "hebrew", replacement: "" });
+        } else {
+          changes.push({ ch: ch, type: "kept", category: "hebrew", replacement: ch });
         }
         continue;
       }
@@ -675,7 +675,7 @@
     ["optStripEmoji", "stripEmoji", true, "symbols"],
     ["optStripCurrency", "stripCurrency", true, "symbols"],
     ["optStripInvisible", "stripInvisible", true, "symbols"],
-    ["optAllowHebrew", "allowHebrew", false, "symbols"],
+    ["optStripHebrew", "stripHebrew", true, "symbols"],
     ["optRemoveTabs", "removeTabs", false, "whitespace"],
     ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
     ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],

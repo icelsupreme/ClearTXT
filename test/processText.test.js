@@ -14,7 +14,7 @@ const DEFAULT_OPTS = {
   stripEmoji: true,
   stripCurrency: true,
   stripInvisible: true,
-  allowHebrew: false,
+  stripHebrew: true,
   removeLineBreaks: false,
   removeParagraphBreaks: false,
   removeExtraSpaces: true,
@@ -94,13 +94,13 @@ test("an invalid dashTarget falls back to a hyphen", () => {
   assert.equal(run("em—dash", { dashTarget: undefined }), "em-dash");
 });
 
-test("Hebrew is stripped by default and preserved when allowed", () => {
+test("Hebrew is stripped by default and preserved when \"strip Hebrew characters\" is off", () => {
   // The word is removed and the two spaces that used to sandwich it
   // become adjacent, so the default-on "remove extra spaces" collapses
   // them to one.
   assert.equal(run("hello שלום world"), "hello world");
   assert.equal(run("hello שלום world", { removeExtraSpaces: false }), "hello  world");
-  assert.equal(run("hello שלום world", { allowHebrew: true }), "hello שלום world");
+  assert.equal(run("hello שלום world", { stripHebrew: false }), "hello שלום world");
 });
 
 test("emoji and symbols are stripped by default and kept when the toggle is off", () => {
