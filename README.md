@@ -5,7 +5,7 @@
 
 A small, dependency-free web tool that strips text down to a clean, safe character set - paste text in, get a filtered, normalized version out, side by side with a highlighted diff of exactly what changed.
 
-It's a single static page: no backend, no build step, no data ever leaves your browser.
+It's a single static page: no backend, no build step, and none of your text ever leaves your browser. (The page does load its fonts from Google Fonts over the network - see [Fonts](#fonts) below if you'd rather it made zero external requests at all.)
 
 ## Features
 
@@ -20,6 +20,12 @@ It's a single static page: no backend, no build step, no data ever leaves your b
 - **Line numbers** on both text boxes, kept aligned even when lines wrap.
 - **Import, copy, or export** - load any text file (plain text or source code) straight into the input, copy the output to the clipboard, or download it as a `.txt` file named after the output's first line.
 - **Your fix preferences persist** across visits via `localStorage`.
+
+## Fonts
+
+The page loads [Noto Sans](https://fonts.google.com/noto/specimen/Noto+Sans), [Noto Sans Mono](https://fonts.google.com/noto/specimen/Noto+Sans+Mono), and [Noto Sans Hebrew](https://fonts.google.com/noto/specimen/Noto+Sans+Hebrew) from Google Fonts, instead of relying on each OS/browser's own default font stack - that's what made text look inconsistent between browsers before. Noto Sans Hebrew is loaded alongside the Latin families (not merged into one), since CSS font stacks already fall back per-character to whichever listed font actually has a glyph for it - Hebrew text in the input/output boxes or the Fixes panel renders in Noto Sans Hebrew automatically, no script-detection logic needed.
+
+This is the only network request the page makes on its own. If you want a copy that makes zero external requests, download the three families' `.woff2` files, add `@font-face` rules pointing at them in `styles.css`, and remove the Google Fonts `<link>` tags from `index.html` - the CSS `font-family` stacks (`--font-sans` / `--font-mono` in `styles.css`) already reference the right family names and don't need to change.
 
 ## Usage
 
@@ -70,6 +76,10 @@ The `?v=` matters functionally, not just cosmetically: without it, browsers (esp
 ## Version history
 
 Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change - those are called out explicitly below.
+
+### 0.18.0
+- **Feature (fonts):** the page now loads Noto Sans, Noto Sans Mono, and Noto Sans Hebrew from Google Fonts, instead of each OS/browser's own default font stack - previously nothing was explicitly set for most controls (buttons, the em dash `<select>`, the version badge), so they rendered in whatever the browser's own UI font happened to be, on top of the input/output boxes' monospace stack already varying between platforms. See the new "Fonts" section above for the self-hosting alternative if you'd rather avoid the external request.
+- **Fix:** the inline `<code>` examples throughout the Fixes panel (`é`, `± × ÷`, `א–ת`, ...) rendered in the browser's default monospace font, not the same one used by the input/output boxes - now consistent.
 
 ### 0.17.3
 - **Behavior change (naming consistency):** "Allow Hebrew characters" is renamed to "Strip Hebrew characters" and its checkbox is inverted, for the same reason "Keep currency symbols" was renamed in 0.16.0 - every other fix toggle uses "checked = the action happens," and this was the other one phrased the opposite way. The resulting filtering behavior for any given combination of settings is unchanged - only the checkbox's own default state flipped (from unchecked to checked) to match.

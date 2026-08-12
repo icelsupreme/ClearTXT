@@ -4,16 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ClearTXT - Text Filter</title>
+<!-- Same typeface everywhere regardless of OS/browser, instead of each
+     platform's own system-font stack (which is what made things look
+     inconsistent). Noto Sans Hebrew is loaded alongside the Latin
+     families since CSS font stacks fall back per-character - Hebrew
+     glyphs use it automatically without any script-detection logic,
+     wherever Hebrew text shows up (input/output boxes, the `א–ת`
+     example in the Fixes panel). If this ever needs to load with zero
+     external requests, these font files can be self-hosted instead. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Mono:wght@400;500;700&family=Noto+Sans+Hebrew:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!-- This ?v= matches the version in package.json / shown in the header
      below. Bump all three together on every release, so browsers
      (especially over file://, which this page is often opened with
      directly) don't keep serving a stale cached copy, and so the on-page
      version is always accurate. -->
-<link rel="stylesheet" href="styles.css?v=0.17.3">
+<link rel="stylesheet" href="styles.css?v=0.18.0">
 </head>
 <body>
   <header>
-    <h1>ClearTXT <span class="version" title="Version, matches package.json">v0.17.3</span></h1>
+    <h1>ClearTXT <span class="version" title="Version, matches package.json">v0.18.0</span></h1>
     <p>Strip text down to a clean, safe character set - everything else is removed.</p>
   </header>
 
@@ -204,6 +215,6 @@
     <span id="stickyFooterCounts" aria-hidden="true"></span>
   </footer>
 
-<script src="script.js?v=0.17.3"></script>
+<script src="script.js?v=0.18.0"></script>
 </body>
 </html>
