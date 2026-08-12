@@ -748,23 +748,29 @@
 
   // Hidden mirror element used to measure how many visual rows each
   // logical line wraps to, so the gutter can show a blank instead of a
-  // number on continuation rows and stay aligned with wrapped text.
+  // number on continuation rows and stay aligned with wrapped text. Every
+  // line gets its own child div, all appended in a single write, then all
+  // heights are read back in a single batched pass - not one
+  // write-then-read per line, which forces a separate synchronous layout
+  // per line (expensive enough that large documents used to fall back to
+  // plain, wrap-unaware numbering past a line-count threshold; any line
+  // that actually wrapped past that point then threw every following
+  // line's number out of alignment with its real row, worse the further
+  // down the document you scrolled). Batching removes that tradeoff
+  // entirely - this now always measures precisely, regardless of size.
   var ruler = document.createElement("div");
   ruler.style.position = "absolute";
   ruler.style.visibility = "hidden";
   ruler.style.top = "0";
   ruler.style.left = "-9999px";
   ruler.style.height = "auto";
-  ruler.style.whiteSpace = "pre-wrap";
-  ruler.style.wordBreak = "break-word";
-  ruler.style.boxSizing = "border-box";
   document.body.appendChild(ruler);
 
   function countWrappedRows(ta, logicalLines) {
     var cs = getComputedStyle(ta);
     // Measure against the textarea's content-box width (no padding on the
-    // ruler itself), otherwise the ruler's own padding inflates scrollHeight
-    // and every line — even ones that fit on one row — looks wrapped.
+    // ruler itself), otherwise the ruler's own padding would inflate every
+    // line's measured height and make it look wrapped when it isn't.
     var padLeft = parseFloat(cs.paddingLeft) || 0;
     var padRight = parseFloat(cs.paddingRight) || 0;
     ruler.style.width = Math.max(0, ta.clientWidth - padLeft - padRight) + "px";
@@ -774,21 +780,38 @@
     ruler.style.fontWeight = cs.fontWeight;
     ruler.style.fontStyle = cs.fontStyle;
     ruler.style.letterSpacing = cs.letterSpacing;
+    // This was missing entirely before - without it, the ruler inherited
+    // body's line-height (1.5) instead of the textarea's own (1.55),
+    // silently under-measuring every wrapped line's row count by that
+    // ~3% ratio. Individual lines mostly still rounded to the right
+    // answer, but the error compounds down the document: enough wrapped
+    // lines in a row and it crosses a rounding boundary, throwing every
+    // following line's number out of alignment with its real row - the
+    // root cause of the reported "gets misaligned over time" bug.
+    ruler.style.lineHeight = cs.lineHeight;
 
     var lineHeight = parseFloat(cs.lineHeight);
     if (!lineHeight || isNaN(lineHeight)) lineHeight = parseFloat(cs.fontSize) * 1.2;
 
-    var counts = [];
+    var frag = document.createDocumentFragment();
+    var divs = new Array(logicalLines.length);
     for (var i = 0; i < logicalLines.length; i++) {
-      ruler.textContent = logicalLines[i].length ? logicalLines[i] : "​";
-      counts.push(Math.max(1, Math.round(ruler.scrollHeight / lineHeight)));
+      var div = document.createElement("div");
+      div.style.whiteSpace = "pre-wrap";
+      div.style.wordBreak = "break-word";
+      div.textContent = logicalLines[i].length ? logicalLines[i] : "​";
+      frag.appendChild(div);
+      divs[i] = div;
+    }
+    ruler.textContent = "";
+    ruler.appendChild(frag);
+
+    var counts = new Array(divs.length);
+    for (var j = 0; j < divs.length; j++) {
+      counts[j] = Math.max(1, Math.round(divs[j].offsetHeight / lineHeight));
     }
     return counts;
   }
-
-  // Perf guard: measuring every logical line is O(n) DOM reflows, so skip
-  // wrap-aware numbering past this size and fall back to plain numbering.
-  var WRAP_MEASURE_LIMIT = 500;
 
   // `lineChanged` is the per-line boolean array from inputLineChanged/
   // outputLineChanged (or null, e.g. the normalization-mismatch case) -
@@ -802,12 +825,20 @@
       return (lineChanged && lineChanged[n]) ? '<span class="gutter-changed">' + s + "</span>" : s;
     }
 
-    if (logicalLines.length > WRAP_MEASURE_LIMIT) {
-      var arr = [];
-      for (var i = 0; i < logicalLines.length; i++) arr.push(numHtml(i));
-      gutter.innerHTML = arr.join("\n");
-      return;
-    }
+    // The gutter's own on-screen width depends on its content (more
+    // digits needs more room), which in turn affects how much width is
+    // left for the textarea next to it - so measuring that width *before*
+    // writing the gutter's new content reads a stale, pre-update value
+    // whenever the digit count changes (e.g. pasting a large document in
+    // one shot jumps the gutter from 1 digit to 4+). That stale width then
+    // gets baked into the wrap-row counts below and stays wrong until
+    // something else forces a recompute. Settling the gutter to its final
+    // digit width first - with plain numbering, before the real wrap-aware
+    // pass - means the measurement below always sees the width the
+    // textarea will actually have.
+    var plain = [];
+    for (var p = 0; p < logicalLines.length; p++) plain.push(numHtml(p));
+    gutter.innerHTML = plain.join("\n");
 
     var rowCounts = countWrappedRows(ta, logicalLines);
     var out = [];
@@ -830,9 +861,7 @@
     var lineHeight = parseFloat(cs.lineHeight);
     if (!lineHeight || isNaN(lineHeight)) lineHeight = parseFloat(cs.fontSize) * 1.2;
 
-    var rowCounts = logicalLines.length > WRAP_MEASURE_LIMIT
-      ? logicalLines.map(function () { return 1; })
-      : countWrappedRows(ta, logicalLines);
+    var rowCounts = countWrappedRows(ta, logicalLines);
 
     var rowsBefore = 0;
     for (var i = 0; i < lineNo; i++) rowsBefore += rowCounts[i];
