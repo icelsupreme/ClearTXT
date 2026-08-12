@@ -1,0 +1,43 @@
+/* Styles specific to security.html - shares :root tokens, header, and
+   button styling with styles.css, loaded alongside it. */
+
+.secIntro { color: var(--muted); font-size: 0.9rem; margin: 0 0 24px; line-height: 1.6; }
+
+.secSection {
+  margin-bottom: 22px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+.secSection:last-of-type { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.secSection h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+.secGoverned {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.secGoverned strong { color: var(--accent); font-weight: 500; }
+.secSection p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+.secSection p:last-child { margin-bottom: 0; }
+.secSection ul {
+  margin: 0 0 10px;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+.secSection ul:last-child { margin-bottom: 0; }
+.secSection li { margin-bottom: 6px; }
+.secSection li:last-child { margin-bottom: 0; }
+.secSection li strong { color: var(--text); }
+.secDetail { font-size: 0.85rem; }
+.secSection code { color: var(--accent); background: #0d1017; padding: 1px 5px; border-radius: 4px; font-family: var(--font-mono); }
+.secSection a { color: var(--accent); }
