@@ -4,14 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ClearTXT - Text Filter</title>
-<!-- Bump the ?v= query string on styles.css/script.js whenever either file
-     changes, so browsers (especially over file://, which this page is
-     often opened with directly) don't keep serving a stale cached copy. -->
-<link rel="stylesheet" href="styles.css?v=2">
+<!-- This ?v= matches the version in package.json / shown in the header
+     below. Bump all three together on every release, so browsers
+     (especially over file://, which this page is often opened with
+     directly) don't keep serving a stale cached copy, and so the on-page
+     version is always accurate. -->
+<link rel="stylesheet" href="styles.css?v=0.10.0">
 </head>
 <body>
   <header>
-    <h1>ClearTXT</h1>
+    <h1>ClearTXT <span class="version" title="Version, matches package.json">v0.10.0</span></h1>
     <p>Strip text down to a clean, safe character set - everything else is removed.</p>
   </header>
 
@@ -24,7 +26,15 @@
         </label>
         <div class="editor">
           <div class="gutter" id="inGutter">1</div>
-          <textarea id="input" placeholder="Paste or type your text here…" autofocus spellcheck="false" dir="auto"></textarea>
+          <div class="textWrap">
+            <div class="highlight" id="inHighlight" dir="auto" aria-hidden="true"></div>
+            <textarea id="input" placeholder="Paste or type your text here…" autofocus spellcheck="false" dir="auto"></textarea>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button id="importBtn">Import from file</button>
+          <input type="file" id="importFile" accept="text/*,.md,.json,.yaml,.yml,.csv,.log,.env,.ini,.toml,.conf,.js,.jsx,.ts,.tsx,.mjs,.cjs,.py,.java,.c,.h,.cpp,.hpp,.cs,.go,.rs,.rb,.php,.swift,.kt,.kts,.html,.htm,.css,.scss,.less,.xml,.sh,.bash,.zsh,.sql,.gitignore" hidden>
+          <button id="clearBtn">Clear</button>
         </div>
       </div>
       <div class="field">
@@ -34,38 +44,28 @@
         </label>
         <div class="editor">
           <div class="gutter" id="outGutter">1</div>
-          <textarea id="output" readonly placeholder="Filtered text appears here…" spellcheck="false" dir="auto"></textarea>
+          <div class="textWrap">
+            <div class="highlight" id="outHighlight" dir="auto" aria-hidden="true"></div>
+            <textarea id="output" readonly placeholder="Filtered text appears here…" spellcheck="false" dir="auto"></textarea>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button id="copyBtn">Copy output</button>
+          <button id="exportBtn">Export to file</button>
+          <span class="stats" id="stats"></span>
         </div>
       </div>
-    </div>
-
-    <div class="toolbar">
-      <button id="importBtn">Import from file</button>
-      <input type="file" id="importFile" accept=".txt,.md,.csv,.log,.json,text/plain" hidden>
-      <button class="primary" id="copyBtn">Copy output</button>
-      <button id="exportBtn">Export to file</button>
-      <button id="clearBtn">Clear</button>
-      <span class="stats" id="stats"></span>
     </div>
 
     <details id="diffDetails">
       <summary>What changed? <span id="diffSummary" style="color:var(--muted);"></span></summary>
+      <p style="color:var(--muted);font-size:.9rem;margin-top:4px;">Removed and converted characters are highlighted directly in the input and output boxes above - a line containing any change also gets a subtle full-row tint, GitHub-diff style, so changed lines are easy to spot at a glance.</p>
       <div class="diffCounts" id="diffCounts"></div>
-      <div class="diffGrid">
-        <div>
-          <div class="diffLabel">Input (highlighted)</div>
-          <pre class="diffPane" id="diffBefore" dir="auto"></pre>
-        </div>
-        <div>
-          <div class="diffLabel">Output</div>
-          <pre class="diffPane" id="diffAfter" dir="auto"></pre>
-        </div>
-      </div>
       <div id="diffNote" class="muted" style="display:none;font-size:.8rem;margin-top:6px;color:var(--muted);"></div>
       <div class="legend">
         <span><i class="sw removed"></i>removed</span>
         <span><i class="sw converted"></i>converted (fixed, not deleted)</span>
-        <span><i class="sw invisible"></i>invisible/control character, shown as a label (<code>ZWSP</code>, <code>BOM</code>, …)</span>
+        <span><i class="sw invisible"></i>invisible/control character (shown as a thin ring, since it has no width of its own to highlight)</span>
       </div>
     </details>
 
@@ -98,8 +98,13 @@
         <label class="fixRow">
           <input type="checkbox" id="optConvertDashes" checked>
           <span class="fixText">
-            <strong>Convert em dashes to hyphens</strong>
-            <div>Converts em dashes (<code>—</code>) to a plain <code>-</code> instead of deleting them. En dashes, hyphens and minus signs (<code>– − ‐ ‑</code>) are always preserved as typed, regardless of this toggle.</div>
+            <strong>Convert em dashes
+              <select id="optDashTarget" title="What to convert em dashes into">
+                <option value="-">to a hyphen (-)</option>
+                <option value="–">to an en dash (–)</option>
+              </select>
+            </strong>
+            <div>Converts em dashes (<code>—</code>) instead of deleting them. En dashes, hyphens and minus signs (<code>– − ‐ ‑</code>) are always preserved as typed, regardless of this toggle.</div>
           </span>
         </label>
         <label class="fixRow">
@@ -113,7 +118,7 @@
           <input type="checkbox" id="optStripInvisible" checked>
           <span class="fixText">
             <strong>Strip invisible &amp; control characters</strong>
-            <div>Removes zero-width characters (ZWSP, ZWJ, BOM), directional marks, and control characters. Turn off to keep them as-is.</div>
+            <div>Removes zero-width characters (ZWSP, ZWJ, BOM), directional marks and isolates (including the ones behind the "Trojan Source" bidi-spoofing technique), control characters, Unicode tag characters (used to hide invisible payloads in otherwise normal-looking text), and deprecated variation selectors. Turn off to keep them as-is.</div>
           </span>
         </label>
         <label class="fixRow">
@@ -157,6 +162,6 @@
     </details>
   </div>
 
-<script src="script.js?v=4"></script>
+<script src="script.js?v=0.10.0"></script>
 </body>
 </html>
