@@ -618,26 +618,55 @@
   var diffNextBtn = document.getElementById("diffNextBtn");
   var diffNavCount = document.getElementById("diffNavCount");
 
-  // [DOM id, opts key, default value] for every plain-checkbox fix toggle.
-  // Adding a new checkbox-backed fix only needs a new row here, instead of
-  // touching a separate element declaration, optEls entry, readOpts field,
-  // and applySavedOpts field individually.
+  // [DOM id, opts key, default value, fix-group] for every plain-checkbox
+  // fix toggle. Adding a new checkbox-backed fix only needs a new row
+  // here, instead of touching a separate element declaration, optEls
+  // entry, readOpts field, and applySavedOpts field individually. The
+  // group is a pure UI-grouping label (drives the "select whole group"
+  // header checkboxes below) - it's never read from or written to opts/
+  // localStorage.
   var FIX_TOGGLES = [
-    ["optNormalize", "normalize", true],
-    ["optFoldAccents", "foldAccents", true],
-    ["optStraightenQuotes", "straightenQuotes", true],
-    ["optConvertDashes", "convertDashes", true],
-    ["optStripEmoji", "stripEmoji", true],
-    ["optKeepCurrency", "keepCurrency", false],
-    ["optStripInvisible", "stripInvisible", true],
-    ["optAllowHebrew", "allowHebrew", false],
-    ["optRemoveLineBreaks", "removeLineBreaks", false],
-    ["optRemoveParagraphBreaks", "removeParagraphBreaks", false],
-    ["optRemoveExtraSpaces", "removeExtraSpaces", true],
-    ["optRemoveTabs", "removeTabs", false]
+    ["optNormalize", "normalize", true, "typography"],
+    ["optFoldAccents", "foldAccents", true, "typography"],
+    ["optStraightenQuotes", "straightenQuotes", true, "typography"],
+    ["optConvertDashes", "convertDashes", true, "typography"],
+    ["optStripEmoji", "stripEmoji", true, "symbols"],
+    ["optKeepCurrency", "keepCurrency", false, "symbols"],
+    ["optStripInvisible", "stripInvisible", true, "symbols"],
+    ["optAllowHebrew", "allowHebrew", false, "symbols"],
+    ["optRemoveTabs", "removeTabs", false, "whitespace"],
+    ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
+    ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
+    ["optRemoveParagraphBreaks", "removeParagraphBreaks", false, "whitespace"]
   ].map(function (t) {
-    return { el: document.getElementById(t[0]), key: t[1], def: t[2] };
+    return { el: document.getElementById(t[0]), key: t[1], def: t[2], group: t[3] };
   });
+
+  // Group names in display order, matching the fixGroup sections in the
+  // markup - drives both the "select whole group" header wiring below and
+  // its indeterminate/checked state.
+  var FIX_GROUPS = ["typography", "symbols", "whitespace"];
+
+  function groupToggles(group) {
+    return FIX_TOGGLES.filter(function (t) { return t.group === group; });
+  }
+
+  // Syncs one group's header checkbox to reflect its members: checked when
+  // all are on, unchecked when none are, indeterminate (the native
+  // "partially selected" dash) otherwise - same convention as "select all"
+  // checkboxes in file managers/mail clients.
+  function updateGroupHeader(group) {
+    var header = document.getElementById("groupToggle-" + group);
+    if (!header) return;
+    var toggles = groupToggles(group);
+    var onCount = toggles.filter(function (t) { return t.el.checked; }).length;
+    header.checked = onCount === toggles.length;
+    header.indeterminate = onCount > 0 && onCount < toggles.length;
+  }
+
+  function updateAllGroupHeaders() {
+    FIX_GROUPS.forEach(updateGroupHeader);
+  }
 
   // The one non-checkbox fix option (a <select>), handled alongside
   // FIX_TOGGLES but separately since it reads/writes .value, not .checked.
@@ -1036,7 +1065,27 @@
     });
   });
 
-  optEls.forEach(function (el) { el.addEventListener("change", update); });
+  optEls.forEach(function (el) {
+    el.addEventListener("change", function () {
+      updateAllGroupHeaders();
+      update();
+    });
+  });
+
+  // Clicking a group's header checkbox sets every fix in that group to
+  // match it (all on, or all off) - the header itself never ends up
+  // indeterminate from its own click, only from an individual toggle
+  // inside the group changing independently afterward.
+  FIX_GROUPS.forEach(function (group) {
+    var header = document.getElementById("groupToggle-" + group);
+    header.addEventListener("change", function () {
+      var checked = header.checked;
+      groupToggles(group).forEach(function (t) { t.el.checked = checked; });
+      header.indeterminate = false;
+      syncDashTargetEnabled();
+      update();
+    });
+  });
 
   function syncDashTargetEnabled() {
     optDashTarget.disabled = !optConvertDashes.checked;
@@ -1099,5 +1148,6 @@
 
   applySavedOpts();
   syncDashTargetEnabled();
+  updateAllGroupHeaders();
   update();
 })(typeof window !== "undefined" ? window : this);
