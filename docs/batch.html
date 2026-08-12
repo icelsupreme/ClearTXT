@@ -9,23 +9,23 @@
 <meta property="og:url" content="https://icelsupreme.github.io/ClearTXT/batch.html">
 <meta property="og:title" content="ClearTXT Batch - Clean Multiple Files">
 <meta property="og:description" content="Clean multiple text files at once with ClearTXT's filtering rules - free, and none of your files ever leave your browser. Made by Aviv M. Icel.">
-<meta property="og:image" content="https://icelsupreme.github.io/ClearTXT/social-card.png?v=1.7.0">
+<meta property="og:image" content="https://icelsupreme.github.io/ClearTXT/social-card.png?v=1.9.0">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="900">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="ClearTXT Batch - Clean Multiple Files">
 <meta name="twitter:description" content="Clean multiple text files at once with ClearTXT's filtering rules - free, and none of your files ever leave your browser. Made by Aviv M. Icel.">
-<meta name="twitter:image" content="https://icelsupreme.github.io/ClearTXT/social-card.png?v=1.7.0">
-<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.7.0">
+<meta name="twitter:image" content="https://icelsupreme.github.io/ClearTXT/social-card.png?v=1.9.0">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.9.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Mono:wght@400;500;700&family=Noto+Sans+Hebrew:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=1.7.0">
-<link rel="stylesheet" href="batch.css?v=1.7.0">
+<link rel="stylesheet" href="styles.css?v=1.9.0">
+<link rel="stylesheet" href="batch.css?v=1.9.0">
 </head>
 <body>
   <header>
-    <h1><svg class="logoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2v2"/><path d="M12 3h-2"/><path d="M13.5 10.5 22 2"/><path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z"/><path d="M20 15v4"/><path d="M22 17h-4"/><path d="M4 4v4"/><path d="m5 18 2-2"/><path d="M6 6H2"/><path d="m7.699 10.7 5.602 5.601"/></svg>ClearTXT <span class="version" title="Version, matches package.json">v1.7.0</span></h1>
+    <h1><svg class="logoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2v2"/><path d="M12 3h-2"/><path d="M13.5 10.5 22 2"/><path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z"/><path d="M20 15v4"/><path d="M22 17h-4"/><path d="M4 4v4"/><path d="m5 18 2-2"/><path d="M6 6H2"/><path d="m7.699 10.7 5.602 5.601"/></svg>ClearTXT <span class="version" title="Version, matches package.json">v1.9.0</span></h1>
     <p>Batch mode - clean multiple files at once, using the same fixes below.</p>
     <p class="batchNavLink"><a href="index.html">&larr; Back to the single-file cleaner</a></p>
   </header>
@@ -42,7 +42,8 @@
     <div id="batchPanel" class="batchPanel" style="display:none;">
       <div class="batchToolbar">
         <span id="batchSummary" class="batchSummary" aria-live="polite"></span>
-        <button id="downloadAllBtn" title="Downloads a single .zip containing every file below, each under its original name"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg><span class="btnLabel">Download all (.zip)</span></button>
+        <button id="downloadAllBtn" title="Downloads a single .zip of every file the current fixes actually changed, each under its original name - files that were already clean are skipped"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg><span class="btnLabel">Download changed (.zip)</span></button>
+        <button id="removeUnchangedBtn" title="Removes files from this list that the current fixes didn't change - they're already clean"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="m19 10-4 4"/><path d="m15 10 4 4"/></svg><span class="btnLabel">Remove unchanged</span></button>
         <button id="clearAllBtn"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span class="btnLabel">Clear all</span></button>
       </div>
       <div id="batchList" class="batchList"></div>
@@ -202,7 +203,7 @@
     <div class="shareRow"><button id="shareBtn" title="Copy this page's link to your clipboard"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg><span class="btnLabel">Share</span></button></div>
   </div>
 
-<script src="script.js?v=1.7.0"></script>
-<script src="batch.js?v=1.7.0"></script>
+<script src="script.js?v=1.9.0"></script>
+<script src="batch.js?v=1.9.0"></script>
 </body>
 </html>

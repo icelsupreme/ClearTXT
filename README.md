@@ -58,6 +58,8 @@ docs/
   batch.js            batch page's DOM wiring, built on script.js's shared logic
   favicon.svg         browser tab icon, also embedded inline as the header's logo icon
   social-card.png     social sharing preview image (og:image/twitter:image), built from favicon.svg's icon
+  sitemap.xml         lists every page for search engine crawlers
+  robots.txt          crawler allow/deny rules; points crawlers at sitemap.xml above
 test/             unit tests for the filtering logic
 CHANGELOG.md      full version history
 ```
