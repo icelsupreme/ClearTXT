@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ClearTXT — Text Filter</title>
+<title>ClearTXT - Text Filter</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header>
     <h1>ClearTXT</h1>
-    <p>Strip text down to a clean, safe character set — everything else is removed.</p>
+    <p>Strip text down to a clean, safe character set - everything else is removed.</p>
   </header>
 
   <div class="wrap">
@@ -21,7 +21,7 @@
         </label>
         <div class="editor">
           <div class="gutter" id="inGutter">1</div>
-          <textarea id="input" placeholder="Paste or type your text here…" autofocus wrap="off" spellcheck="false" dir="auto"></textarea>
+          <textarea id="input" placeholder="Paste or type your text here…" autofocus spellcheck="false" dir="auto"></textarea>
         </div>
       </div>
       <div class="field">
@@ -31,7 +31,7 @@
         </label>
         <div class="editor">
           <div class="gutter" id="outGutter">1</div>
-          <textarea id="output" readonly placeholder="Filtered text appears here…" wrap="off" spellcheck="false" dir="auto"></textarea>
+          <textarea id="output" readonly placeholder="Filtered text appears here…" spellcheck="false" dir="auto"></textarea>
         </div>
       </div>
     </div>
@@ -64,7 +64,7 @@
 
     <details>
       <summary>Fixes &amp; explanation</summary>
-      <p style="color:var(--muted);font-size:.9rem;">Choose which fixes to apply. Characters a fix would otherwise touch are left exactly as typed when its toggle is off — and removed instead of fixed once none of the fixes below can convert them.</p>
+      <p style="color:var(--muted);font-size:.9rem;">Choose which fixes to apply. Characters a fix would otherwise touch are left exactly as typed when its toggle is off - and removed instead of fixed once none of the fixes below can convert them.</p>
 
       <div class="fixList">
         <label class="fixRow">
@@ -91,8 +91,8 @@
         <label class="fixRow">
           <input type="checkbox" id="optConvertDashes" checked>
           <span class="fixText">
-            <strong>Convert dashes to hyphens</strong>
-            <div>Converts em/en dashes and minus signs (<code>— – − ‐</code>) to a plain <code>-</code> instead of deleting them.</div>
+            <strong>Convert em dashes to hyphens</strong>
+            <div>Converts em dashes (<code>—</code>) to a plain <code>-</code> instead of deleting them. En dashes, hyphens and minus signs (<code>– − ‐ ‑</code>) are always preserved as typed, regardless of this toggle.</div>
           </span>
         </label>
         <label class="fixRow">
@@ -114,6 +114,34 @@
           <span class="fixText">
             <strong>Allow Hebrew characters</strong>
             <div>Keeps Hebrew letters, niqqud/cantillation points and punctuation (<code>א–ת</code>) instead of removing them. Off by default since the base filter targets Latin/ASCII text.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optRemoveTabs">
+          <span class="fixText">
+            <strong>Remove tabs</strong>
+            <div>Converts each tab character to a single space rather than deleting it outright, so tab-separated words don't get mashed together.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optRemoveExtraSpaces" checked>
+          <span class="fixText">
+            <strong>Remove extra spaces</strong>
+            <div>Collapses runs of two or more spaces in a row down to a single space.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optRemoveLineBreaks">
+          <span class="fixText">
+            <strong>Remove line breaks</strong>
+            <div>Joins wrapped lines within a paragraph by turning a lone line break into a space. Blank-line paragraph breaks are left alone — see the toggle below.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optRemoveParagraphBreaks">
+          <span class="fixText">
+            <strong>Remove paragraph breaks</strong>
+            <div>Collapses blank lines between paragraphs (two or more line breaks in a row) into a single space, merging paragraphs together. Single line breaks within a paragraph are left alone unless "Remove line breaks" is also on.</div>
           </span>
         </label>
       </div>

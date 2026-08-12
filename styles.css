@@ -56,6 +56,7 @@ header p {
 .editor {
   display: flex;
   align-items: stretch;
+  height: 320px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--panel);
@@ -79,8 +80,7 @@ header p {
 textarea {
   flex: 1 1 auto;
   width: 100%;
-  min-height: 320px;
-  resize: vertical;
+  min-height: 0;
   padding: 14px;
   border: none;
   background: transparent;
@@ -88,8 +88,10 @@ textarea {
   font-family: "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.95rem;
   line-height: 1.55;
-  white-space: pre;
-  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 textarea:focus { outline: none; }
 textarea[readonly] { background: #12151b; }
