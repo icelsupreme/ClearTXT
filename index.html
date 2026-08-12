@@ -42,13 +42,13 @@
     margin: 0 auto;
     padding: 16px 20px 40px;
   }
-  .grid {
+  .grid, .diffGrid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
   }
   @media (max-width: 760px) {
-    .grid { grid-template-columns: 1fr; }
+    .grid, .diffGrid { grid-template-columns: 1fr; }
   }
   .field label {
     display: flex;
@@ -60,23 +60,45 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
+  .editor {
+    display: flex;
+    align-items: stretch;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .editor:focus-within { border-color: var(--accent); }
+  .gutter {
+    flex: 0 0 auto;
+    min-width: 38px;
+    padding: 14px 8px 14px 0;
+    text-align: right;
+    color: var(--muted);
+    background: #12151b;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    white-space: pre;
+    overflow: hidden;
+    user-select: none;
+  }
   textarea {
+    flex: 1 1 auto;
     width: 100%;
     min-height: 320px;
     resize: vertical;
     padding: 14px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--panel);
+    border: none;
+    background: transparent;
     color: var(--text);
     font-family: "SF Mono", Menlo, Consolas, monospace;
     font-size: 0.95rem;
     line-height: 1.55;
+    white-space: pre;
+    overflow: auto;
   }
-  textarea:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
+  textarea:focus { outline: none; }
   textarea[readonly] { background: #12151b; }
   .toolbar {
     display: flex;
@@ -105,6 +127,7 @@
   }
   .stats b { color: var(--text); }
   .stats .removed { color: var(--danger); }
+  .stats .converted { color: var(--accent); }
   details {
     margin-top: 22px;
     background: var(--panel);
@@ -120,6 +143,41 @@
   }
   details ul { margin: 4px 0 14px; padding-left: 20px; color: var(--muted); font-size: 0.9rem; }
   details code { color: var(--accent); background: #0d1017; padding: 1px 5px; border-radius: 4px; }
+
+  .fixList { margin: 4px 0 16px; }
+  .fixRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .fixRow:last-child { border-bottom: none; }
+  .fixRow input[type="checkbox"] { margin-top: 4px; width: 15px; height: 15px; accent-color: var(--accent); flex: 0 0 auto; }
+  .fixRow .fixText strong { color: var(--text); font-size: 0.9rem; }
+  .fixRow .fixText div { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+
+  .diffLabel { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .diffPane {
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 240px;
+    overflow: auto;
+    background: #0d1017;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    margin: 0;
+  }
+  .diffPane .rm { background: rgba(255,107,107,.25); text-decoration: line-through; text-decoration-color: var(--danger); color: #ffb3b3; border-radius: 2px; }
+  .diffPane .cv { background: rgba(79,157,255,.22); color: #bcdcff; border-radius: 2px; }
+  .diffCounts { color: var(--muted); font-size: 0.8rem; margin: 2px 0 10px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 0.8rem; color: var(--muted); }
+  .legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+  .legend .sw.removed { background: rgba(255,107,107,.5); }
+  .legend .sw.converted { background: rgba(79,157,255,.4); }
 </style>
 </head>
 <body>
@@ -135,14 +193,20 @@
           <span>Input</span>
           <span id="inCount"></span>
         </label>
-        <textarea id="input" placeholder="Paste or type your text here…" autofocus></textarea>
+        <div class="editor">
+          <div class="gutter" id="inGutter">1</div>
+          <textarea id="input" placeholder="Paste or type your text here…" autofocus wrap="off" spellcheck="false"></textarea>
+        </div>
       </div>
       <div class="field">
         <label for="output">
           <span>Output</span>
           <span id="outCount"></span>
         </label>
-        <textarea id="output" readonly placeholder="Filtered text appears here…"></textarea>
+        <div class="editor">
+          <div class="gutter" id="outGutter">1</div>
+          <textarea id="output" readonly placeholder="Filtered text appears here…" wrap="off" spellcheck="false"></textarea>
+        </div>
       </div>
     </div>
 
@@ -152,20 +216,76 @@
       <span class="stats" id="stats"></span>
     </div>
 
+    <details id="diffDetails">
+      <summary>What changed? <span id="diffSummary" class="muted" style="color:var(--muted);"></span></summary>
+      <div class="diffCounts" id="diffCounts"></div>
+      <div class="diffGrid">
+        <div>
+          <div class="diffLabel">Input (highlighted)</div>
+          <pre class="diffPane" id="diffBefore"></pre>
+        </div>
+        <div>
+          <div class="diffLabel">Output</div>
+          <pre class="diffPane" id="diffAfter"></pre>
+        </div>
+      </div>
+      <div id="diffNote" class="muted" style="display:none;font-size:.8rem;margin-top:6px;color:var(--muted);"></div>
+      <div class="legend">
+        <span><i class="sw removed"></i>removed</span>
+        <span><i class="sw converted"></i>converted (fixed, not deleted)</span>
+      </div>
+    </details>
+
     <details>
-      <summary>What is kept, and what is removed?</summary>
-      <p style="color:var(--muted);font-size:.9rem;">The filter <b>keeps</b> the following characters and deletes everything else:</p>
-      <ul>
-        <li><b>Latin alphabet</b> — <code>a–z</code> and <code>A–Z</code></li>
-        <li><b>Digits</b> — <code>0–9</code></li>
-        <li><b>Punctuation</b> — <code>. , ; : ! ? ' " ( ) [ ] { }</code> and friends</li>
-        <li><b>En dashes &amp; hyphens</b> — <code>-</code> <code>‐</code> <code>–</code></li>
-        <li><b>Math signs</b> — the ASCII ones only: <code>+ - * / = &lt; &gt; % ^</code></li>
-        <li><b>Markdown syntax</b> — <code># * _ ` > | ~ [ ] ( ) !</code> (all standard ASCII, already kept)</li>
-        <li><b>Whitespace</b> — spaces, tabs, and line breaks are preserved</li>
-      </ul>
-      <p style="color:var(--muted);font-size:.9rem;">Before filtering, the text is <b>retyped</b> — normalized to Unicode NFKC form so ligatures (<code>ﬁ</code>→<code>fi</code>), full-width letters (<code>Ａ</code>→<code>A</code>) and superscripts (<code>²</code>→<code>2</code>) fold into plain forms, and the output is rebuilt as a fresh, canonical string.</p>
-      <p style="color:var(--muted);font-size:.9rem;">Removed: emoji, accented/non-Latin letters (é, ñ, ω, 日), smart “curly” quotes, em dashes, Unicode math symbols (± × ÷ ≤ ≥ √ …), control characters, and all zero-width / invisible characters (ZWSP, ZWJ, BOM, directional marks).</p>
+      <summary>Fixes &amp; explanation</summary>
+      <p style="color:var(--muted);font-size:.9rem;">Choose which fixes to apply. Characters a fix would otherwise touch are left exactly as typed when its toggle is off — and removed instead of fixed once none of the fixes below can convert them.</p>
+
+      <div class="fixList">
+        <label class="fixRow">
+          <input type="checkbox" id="optNormalize" checked>
+          <span class="fixText">
+            <strong>Normalize Unicode (NFKC)</strong>
+            <div>Folds ligatures (<code>ﬁ</code>→<code>fi</code>), full-width letters (<code>Ａ</code>→<code>A</code>) and superscripts (<code>²</code>→<code>2</code>) into plain forms before anything else runs.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optFoldAccents" checked>
+          <span class="fixText">
+            <strong>Fold accented letters</strong>
+            <div>Converts accented Latin letters to their plain ASCII base (<code>é</code>→<code>e</code>, <code>ñ</code>→<code>n</code>) instead of deleting them.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optStraightenQuotes" checked>
+          <span class="fixText">
+            <strong>Straighten smart quotes</strong>
+            <div>Converts curly quotes (<code>“ ” ‘ ’ „</code>) to plain <code>" '</code> instead of deleting them.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optConvertDashes" checked>
+          <span class="fixText">
+            <strong>Convert dashes to hyphens</strong>
+            <div>Converts em/en dashes and minus signs (<code>— – − ‐</code>) to a plain <code>-</code> instead of deleting them.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optStripEmoji" checked>
+          <span class="fixText">
+            <strong>Strip emoji &amp; symbols</strong>
+            <div>Removes emoji and Unicode symbols (<code>± × ÷ ≤ ≥ √</code> …) that none of the fixes above can convert. Turn off to keep them as-is.</div>
+          </span>
+        </label>
+        <label class="fixRow">
+          <input type="checkbox" id="optStripInvisible" checked>
+          <span class="fixText">
+            <strong>Strip invisible &amp; control characters</strong>
+            <div>Removes zero-width characters (ZWSP, ZWJ, BOM), directional marks, and control characters. Turn off to keep them as-is.</div>
+          </span>
+        </label>
+      </div>
+
+      <p style="color:var(--muted);font-size:.9rem;">Always kept, regardless of the toggles above: the <b>Latin alphabet</b> (<code>a–z A–Z</code>), <b>digits</b> (<code>0–9</code>), standard <b>punctuation</b> and ASCII <b>math signs</b> (<code>+ - * / = &lt; &gt; % ^</code>), Markdown syntax, and <b>whitespace</b> (spaces, tabs, line breaks).</p>
     </details>
   </div>
 
@@ -173,95 +293,294 @@
 (function () {
   "use strict";
 
-  // Explicit set of allowed non-ASCII code points (dashes only).
-  var EXTRA = new Set([
-    0x2010, // ‐ hyphen
-    0x2011, // ‑ non-breaking hyphen
-    0x2013  // – en dash
-  ]);
-
-  // Invisible / zero-width code points that must ALWAYS be removed, even
-  // though the whitelist below would already exclude them. Explicit deny so
-  // the guarantee holds regardless of future changes to the allow-list.
   var ZERO_WIDTH = new Set([
-    0x200B, // zero width space
-    0x200C, // zero width non-joiner
-    0x200D, // zero width joiner
-    0x200E, // left-to-right mark
-    0x200F, // right-to-left mark
-    0x2028, // line separator
-    0x2029, // paragraph separator
-    0x202A, // left-to-right embedding
-    0x202B, // right-to-left embedding
-    0x202C, // pop directional formatting
-    0x202D, // left-to-right override
-    0x202E, // right-to-left override
-    0x2060, // word joiner
-    0x2061, // function application
-    0x2062, // invisible times
-    0x2063, // invisible separator
-    0x2064, // invisible plus
-    0xFEFF  // zero width no-break space / BOM
+    0x200B, 0x200C, 0x200D, 0x200E, 0x200F,
+    0x2028, 0x2029, 0x202A, 0x202B, 0x202C, 0x202D, 0x202E,
+    0x2060, 0x2061, 0x2062, 0x2063, 0x2064,
+    0xFEFF
   ]);
 
-  function isAllowed(cp) {
-    // Always strip invisible / zero-width characters first.
-    if (ZERO_WIDTH.has(cp)) return false;
-    // Whitespace we want to preserve: tab, LF, CR, space.
-    if (cp === 0x09 || cp === 0x0A || cp === 0x0D) return true;
-    // Printable ASCII (space through tilde) — covers Latin letters, digits,
-    // all standard punctuation, ASCII math signs, and Markdown syntax.
-    if (cp >= 0x20 && cp <= 0x7E) return true;
-    // Curated dashes + math symbols.
-    return EXTRA.has(cp);
+  var QUOTE_MAP = new Map([
+    [0x2018, "'"], [0x2019, "'"], [0x201A, ","], [0x201B, "'"],
+    [0x201C, '"'], [0x201D, '"'], [0x201E, '"'], [0x201F, '"'],
+    [0x2039, "<"], [0x203A, ">"]
+  ]);
+
+  // All dash-like code points that "convert dashes" will turn into "-".
+  var DASH_SET = new Set([0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2015, 0x2212]);
+  // Subset kept as-is (legacy behavior) when "convert dashes" is off.
+  var CURATED_DASHES = new Set([0x2010, 0x2011, 0x2013]);
+
+  var CAT_LABEL = {
+    invisible: "invisible/control",
+    symbol: "emoji/symbols",
+    dash: "dashes",
+    accent: "accents",
+    quote: "quotes"
+  };
+
+  function isControl(cp) {
+    return (cp <= 0x1F && cp !== 0x09 && cp !== 0x0A && cp !== 0x0D) || cp === 0x7F;
   }
 
-  function filter(text) {
-    // "Retype" the text: normalize to canonical compatibility form (NFKC)
-    // first, so ligatures (ﬁ→fi), full-width letters (Ａ→A), superscripts
-    // (²→2) and decomposed accent sequences are folded into plain forms
-    // before the character filter runs. The output is then rebuilt from
-    // scratch, code point by code point — a fresh, canonical string.
-    var normalized = text.normalize ? text.normalize("NFKC") : text;
-    var out = "";
-    // Iterate by code point so astral characters (emoji) are handled correctly.
-    for (var ch of normalized) {
-      if (isAllowed(ch.codePointAt(0))) out += ch;
+  // Tries to fold a single character down to a plain-ASCII equivalent by
+  // decomposing it (NFD) and stripping combining marks, e.g. é -> e.
+  // Returns null when the character has no plain-ASCII base (CJK, emoji…).
+  function foldAccent(ch) {
+    var d = ch.normalize ? ch.normalize("NFD").replace(/\p{Mn}/gu, "") : ch;
+    if (!d.length || d === ch) return null;
+    for (var c of d) {
+      var cp = c.codePointAt(0);
+      if (cp < 0x20 || cp > 0x7E) return null;
     }
-    return out;
+    return d;
+  }
+
+  // Runs the configurable pipeline over `text` and returns both the
+  // filtered output and a per-character change log used to render the
+  // before/after diff and the removed/converted summary.
+  function processText(text, opts) {
+    var src = (opts.normalize && text.normalize) ? text.normalize("NFKC") : text;
+    var out = "";
+    var changes = [];
+
+    for (var ch of src) {
+      var cp = ch.codePointAt(0);
+
+      if (ZERO_WIDTH.has(cp) || isControl(cp)) {
+        if (opts.stripInvisible) {
+          changes.push({ ch: ch, type: "removed", category: "invisible", replacement: "" });
+        } else {
+          out += ch;
+          changes.push({ ch: ch, type: "kept", category: "invisible", replacement: ch });
+        }
+        continue;
+      }
+      if (cp === 0x09 || cp === 0x0A || cp === 0x0D) {
+        out += ch;
+        changes.push({ ch: ch, type: "kept", category: "whitespace", replacement: ch });
+        continue;
+      }
+      if (cp >= 0x20 && cp <= 0x7E) {
+        out += ch;
+        changes.push({ ch: ch, type: "kept", category: "ascii", replacement: ch });
+        continue;
+      }
+
+      if (opts.straightenQuotes && QUOTE_MAP.has(cp)) {
+        var rq = QUOTE_MAP.get(cp);
+        out += rq;
+        changes.push({ ch: ch, type: "converted", category: "quote", replacement: rq });
+        continue;
+      }
+
+      if (DASH_SET.has(cp)) {
+        if (opts.convertDashes) {
+          out += "-";
+          changes.push({ ch: ch, type: "converted", category: "dash", replacement: "-" });
+        } else if (CURATED_DASHES.has(cp)) {
+          out += ch;
+          changes.push({ ch: ch, type: "kept", category: "dash", replacement: ch });
+        } else {
+          changes.push({ ch: ch, type: "removed", category: "dash", replacement: "" });
+        }
+        continue;
+      }
+
+      if (opts.foldAccents) {
+        var folded = foldAccent(ch);
+        if (folded !== null) {
+          out += folded;
+          changes.push({ ch: ch, type: "converted", category: "accent", replacement: folded });
+          continue;
+        }
+      }
+
+      if (opts.stripEmoji) {
+        changes.push({ ch: ch, type: "removed", category: "symbol", replacement: "" });
+      } else {
+        out += ch;
+        changes.push({ ch: ch, type: "kept", category: "symbol", replacement: ch });
+      }
+    }
+
+    return { output: out, changes: changes, normalizedInput: src };
+  }
+
+  function summarizeChanges(changes) {
+    var removed = {}, converted = {};
+    changes.forEach(function (c) {
+      if (c.type === "removed") removed[c.category] = (removed[c.category] || 0) + 1;
+      else if (c.type === "converted") converted[c.category] = (converted[c.category] || 0) + 1;
+    });
+    return { removed: removed, converted: converted };
+  }
+
+  function formatCatCounts(obj) {
+    var keys = Object.keys(obj);
+    if (!keys.length) return "";
+    return keys.map(function (k) { return obj[k] + " " + (CAT_LABEL[k] || k); }).join(", ");
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
   var input = document.getElementById("input");
   var output = document.getElementById("output");
+  var inGutter = document.getElementById("inGutter");
+  var outGutter = document.getElementById("outGutter");
   var inCount = document.getElementById("inCount");
   var outCount = document.getElementById("outCount");
   var stats = document.getElementById("stats");
   var copyBtn = document.getElementById("copyBtn");
   var clearBtn = document.getElementById("clearBtn");
 
+  var diffSummary = document.getElementById("diffSummary");
+  var diffCounts = document.getElementById("diffCounts");
+  var diffBefore = document.getElementById("diffBefore");
+  var diffAfter = document.getElementById("diffAfter");
+  var diffNote = document.getElementById("diffNote");
+
+  var optNormalize = document.getElementById("optNormalize");
+  var optFoldAccents = document.getElementById("optFoldAccents");
+  var optStraightenQuotes = document.getElementById("optStraightenQuotes");
+  var optConvertDashes = document.getElementById("optConvertDashes");
+  var optStripEmoji = document.getElementById("optStripEmoji");
+  var optStripInvisible = document.getElementById("optStripInvisible");
+  var optEls = [optNormalize, optFoldAccents, optStraightenQuotes, optConvertDashes, optStripEmoji, optStripInvisible];
+
+  var OPTS_KEY = "cleartxt-opts";
+
+  function readOpts() {
+    return {
+      normalize: optNormalize.checked,
+      foldAccents: optFoldAccents.checked,
+      straightenQuotes: optStraightenQuotes.checked,
+      convertDashes: optConvertDashes.checked,
+      stripEmoji: optStripEmoji.checked,
+      stripInvisible: optStripInvisible.checked
+    };
+  }
+
+  function saveOpts(opts) {
+    try { localStorage.setItem(OPTS_KEY, JSON.stringify(opts)); } catch (e) { /* ignore */ }
+  }
+
+  function applySavedOpts() {
+    try {
+      var raw = localStorage.getItem(OPTS_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      optNormalize.checked = saved.normalize !== false;
+      optFoldAccents.checked = saved.foldAccents !== false;
+      optStraightenQuotes.checked = saved.straightenQuotes !== false;
+      optConvertDashes.checked = saved.convertDashes !== false;
+      optStripEmoji.checked = saved.stripEmoji !== false;
+      optStripInvisible.checked = saved.stripInvisible !== false;
+    } catch (e) { /* ignore malformed storage */ }
+  }
+
+  function updateGutter(ta, gutter) {
+    var lines = ta.value.length ? ta.value.split("\n").length : 1;
+    var arr = [];
+    for (var i = 1; i <= lines; i++) arr.push(i);
+    gutter.textContent = arr.join("\n");
+  }
+
+  function renderDiff(result) {
+    var changes = result.changes;
+    var sums = summarizeChanges(changes);
+    var removedTotal = Object.keys(sums.removed).reduce(function (a, k) { return a + sums.removed[k]; }, 0);
+    var convertedTotal = Object.keys(sums.converted).reduce(function (a, k) { return a + sums.converted[k]; }, 0);
+
+    if (!changes.length) {
+      diffSummary.textContent = "";
+    } else if (removedTotal === 0 && convertedTotal === 0) {
+      diffSummary.textContent = "(no changes)";
+    } else {
+      diffSummary.textContent = "(" + removedTotal + " removed, " + convertedTotal + " converted)";
+    }
+
+    var lines = [];
+    var removedLine = formatCatCounts(sums.removed);
+    var convertedLine = formatCatCounts(sums.converted);
+    if (removedLine) lines.push("Removed — " + removedLine);
+    if (convertedLine) lines.push("Converted — " + convertedLine);
+    diffCounts.textContent = lines.join("   ·   ");
+
+    if (!changes.length) {
+      diffBefore.textContent = "";
+      diffAfter.textContent = "";
+      diffNote.style.display = "none";
+      return;
+    }
+
+    if (changes.length > 4000) {
+      diffBefore.textContent = result.normalizedInput;
+      diffAfter.textContent = result.output;
+      diffNote.textContent = "Text is long — highlighting is disabled above, showing plain text instead.";
+      diffNote.style.display = "";
+      return;
+    }
+
+    diffNote.style.display = "none";
+    var html = [];
+    for (var i = 0; i < changes.length; i++) {
+      var c = changes[i];
+      var esc = escapeHtml(c.ch);
+      if (c.type === "removed") {
+        html.push('<span class="rm" title="removed">' + esc + "</span>");
+      } else if (c.type === "converted") {
+        html.push('<span class="cv" title="→ ' + escapeHtml(c.replacement) + '">' + esc + "</span>");
+      } else {
+        html.push(esc);
+      }
+    }
+    diffBefore.innerHTML = html.join("");
+    diffAfter.textContent = result.output;
+  }
+
   function update() {
+    var opts = readOpts();
+    saveOpts(opts);
+
     var src = input.value;
-    var res = filter(src);
-    output.value = res;
+    var result = processText(src, opts);
+    output.value = result.output;
 
     var inLen = [...src].length;
-    var outLen = [...res].length;
-    var removed = inLen - outLen;
-
+    var outLen = [...result.output].length;
     inCount.textContent = inLen + " chars";
     outCount.textContent = outLen + " chars";
+
+    var removedCount = 0, convertedCount = 0;
+    result.changes.forEach(function (c) {
+      if (c.type === "removed") removedCount++;
+      else if (c.type === "converted") convertedCount++;
+    });
+
     if (inLen === 0) {
-      stats.innerHTML = '';
-    } else if (res === src) {
-      stats.innerHTML = 'Nothing changed — text is already clean';
-    } else if (removed > 0) {
-      stats.innerHTML = '<span class="removed">' + removed + '</span> character' + (removed === 1 ? '' : 's') + ' removed';
+      stats.innerHTML = "";
+    } else if (removedCount === 0 && convertedCount === 0) {
+      stats.innerHTML = "Nothing changed — text is already clean";
     } else {
-      stats.innerHTML = 'Text cleaned &amp; normalized';
+      var parts = [];
+      if (removedCount) parts.push('<span class="removed">' + removedCount + "</span> removed");
+      if (convertedCount) parts.push('<span class="converted">' + convertedCount + "</span> converted");
+      stats.innerHTML = parts.join(" &middot; ");
     }
+
+    renderDiff(result);
+    updateGutter(input, inGutter);
+    updateGutter(output, outGutter);
   }
 
   input.addEventListener("input", update);
+  input.addEventListener("scroll", function () { inGutter.scrollTop = input.scrollTop; });
+  output.addEventListener("scroll", function () { outGutter.scrollTop = output.scrollTop; });
+
+  optEls.forEach(function (el) { el.addEventListener("change", update); });
 
   copyBtn.addEventListener("click", function () {
     output.select();
@@ -277,6 +596,7 @@
     input.focus();
   });
 
+  applySavedOpts();
   update();
 })();
 </script>
