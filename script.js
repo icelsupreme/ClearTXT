@@ -623,7 +623,8 @@
     slugForFilename: slugForFilename,
     exportFilename: exportFilename,
     stripMarkdown: stripMarkdown,
-    wordCount: wordCount
+    wordCount: wordCount,
+    createFixOptionsController: createFixOptionsController
   };
 
   if (typeof module !== "undefined" && module.exports) {
@@ -635,6 +636,11 @@
   if (typeof document === "undefined") return;
 
   var input = document.getElementById("input");
+  // Not the main single-editor page (e.g. batch.html, which loads this
+  // file only for the pure ClearTXT functions and drives its own copy of
+  // the Fixes panel via createFixOptionsController) - nothing past this
+  // point applies there.
+  if (!input) return;
   var output = document.getElementById("output");
   var inGutter = document.getElementById("inGutter");
   var outGutter = document.getElementById("outGutter");
@@ -650,7 +656,6 @@
   var copyBtn = document.getElementById("copyBtn");
   var exportBtn = document.getElementById("exportBtn");
   var clearBtn = document.getElementById("clearBtn");
-  var restoreDefaultsBtn = document.getElementById("restoreDefaultsBtn");
 
   var diffSummary = document.getElementById("diffSummary");
   var diffCounts = document.getElementById("diffCounts");
@@ -660,91 +665,156 @@
   var diffNextBtn = document.getElementById("diffNextBtn");
   var diffNavCount = document.getElementById("diffNavCount");
 
-  // [DOM id, opts key, default value, fix-group] for every plain-checkbox
-  // fix toggle. Adding a new checkbox-backed fix only needs a new row
-  // here, instead of touching a separate element declaration, optEls
-  // entry, readOpts field, and applySavedOpts field individually. The
-  // group is a pure UI-grouping label (drives the "select whole group"
-  // header checkboxes below) - it's never read from or written to opts/
-  // localStorage.
-  var FIX_TOGGLES = [
-    ["optNormalize", "normalize", true, "typography"],
-    ["optFoldAccents", "foldAccents", true, "typography"],
-    ["optStraightenQuotes", "straightenQuotes", true, "typography"],
-    ["optConvertDashes", "convertDashes", true, "typography"],
-    ["optStripEmoji", "stripEmoji", true, "symbols"],
-    ["optStripCurrency", "stripCurrency", true, "symbols"],
-    ["optStripInvisible", "stripInvisible", true, "symbols"],
-    ["optStripHebrew", "stripHebrew", true, "symbols"],
-    ["optRemoveTabs", "removeTabs", false, "whitespace"],
-    ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
-    ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
-    ["optRemoveParagraphBreaks", "removeParagraphBreaks", false, "whitespace"]
-  ].map(function (t) {
-    return { el: document.getElementById(t[0]), key: t[1], def: t[2], group: t[3] };
-  });
+  // Wires up the "Fixes & explanation" panel - every toggle checkbox, the
+  // three group header checkboxes, the em-dash target dropdown, and
+  // localStorage persistence - against whichever page it's called on.
+  // Both index.html and batch.html ship the same Fixes panel markup (same
+  // element ids) and the same localStorage key, so preferences set on one
+  // page carry over to the other; each page just supplies its own
+  // `onChange` callback to init() for what re-filtering means there.
+  function createFixOptionsController() {
+    // [DOM id, opts key, default value, fix-group] for every plain-
+    // checkbox fix toggle. Adding a new checkbox-backed fix only needs a
+    // new row here, instead of touching a separate element declaration,
+    // optEls entry, readOpts field, and applySavedOpts field individually.
+    // The group is a pure UI-grouping label (drives the "select whole
+    // group" header checkboxes below) - it's never read from or written
+    // to opts/localStorage.
+    var FIX_TOGGLES = [
+      ["optNormalize", "normalize", true, "typography"],
+      ["optFoldAccents", "foldAccents", true, "typography"],
+      ["optStraightenQuotes", "straightenQuotes", true, "typography"],
+      ["optConvertDashes", "convertDashes", true, "typography"],
+      ["optStripEmoji", "stripEmoji", true, "symbols"],
+      ["optStripCurrency", "stripCurrency", true, "symbols"],
+      ["optStripInvisible", "stripInvisible", true, "symbols"],
+      ["optStripHebrew", "stripHebrew", true, "symbols"],
+      ["optRemoveTabs", "removeTabs", false, "whitespace"],
+      ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
+      ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
+      ["optRemoveParagraphBreaks", "removeParagraphBreaks", false, "whitespace"]
+    ].map(function (t) {
+      return { el: document.getElementById(t[0]), key: t[1], def: t[2], group: t[3] };
+    });
 
-  // Group names in display order, matching the fixGroup sections in the
-  // markup - drives both the "select whole group" header wiring below and
-  // its indeterminate/checked state.
-  var FIX_GROUPS = ["typography", "symbols", "whitespace"];
+    // Group names in display order, matching the fixGroup sections in the
+    // markup - drives both the "select whole group" header wiring below
+    // and its indeterminate/checked state.
+    var FIX_GROUPS = ["typography", "symbols", "whitespace"];
 
-  function groupToggles(group) {
-    return FIX_TOGGLES.filter(function (t) { return t.group === group; });
-  }
+    function groupToggles(group) {
+      return FIX_TOGGLES.filter(function (t) { return t.group === group; });
+    }
 
-  // Syncs one group's header checkbox to reflect its members: checked when
-  // all are on, unchecked when none are, indeterminate (the native
-  // "partially selected" dash) otherwise - same convention as "select all"
-  // checkboxes in file managers/mail clients.
-  function updateGroupHeader(group) {
-    var header = document.getElementById("groupToggle-" + group);
-    if (!header) return;
-    var toggles = groupToggles(group);
-    var onCount = toggles.filter(function (t) { return t.el.checked; }).length;
-    header.checked = onCount === toggles.length;
-    header.indeterminate = onCount > 0 && onCount < toggles.length;
-    // The indeterminate IDL property is visual-only - screen readers don't
-    // reliably announce it without an explicit ARIA state alongside it.
-    header.setAttribute("aria-checked", header.indeterminate ? "mixed" : String(header.checked));
-  }
+    // Syncs one group's header checkbox to reflect its members: checked
+    // when all are on, unchecked when none are, indeterminate (the native
+    // "partially selected" dash) otherwise - same convention as "select
+    // all" checkboxes in file managers/mail clients.
+    function updateGroupHeader(group) {
+      var header = document.getElementById("groupToggle-" + group);
+      if (!header) return;
+      var toggles = groupToggles(group);
+      var onCount = toggles.filter(function (t) { return t.el.checked; }).length;
+      header.checked = onCount === toggles.length;
+      header.indeterminate = onCount > 0 && onCount < toggles.length;
+      // The indeterminate IDL property is visual-only - screen readers
+      // don't reliably announce it without an explicit ARIA state
+      // alongside it.
+      header.setAttribute("aria-checked", header.indeterminate ? "mixed" : String(header.checked));
+    }
 
-  function updateAllGroupHeaders() {
-    FIX_GROUPS.forEach(updateGroupHeader);
-  }
+    function updateAllGroupHeaders() {
+      FIX_GROUPS.forEach(updateGroupHeader);
+    }
 
-  // The one non-checkbox fix option (a <select>), handled alongside
-  // FIX_TOGGLES but separately since it reads/writes .value, not .checked.
-  var optConvertDashes = document.getElementById("optConvertDashes");
-  var optDashTarget = document.getElementById("optDashTarget");
+    // The one non-checkbox fix option (a <select>), handled alongside
+    // FIX_TOGGLES but separately since it reads/writes .value, not
+    // .checked.
+    var optConvertDashes = document.getElementById("optConvertDashes");
+    var optDashTarget = document.getElementById("optDashTarget");
 
-  var optEls = FIX_TOGGLES.map(function (t) { return t.el; }).concat([optDashTarget]);
+    var optEls = FIX_TOGGLES.map(function (t) { return t.el; }).concat([optDashTarget]);
 
-  var OPTS_KEY = "cleartxt-opts";
+    var OPTS_KEY = "cleartxt-opts";
 
-  function readOpts() {
-    var opts = { dashTarget: optDashTarget.value };
-    FIX_TOGGLES.forEach(function (t) { opts[t.key] = t.el.checked; });
-    return opts;
-  }
+    function readOpts() {
+      var opts = { dashTarget: optDashTarget.value };
+      FIX_TOGGLES.forEach(function (t) { opts[t.key] = t.el.checked; });
+      return opts;
+    }
 
-  function saveOpts(opts) {
-    try { localStorage.setItem(OPTS_KEY, JSON.stringify(opts)); } catch (e) { /* ignore */ }
-  }
+    function saveOpts(opts) {
+      try { localStorage.setItem(OPTS_KEY, JSON.stringify(opts)); } catch (e) { /* ignore */ }
+    }
 
-  function applySavedOpts() {
-    try {
-      var raw = localStorage.getItem(OPTS_KEY);
-      if (!raw) return;
-      var saved = JSON.parse(raw);
-      // Same "on unless explicitly saved off" / "off unless explicitly
-      // saved on" logic as before per option, just table-driven now.
-      FIX_TOGGLES.forEach(function (t) {
-        t.el.checked = t.def ? saved[t.key] !== false : saved[t.key] === true;
+    function applySavedOpts() {
+      try {
+        var raw = localStorage.getItem(OPTS_KEY);
+        if (!raw) return;
+        var saved = JSON.parse(raw);
+        // Same "on unless explicitly saved off" / "off unless explicitly
+        // saved on" logic as before per option, just table-driven now.
+        FIX_TOGGLES.forEach(function (t) {
+          t.el.checked = t.def ? saved[t.key] !== false : saved[t.key] === true;
+        });
+        optDashTarget.value = saved.dashTarget === "–" ? "–" : "-";
+      } catch (e) { /* ignore malformed storage */ }
+    }
+
+    function syncDashTargetEnabled() {
+      optDashTarget.disabled = !optConvertDashes.checked;
+    }
+
+    function restoreDefaults() {
+      FIX_TOGGLES.forEach(function (t) { t.el.checked = t.def; });
+      optDashTarget.value = "-";
+      syncDashTargetEnabled();
+      updateAllGroupHeaders();
+    }
+
+    // Restores the last-saved (or default) state and wires every control's
+    // change handler, including the "Restore defaults" button if the page
+    // has one. `onChange` runs after any state change that should trigger
+    // a re-filter: an individual toggle, a group header, the dash-target
+    // dropdown, or restore-defaults.
+    function init(onChange) {
+      applySavedOpts();
+      syncDashTargetEnabled();
+      updateAllGroupHeaders();
+
+      optEls.forEach(function (el) {
+        el.addEventListener("change", function () {
+          updateAllGroupHeaders();
+          onChange();
+        });
       });
-      optDashTarget.value = saved.dashTarget === "–" ? "–" : "-";
-    } catch (e) { /* ignore malformed storage */ }
+
+      FIX_GROUPS.forEach(function (group) {
+        var header = document.getElementById("groupToggle-" + group);
+        header.addEventListener("change", function () {
+          var checked = header.checked;
+          groupToggles(group).forEach(function (t) { t.el.checked = checked; });
+          header.indeterminate = false;
+          syncDashTargetEnabled();
+          onChange();
+        });
+      });
+
+      optConvertDashes.addEventListener("change", syncDashTargetEnabled);
+
+      var restoreBtn = document.getElementById("restoreDefaultsBtn");
+      if (restoreBtn) {
+        restoreBtn.addEventListener("click", function () {
+          restoreDefaults();
+          onChange();
+        });
+      }
+    }
+
+    return { readOpts: readOpts, saveOpts: saveOpts, restoreDefaults: restoreDefaults, init: init };
   }
+
+  var fixOptions = createFixOptionsController();
 
   // Hidden mirror element used to measure how many visual rows each
   // logical line wraps to, so the gutter can show a blank instead of a
@@ -1035,8 +1105,8 @@
   }
 
   function update() {
-    var opts = readOpts();
-    saveOpts(opts);
+    var opts = fixOptions.readOpts();
+    fixOptions.saveOpts(opts);
 
     var src = input.value;
     var result = processText(src, opts);
@@ -1145,33 +1215,6 @@
     });
   });
 
-  optEls.forEach(function (el) {
-    el.addEventListener("change", function () {
-      updateAllGroupHeaders();
-      update();
-    });
-  });
-
-  // Clicking a group's header checkbox sets every fix in that group to
-  // match it (all on, or all off) - the header itself never ends up
-  // indeterminate from its own click, only from an individual toggle
-  // inside the group changing independently afterward.
-  FIX_GROUPS.forEach(function (group) {
-    var header = document.getElementById("groupToggle-" + group);
-    header.addEventListener("change", function () {
-      var checked = header.checked;
-      groupToggles(group).forEach(function (t) { t.el.checked = checked; });
-      header.indeterminate = false;
-      syncDashTargetEnabled();
-      update();
-    });
-  });
-
-  function syncDashTargetEnabled() {
-    optDashTarget.disabled = !optConvertDashes.checked;
-  }
-  optConvertDashes.addEventListener("change", syncDashTargetEnabled);
-
   // Milliseconds a button's label stays showing a transient status ("Copied!",
   // "Exported!", "Import failed") before reverting to its normal text.
   var BUTTON_FEEDBACK_MS = 1200;
@@ -1238,16 +1281,6 @@
     input.focus();
   });
 
-  restoreDefaultsBtn.addEventListener("click", function () {
-    FIX_TOGGLES.forEach(function (t) { t.el.checked = t.def; });
-    optDashTarget.value = "-";
-    syncDashTargetEnabled();
-    updateAllGroupHeaders();
-    update();
-  });
-
-  applySavedOpts();
-  syncDashTargetEnabled();
-  updateAllGroupHeaders();
+  fixOptions.init(update);
   update();
 })(typeof window !== "undefined" ? window : this);

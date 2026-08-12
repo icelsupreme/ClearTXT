@@ -27,5 +27,16 @@ module.exports = [
     rules: {
       "no-unused-vars": ["error", { args: "none", caughtErrors: "none" }]
     }
+  },
+  {
+    files: ["batch.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "script",
+      // Browser-only, unlike script.js - no module.exports/require() side,
+      // so no need for Node's globals too. `ClearTXT` comes from script.js,
+      // loaded as a plain <script> before this file on batch.html.
+      globals: Object.assign({ ClearTXT: "readonly" }, globals.browser)
+    }
   }
 ];

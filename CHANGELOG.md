@@ -2,6 +2,10 @@
 
 All notable changes to ClearTXT, versioned per [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`, tracked in `package.json`). A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix or docs change with no behavior change. Releases before 1.0.0 were pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release there could still include a behavior change - those are called out explicitly below.
 
+### 1.1.0
+- **Feature:** a new batch mode ([batch.html](batch.html)) cleans multiple files at once - drag files in or pick them, each is filtered live with the same fixes as the single-file page and downloaded under its original filename (individually or all at once). Fix preferences are shared with the single-file page via the same `localStorage` key.
+- **Refactor:** the "Fixes & explanation" panel's toggle/group/localStorage wiring, previously inline in `script.js`, is now a shared `createFixOptionsController` factory (also exported on `ClearTXT`) so both pages drive their own copy of the same panel without duplicating that logic. `script.js` now also no-ops the single-file page's own wiring when loaded on a page without its input/output boxes (i.e. batch.html), so it's safe to load there for the shared pure functions and the controller alone.
+
 ### 1.0.2
 - **Docs:** significantly trimmed README.md, which had grown past 200 lines after many rounds of feature work. Moved the full version history here to CHANGELOG.md, and condensed the README's Features/Fonts/Versioning sections down to concise, user-facing summaries.
 

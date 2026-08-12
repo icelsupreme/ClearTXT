@@ -1,0 +1,54 @@
+/* Styles specific to batch.html - shares :root tokens, header, button,
+   and Fixes-panel styling with styles.css, loaded alongside it. The
+   .batchNavLink rule itself lives in styles.css since index.html links to
+   this page too. */
+
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  text-align: center;
+  padding: 36px 20px;
+  transition: border-color .15s, background .15s;
+}
+.dropzone.dragover { border-color: var(--accent); background: #1c2029; }
+.dropzoneIcon { width: 36px; height: 36px; color: var(--muted); }
+.dropzone p { margin: 8px 0; color: var(--muted); }
+.dropzone .dropzoneHint { font-size: 0.8rem; max-width: 480px; margin: 12px auto 0; }
+
+.batchPanel { margin-top: 20px; }
+.batchToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.batchSummary { margin-right: auto; color: var(--muted); font-size: 0.85rem; }
+.batchList { display: flex; flex-direction: column; gap: 8px; }
+.batchRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+.batchRowInfo { flex: 1 1 auto; min-width: 0; }
+.batchRowName {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.batchRowStats { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+.batchRowStats .removed { color: var(--danger); }
+.batchRowStats .converted { color: var(--accent); }
+.batchRowStats .error { color: var(--danger); }
+.batchRowActions { display: flex; gap: 6px; flex-shrink: 0; }
+.batchRowActions button { padding: 6px 10px; min-height: 36px; font-size: 0.8rem; }
+.batchRowActions button.iconOnly { padding: 6px; width: 36px; }
+.batchRowActions button.iconOnly .btnIcon { margin: 0; }

@@ -15,6 +15,7 @@ It's a single static page: no backend, no build step, and none of your text ever
 - **Line numbers** on both text boxes, kept aligned even when lines wrap.
 - **Import, copy, or export** - load any text file (plain text or source code) straight into the input, copy the output to the clipboard, or download it as a `.txt` file named after the output's first line.
 - **Your fix preferences persist** across visits via `localStorage`.
+- **Batch mode** ([batch.html](batch.html)) cleans multiple files at once - drag files in (or pick them), each is filtered with the same fixes and downloaded under its original filename. Fix preferences are shared with the single-file page.
 
 ## Fonts
 
@@ -42,9 +43,12 @@ This is a static page - no server or build required. Either:
 ## Project structure
 
 ```
-index.html    markup
-styles.css    styling
-script.js     filtering logic + DOM wiring (dual-purpose: also require()-able for tests, see below)
+index.html    markup for the single-file page
+batch.html    markup for the batch (multi-file) page
+styles.css    shared styling
+batch.css     styling specific to the batch page
+script.js     filtering logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
+batch.js      batch page's DOM wiring, built on script.js's shared logic
 favicon.svg   browser tab icon, also embedded inline as the header's logo icon
 test/         unit tests for the filtering logic
 CHANGELOG.md  full version history
