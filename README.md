@@ -57,6 +57,7 @@ docs/
   script.js           filtering logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
   batch.js            batch page's DOM wiring, built on script.js's shared logic
   favicon.svg         browser tab icon, also embedded inline as the header's logo icon
+  social-card.png     social sharing preview image (og:image/twitter:image), built from favicon.svg's icon
 test/             unit tests for the filtering logic
 CHANGELOG.md      full version history
 ```
