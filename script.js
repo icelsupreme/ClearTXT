@@ -183,10 +183,10 @@
       }
 
       if (isHebrew(cp)) {
-        if (opts.allowHebrew) {
-          changes.push({ ch: ch, type: "kept", category: "hebrew", replacement: ch });
-        } else {
+        if (opts.stripHebrew) {
           changes.push({ ch: ch, type: "removed", category: "hebrew", replacement: "" });
+        } else {
+          changes.push({ ch: ch, type: "kept", category: "hebrew", replacement: ch });
         }
         continue;
       }
@@ -675,7 +675,7 @@
     ["optStripEmoji", "stripEmoji", true, "symbols"],
     ["optStripCurrency", "stripCurrency", true, "symbols"],
     ["optStripInvisible", "stripInvisible", true, "symbols"],
-    ["optAllowHebrew", "allowHebrew", false, "symbols"],
+    ["optStripHebrew", "stripHebrew", true, "symbols"],
     ["optRemoveTabs", "removeTabs", false, "whitespace"],
     ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
     ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
@@ -1148,9 +1148,13 @@
   var BUTTON_FEEDBACK_MS = 1200;
 
   function flashButtonLabel(btn, text) {
-    var old = btn.textContent;
-    btn.textContent = text;
-    setTimeout(function () { btn.textContent = old; }, BUTTON_FEEDBACK_MS);
+    // Targets the .btnLabel span, not the button itself - buttons also
+    // contain an icon <svg>, and btn.textContent = ... would silently
+    // delete it (textContent replaces every child node, icon included).
+    var label = btn.querySelector(".btnLabel") || btn;
+    var old = label.textContent;
+    label.textContent = text;
+    setTimeout(function () { label.textContent = old; }, BUTTON_FEEDBACK_MS);
   }
 
   importBtn.addEventListener("click", function () {
