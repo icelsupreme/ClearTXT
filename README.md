@@ -22,7 +22,7 @@ It's a single static page: no backend, no build step, no data ever leaves your b
   A fix that's turned off leaves its characters exactly as typed; a character only gets removed once none of the applicable fixes can convert it.
 - **"What changed?" diff view.** A collapsible panel shows a per-category breakdown of what was removed vs. converted, plus a highlighted side-by-side view of the input and output.
 - **Line numbers** on both text boxes, kept aligned even when lines wrap.
-- **Import, copy, or export** — load a text file straight into the input, copy the output to the clipboard, or download it as a timestamped `.txt` file.
+- **Import, copy, or export** — load a text file straight into the input, copy the output to the clipboard, or download it as a `.txt` file named after the output's first line.
 - **Your fix preferences persist** across visits via `localStorage`.
 
 ## Usage
@@ -74,6 +74,11 @@ The `?v=` matters functionally, not just cosmetically: without it, browsers (esp
 ## Version history
 
 Versioned per [Semantic Versioning](https://semver.org/) — `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change — those are called out explicitly below.
+
+### 0.8.0
+- **Feature:** each text box gets its own toolbar directly underneath it — Import/Clear under the input, Copy/Export under the output — instead of one shared row mixing input- and output-related actions together.
+- **Feature:** the exported filename is now derived from the output's first line (sanitized and truncated to 50 characters), e.g. `cleartxt-My-Document-Title-20260812-105541.txt`, instead of always being `cleartxt-output-<timestamp>.txt`.
+- **Fix (consistency):** the "Copy output" button no longer has a different (blue/"primary") style from the other three buttons for no particular reason — all four now look the same.
 
 ### 0.7.0
 - **Feature:** a version badge next to the title, so you can tell at a glance whether the copy you're looking at is current. Also consolidates the previously-arbitrary `?v=` cache-busting counter to match `package.json`'s version number, so there's one number to bump per release instead of two unrelated ones.

@@ -114,7 +114,7 @@ textarea[readonly] { background: #12151b; }
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  margin: 16px 0 4px;
+  margin: 10px 0 0;
 }
 button {
   border: 1px solid var(--border);
@@ -127,8 +127,6 @@ button {
   transition: border-color .15s, background .15s;
 }
 button:hover { border-color: var(--accent); }
-button.primary { background: var(--accent); border-color: var(--accent); color: #061020; font-weight: 600; }
-button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .stats {
   margin-left: auto;
   color: var(--muted);

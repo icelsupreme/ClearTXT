@@ -217,3 +217,37 @@ test("outputHtml never shows a marker for a stripped invisible character (it isn
   const html = ClearTXT.outputHtml(changes, 1000);
   assert.equal(html, "ab");
 });
+
+test("slugForFilename uses the first line, turns whitespace into hyphens", () => {
+  assert.equal(ClearTXT.slugForFilename("Hello World\nsecond line"), "Hello-World");
+});
+
+test("slugForFilename strips characters illegal in filenames", () => {
+  assert.equal(ClearTXT.slugForFilename('a/b\\c:d*e?f"g<h>i|j'), "abcdefghij");
+});
+
+test("slugForFilename truncates long first lines and trims a trailing hyphen left by truncation", () => {
+  const longLine = "word ".repeat(20); // 100 chars, well past the 50-char cap
+  const slug = ClearTXT.slugForFilename(longLine);
+  assert.ok(slug.length <= 50);
+  assert.ok(!slug.endsWith("-"));
+});
+
+test("slugForFilename returns empty for blank/unsafe-only first lines", () => {
+  assert.equal(ClearTXT.slugForFilename(""), "");
+  assert.equal(ClearTXT.slugForFilename("   \n more text"), "");
+  assert.equal(ClearTXT.slugForFilename("///\n more text"), "");
+});
+
+test("exportFilename builds \"cleartxt-<slug>-<timestamp>.txt\" from the first line", () => {
+  const now = new Date(2026, 0, 5, 9, 3, 7); // Jan 5 2026, 09:03:07 local
+  assert.equal(
+    ClearTXT.exportFilename("Hello World\nrest", now),
+    "cleartxt-Hello-World-20260105-090307.txt"
+  );
+});
+
+test("exportFilename falls back to a generic name when there's no usable slug", () => {
+  const now = new Date(2026, 0, 5, 9, 3, 7);
+  assert.equal(ClearTXT.exportFilename("", now), "cleartxt-output-20260105-090307.txt");
+});

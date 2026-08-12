@@ -353,6 +353,39 @@
     return html.join("");
   }
 
+  // Max length of the first-line-derived slug used in the exported
+  // filename, before the timestamp suffix is appended.
+  var EXPORT_SLUG_MAX = 50;
+
+  // Turns the first line of `text` into a short, filesystem-safe slug for
+  // use in the exported filename: strips characters that are illegal (or
+  // just awkward) in a filename on common OSes, collapses whitespace to
+  // hyphens, and truncates. Returns "" if there's nothing usable (empty
+  // text, or a first line that's entirely unsafe/whitespace characters).
+  function slugForFilename(text) {
+    var firstLine = (text.split("\n")[0] || "");
+    return firstLine
+      // eslint-disable-next-line no-control-regex -- intentionally stripping control chars too
+      .replace(/[\\/:*?"<>|\x00-\x1F]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .slice(0, EXPORT_SLUG_MAX)
+      .replace(/-+$/, "");
+  }
+
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+
+  // Builds the exported filename from the output's first line plus a
+  // timestamp, e.g. "cleartxt-hello-world-20260812-104015.txt", falling
+  // back to a generic name when the first line yields no usable slug.
+  function exportFilename(text, now) {
+    var d = now || new Date();
+    var stamp = d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
+      "-" + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
+    var slug = slugForFilename(text);
+    return "cleartxt-" + (slug || "output") + "-" + stamp + ".txt";
+  }
+
   // Character budget for the highlighted view. Runs already keep the DOM
   // node count far below this in normal text; this cap only guards against
   // pathological inputs (huge blocks that alternate kept/removed/converted
@@ -374,7 +407,9 @@
     outputHtml: outputHtml,
     invisibleInfo: invisibleInfo,
     isHebrew: isHebrew,
-    foldAccent: foldAccent
+    foldAccent: foldAccent,
+    slugForFilename: slugForFilename,
+    exportFilename: exportFilename
   };
 
   if (typeof module !== "undefined" && module.exports) {
@@ -676,21 +711,13 @@
     setTimeout(function () { copyBtn.textContent = old; }, 1200);
   });
 
-  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
-
-  function exportFilename() {
-    var d = new Date();
-    return "cleartxt-output-" + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
-      "-" + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds()) + ".txt";
-  }
-
   exportBtn.addEventListener("click", function () {
     if (!output.value.length) return;
     var blob = new Blob([output.value], { type: "text/plain;charset=utf-8" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
-    a.download = exportFilename();
+    a.download = exportFilename(output.value);
     document.body.appendChild(a);
     a.click();
     a.remove();
