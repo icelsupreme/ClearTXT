@@ -15,6 +15,7 @@ const DEFAULT_OPTS = {
   stripCurrency: true,
   stripInvisible: true,
   stripHebrew: true,
+  stripArabic: true,
   stripCyrillic: true,
   removeLineBreaks: false,
   removeParagraphBreaks: false,
@@ -113,6 +114,17 @@ test("the Letterlike Symbols math alef/bet/gimel/dalet (e.g. aleph-null, ℵ₀)
   assert.equal(run("ℵ", { stripEmoji: false }), "ℵ"); // governed by the symbol toggle, not Hebrew
   assert.equal(run("ℵ", { stripHebrew: false }), ""); // NOT preserved disguised as א
   assert.equal(ClearTXT.processText("ℵ", opts()).changes[0].category, "symbol");
+});
+
+test("Arabic is stripped by default and preserved when \"strip Arabic characters\" is off", () => {
+  assert.equal(run("hello مرحبا world"), "hello world");
+  assert.equal(run("hello مرحبا world", { removeExtraSpaces: false }), "hello  world");
+  assert.equal(run("hello مرحبا world", { stripArabic: false }), "hello مرحبا world");
+});
+
+test("Arabic stripping is independent of \"strip emoji & symbols\", governed only by its own toggle", () => {
+  assert.equal(run("مرحبا", { stripEmoji: false }), "");
+  assert.equal(run("مرحبا", { stripEmoji: false, stripArabic: false }), "مرحبا");
 });
 
 test("Cyrillic is stripped by default and preserved when \"strip Cyrillic characters\" is off", () => {
@@ -306,6 +318,23 @@ test("isHebrew recognizes the Hebrew block and presentation forms, and nothing e
   assert.equal(ClearTXT.isHebrew(0x05d0), true); // א
   assert.equal(ClearTXT.isHebrew(0xfb1d), true);
   assert.equal(ClearTXT.isHebrew(0x0041), false); // A
+});
+
+test("isArabic recognizes the main Arabic block, supplement/extended blocks, and presentation forms, and nothing else", () => {
+  assert.equal(ClearTXT.isArabic(0x0627), true); // ا
+  assert.equal(ClearTXT.isArabic(0x0750), true); // Arabic Supplement
+  assert.equal(ClearTXT.isArabic(0x0870), true); // Arabic Extended-B
+  assert.equal(ClearTXT.isArabic(0x08A0), true); // Arabic Extended-A
+  assert.equal(ClearTXT.isArabic(0xFB50), true); // Arabic Presentation Forms-A
+  assert.equal(ClearTXT.isArabic(0xFE70), true); // Arabic Presentation Forms-B
+  assert.equal(ClearTXT.isArabic(0x0041), false); // A
+  assert.equal(ClearTXT.isArabic(0x05d0), false); // Hebrew א
+  // U+FEFF is numerically inside the Presentation Forms-B range, but
+  // processText's per-character loop classifies it as the BOM (invisible)
+  // before this check ever runs - isArabic in isolation still reports it
+  // as part of the range it's numerically in, since resolving that
+  // overlap is processText's job, not this range check's.
+  assert.equal(ClearTXT.isArabic(0xFEFF), true);
 });
 
 test("isCyrillic recognizes the main Cyrillic block, supplement, and extended blocks, and nothing else", () => {

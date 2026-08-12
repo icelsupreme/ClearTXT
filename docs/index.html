@@ -16,28 +16,29 @@
      page's own tagline ("a clean, safe character set"). Colors are
      hardcoded (not var(--accent)/var(--bg)) since a standalone favicon.svg
      has no access to the page's CSS custom properties. -->
-<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.3.2">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.4.0">
 <!-- Same typeface everywhere regardless of OS/browser, instead of each
      platform's own system-font stack (which is what made things look
-     inconsistent). Noto Sans Hebrew is loaded alongside the Latin
-     families since CSS font stacks fall back per-character - Hebrew
-     glyphs use it automatically without any script-detection logic,
-     wherever Hebrew text shows up (input/output boxes, the `א–ת`
-     example in the Fixes panel). If this ever needs to load with zero
-     external requests, these font files can be self-hosted instead. -->
+     inconsistent). Noto Sans Hebrew and Noto Sans Arabic are loaded
+     alongside the Latin families since CSS font stacks fall back
+     per-character - Hebrew/Arabic glyphs use them automatically without
+     any script-detection logic, wherever that text shows up (input/output
+     boxes, the `א–ת`/`ا–ي` examples in the Fixes panel). If this ever needs
+     to load with zero external requests, these font files can be
+     self-hosted instead. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Mono:wght@400;500;700&family=Noto+Sans+Hebrew:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Mono:wght@400;500;700&family=Noto+Sans+Hebrew:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!-- This ?v= (and favicon.svg's own, above) matches the version in
      package.json / shown in the header below. Bump all of these together
      on every release, so browsers (especially over file://, which this
      page is often opened with directly) don't keep serving a stale
      cached copy, and so the on-page version is always accurate. -->
-<link rel="stylesheet" href="styles.css?v=1.3.2">
+<link rel="stylesheet" href="styles.css?v=1.4.0">
 </head>
 <body>
   <header>
-    <h1><svg class="logoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2v2"/><path d="M12 3h-2"/><path d="M13.5 10.5 22 2"/><path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z"/><path d="M20 15v4"/><path d="M22 17h-4"/><path d="M4 4v4"/><path d="m5 18 2-2"/><path d="M6 6H2"/><path d="m7.699 10.7 5.602 5.601"/></svg>ClearTXT <span class="version" title="Version, matches package.json">v1.3.2</span></h1>
+    <h1><svg class="logoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2v2"/><path d="M12 3h-2"/><path d="M13.5 10.5 22 2"/><path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z"/><path d="M20 15v4"/><path d="M22 17h-4"/><path d="M4 4v4"/><path d="m5 18 2-2"/><path d="M6 6H2"/><path d="m7.699 10.7 5.602 5.601"/></svg>ClearTXT <span class="version" title="Version, matches package.json">v1.4.0</span></h1>
     <p>Strip text down to a clean, safe character set - everything else is removed.</p>
     <p class="batchNavLink"><a href="batch.html">Clean multiple files at once &rarr;</a></p>
   </header>
@@ -161,6 +162,13 @@
             </span>
           </label>
           <label class="fixRow">
+            <input type="checkbox" id="optStripArabic" checked>
+            <span class="fixText">
+              <strong>Strip Arabic characters</strong>
+              <div>Removes Arabic letters, diacritics and Arabic-Indic digits (<code>ا–ي</code>), including the Persian/Urdu extended blocks. Turn off to keep Arabic text as-is.</div>
+            </span>
+          </label>
+          <label class="fixRow">
             <input type="checkbox" id="optStripCyrillic" checked>
             <span class="fixText">
               <strong>Strip Cyrillic characters</strong>
@@ -244,6 +252,6 @@
     <span id="stickyFooterCounts" aria-hidden="true"></span>
   </footer>
 
-<script src="script.js?v=1.3.2"></script>
+<script src="script.js?v=1.4.0"></script>
 </body>
 </html>

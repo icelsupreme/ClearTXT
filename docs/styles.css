@@ -8,14 +8,15 @@
   --accent-hover: #6bb0ff;
   --danger: #ff6b6b;
   --invisible: #b980ff;
-  /* Noto Sans Hebrew is listed in both stacks (not just merged into one)
-     since CSS font stacks fall back per-character to the next font that
-     actually has a glyph for it - Hebrew text renders in Noto Sans Hebrew
-     automatically, Latin text in Noto Sans/Noto Sans Mono, no matter which
-     stack it's mixed into. System fonts stay as the fallback in case the
-     Google Fonts request fails (offline, blocked, etc.). */
-  --font-sans: "Noto Sans", "Noto Sans Hebrew", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: "Noto Sans Mono", "Noto Sans Hebrew", "SF Mono", Menlo, Consolas, monospace;
+  /* Noto Sans Hebrew/Arabic are listed in both stacks (not just merged
+     into one) since CSS font stacks fall back per-character to the next
+     font that actually has a glyph for it - Hebrew/Arabic text renders in
+     their own Noto family automatically, Latin text in Noto Sans/Noto Sans
+     Mono, no matter which stack it's mixed into. System fonts stay as the
+     fallback in case the Google Fonts request fails (offline, blocked,
+     etc.). */
+  --font-sans: "Noto Sans", "Noto Sans Hebrew", "Noto Sans Arabic", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Noto Sans Mono", "Noto Sans Hebrew", "Noto Sans Arabic", "SF Mono", Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; }
 body {

@@ -63,6 +63,22 @@
   // presentation-forms block (ligatures like "ﭏ" and pointed letters).
   var HEBREW_RANGES = [[0x0590, 0x05FF], [0xFB1D, 0xFB4F]];
 
+  // Arabic letters, diacritics and Arabic-Indic digits, across the main
+  // block plus the extended/supplement blocks covering Persian, Urdu and
+  // other Arabic-script languages, through the presentation-forms blocks
+  // (contextual/ligature glyph variants). U+FEFF (byte order mark) falls
+  // inside the Presentation Forms-B range numerically, but is caught
+  // earlier in processText's per-character loop as an invisible/format
+  // character before this check ever runs, so it's never treated as Arabic.
+  var ARABIC_RANGES = [
+    [0x0600, 0x06FF], // Arabic
+    [0x0750, 0x077F], // Arabic Supplement
+    [0x0870, 0x089F], // Arabic Extended-B
+    [0x08A0, 0x08FF], // Arabic Extended-A
+    [0xFB50, 0xFDFF], // Arabic Presentation Forms-A
+    [0xFE70, 0xFEFF]  // Arabic Presentation Forms-B
+  ];
+
   // Cyrillic letters/combining marks across the blocks covering everyday
   // use (Russian, Ukrainian, Bulgarian, Serbian, Belarusian, Mongolian, ...)
   // through the Extended blocks used for a handful of minority languages
@@ -142,6 +158,7 @@
     accent: "accents",
     quote: "quotes",
     hebrew: "Hebrew",
+    arabic: "Arabic",
     cyrillic: "Cyrillic",
     currency: "currency symbols",
     tab: "tabs",
@@ -173,6 +190,14 @@
   function isCyrillic(cp) {
     for (var i = 0; i < CYRILLIC_RANGES.length; i++) {
       var r = CYRILLIC_RANGES[i];
+      if (cp >= r[0] && cp <= r[1]) return true;
+    }
+    return false;
+  }
+
+  function isArabic(cp) {
+    for (var i = 0; i < ARABIC_RANGES.length; i++) {
+      var r = ARABIC_RANGES[i];
       if (cp >= r[0] && cp <= r[1]) return true;
     }
     return false;
@@ -257,6 +282,15 @@
           changes.push({ ch: ch, type: "removed", category: "hebrew", replacement: "" });
         } else {
           changes.push({ ch: ch, type: "kept", category: "hebrew", replacement: ch });
+        }
+        continue;
+      }
+
+      if (isArabic(cp)) {
+        if (opts.stripArabic) {
+          changes.push({ ch: ch, type: "removed", category: "arabic", replacement: "" });
+        } else {
+          changes.push({ ch: ch, type: "kept", category: "arabic", replacement: ch });
         }
         continue;
       }
@@ -699,6 +733,7 @@
     isHiddenPayloadRange: isHiddenPayloadRange,
     isFormatChar: isFormatChar,
     isHebrew: isHebrew,
+    isArabic: isArabic,
     isCyrillic: isCyrillic,
     foldAccent: foldAccent,
     slugForFilename: slugForFilename,
@@ -824,6 +859,7 @@
       ["optConvertDashes", "convertDashes", true, "typography"],
       ["optFoldAccents", "foldAccents", true, "languages"],
       ["optStripHebrew", "stripHebrew", true, "languages"],
+      ["optStripArabic", "stripArabic", true, "languages"],
       ["optStripCyrillic", "stripCyrillic", true, "languages"],
       ["optStripEmoji", "stripEmoji", true, "symbols"],
       ["optStripCurrency", "stripCurrency", true, "symbols"],
