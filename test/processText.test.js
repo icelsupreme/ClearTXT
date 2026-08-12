@@ -179,10 +179,33 @@ test("extra-space collapsing accounts for spaces newly exposed by a removed char
   assert.equal(run("hello 😀 world"), "hello world");
 });
 
-test("inputHighlightHtml groups a consecutive same-type run into a single span", () => {
+test("inputHighlightHtml wraps a single line in a <div class=\"line\">, tagged line-changed since it contains a change", () => {
   const raw = "ab😀😀cd";
   const { changes } = ClearTXT.processText(raw, opts());
-  assert.equal(ClearTXT.inputHighlightHtml(raw, changes), 'ab<span class="rm">😀😀</span>cd');
+  assert.equal(
+    ClearTXT.inputHighlightHtml(raw, changes),
+    '<div class="line line-changed">ab<span class="rm">😀😀</span>cd</div>'
+  );
+});
+
+test("inputHighlightHtml only tags the lines that actually contain a change (GitHub-diff-style row highlighting)", () => {
+  const raw = "clean line\ncafé line\nanother clean line";
+  const { changes } = ClearTXT.processText(raw, opts());
+  assert.equal(
+    ClearTXT.inputHighlightHtml(raw, changes),
+    '<div class="line">clean line</div>' +
+    '<div class="line line-changed">caf<span class="cv">é</span> line</div>' +
+    '<div class="line">another clean line</div>'
+  );
+});
+
+test("inputHighlightHtml gives a blank line its own (empty) line div instead of collapsing it away", () => {
+  const raw = "a\n\nb";
+  const { changes } = ClearTXT.processText(raw, opts());
+  assert.equal(
+    ClearTXT.inputHighlightHtml(raw, changes),
+    '<div class="line">a</div><div class="line"></div><div class="line">b</div>'
+  );
 });
 
 test("summarizeChanges and formatCatCounts report accurate per-category totals", () => {
@@ -219,26 +242,26 @@ test("inputHighlightHtml never merges an invisible character into a surrounding 
   const kept = ClearTXT.processText(raw, opts({ stripInvisible: false }));
   assert.equal(
     ClearTXT.inputHighlightHtml(raw, kept.changes),
-    'a<span class="iv" title="zero-width space (U+200B) (kept)">​</span>b'
+    '<div class="line line-changed">a<span class="iv" title="zero-width space (U+200B) (kept)">​</span>b</div>'
   );
 
   const removed = ClearTXT.processText(raw, opts({ stripInvisible: true }));
   assert.equal(
     ClearTXT.inputHighlightHtml(raw, removed.changes),
-    'a<span class="iv rm" title="zero-width space (U+200B) (removed)">​</span>b'
+    '<div class="line line-changed">a<span class="iv rm" title="zero-width space (U+200B) (removed)">​</span>b</div>'
   );
 });
 
 test("inputHighlightHtml escapes HTML-significant characters in both plain and highlighted text", () => {
   const plain = ClearTXT.processText("a<b>c", opts());
-  assert.equal(ClearTXT.inputHighlightHtml("a<b>c", plain.changes), "a&lt;b&gt;c");
+  assert.equal(ClearTXT.inputHighlightHtml("a<b>c", plain.changes), '<div class="line">a&lt;b&gt;c</div>');
 
   // The overlay shows the RAW (pre-conversion) character under a "cv"
   // highlight - the actual replacement only appears in the output box.
   const converted = ClearTXT.processText("<em—dash>", opts());
   assert.equal(
     ClearTXT.inputHighlightHtml("<em—dash>", converted.changes),
-    '&lt;em<span class="cv">—</span>dash&gt;'
+    '<div class="line line-changed">&lt;em<span class="cv">—</span>dash&gt;</div>'
   );
 });
 
@@ -265,19 +288,22 @@ test("inputHighlightHtml stops detailed highlighting at the character budget but
   const { changes } = ClearTXT.processText(raw, opts());
   // Budget covers only the first emoji; the second is past it and shows
   // as plain (unhighlighted) text instead of also being marked removed.
-  assert.equal(ClearTXT.inputHighlightHtml(raw, changes, 2), 'a<span class="rm">😀</span>b😀c');
+  assert.equal(
+    ClearTXT.inputHighlightHtml(raw, changes, 2),
+    '<div class="line line-changed">a<span class="rm">😀</span>b😀c</div>'
+  );
 });
 
 test("outputHighlightHtml substitutes a visible marker for invisible characters that survive filtering", () => {
   const { changes } = ClearTXT.processText("a​b", opts({ stripInvisible: false }));
   const html = ClearTXT.outputHighlightHtml(changes, 1000);
-  assert.equal(html, 'a<span class="iv" title="zero-width space (U+200B) (kept)">​</span>b');
+  assert.equal(html, '<div class="line line-changed">a<span class="iv" title="zero-width space (U+200B) (kept)">​</span>b</div>');
 });
 
 test("outputHighlightHtml never shows a marker for a stripped invisible character (it isn't in the output at all)", () => {
   const { changes } = ClearTXT.processText("a​b", opts({ stripInvisible: true }));
   const html = ClearTXT.outputHighlightHtml(changes, 1000);
-  assert.equal(html, "ab");
+  assert.equal(html, '<div class="line">ab</div>');
 });
 
 test("slugForFilename uses the first line, turns whitespace into hyphens", () => {

@@ -9,7 +9,7 @@ It's a single static page: no backend, no build step, no data ever leaves your b
 ## Features
 
 - **Side-by-side filtering.** Paste or type into the input box; the cleaned result appears in the output box as you type, with live character counts.
-- **Inline highlighting.** Removed and converted characters are highlighted directly inside the input and output boxes themselves (no separate/duplicate diff view to keep in sync) - red for removed, blue for converted, a thin ring for invisible/control characters (which have no width of their own to highlight). A collapsible "What changed?" panel below has the removed/converted counts by category.
+- **Inline highlighting.** Removed and converted characters are highlighted directly inside the input and output boxes themselves (no separate/duplicate diff view to keep in sync) - red for removed, blue for converted, a thin ring for invisible/control characters (which have no width of their own to highlight). Any line containing a change also gets a subtle full-row tint, GitHub-diff style, so changed lines are easy to spot at a glance even before reading the character-level marks. A collapsible "What changed?" panel below has the removed/converted counts by category.
 - **Configurable fixes.** The "Fixes & explanation" drawer lists every transformation as an independent toggle, so you choose exactly what gets touched:
   - Normalize Unicode (NFKC) - folds ligatures, full-width letters, and superscripts into plain forms
   - Fold accented letters to their plain ASCII base (`é` -> `e`)
@@ -74,6 +74,12 @@ The `?v=` matters functionally, not just cosmetically: without it, browsers (esp
 ## Version history
 
 Versioned per [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`, tracked in `package.json`. A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix with no behavior change. The project is still pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release may still include a behavior change - those are called out explicitly below.
+
+### 0.10.0
+- **Feature (UI):** a line containing any removed/converted/invisible character now gets a subtle full-row background tint in the input and output boxes, in addition to the existing precise per-character marks - matching how GitHub and other diff tools highlight changed lines. Blank and wrapped lines are handled correctly: a blank changed line still gets a visible row, and a wrapped line's tint spans all of its wrapped visual rows.
+- **Refactor:** `inputHighlightHtml` and `outputHighlightHtml` now share one internal line-building function instead of duplicating the same character-grouping logic twice.
+- **Refactor:** the per-checkbox-fix wiring (element lookup, `readOpts`, `applySavedOpts`) is now table-driven from a single list of `[element id, options key, default value]` triples, instead of one hand-written variable/field per fix.
+- **Cleanup:** removed two unused CSS rules left over from earlier UI iterations (`.stats b`, `details ul`) that no longer matched anything in the page.
 
 ### 0.9.0
 - **Feature (UI rework):** removed/converted highlighting now shows directly inside the actual input and output boxes, instead of a separate "What changed?" panel with its own duplicate pair of read-only panes. Implemented as a transparent highlight layer positioned exactly behind each live textarea (character-for-character aligned with its raw text), so typing, clicking, and scrolling all keep working normally. The "What changed?" panel is now just the removed/converted counts and a legend.

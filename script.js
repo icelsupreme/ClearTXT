@@ -332,98 +332,118 @@
     return '<span class="' + cls + '"' + t + ">" + esc + "</span>";
   }
 
-  // Builds the highlight-overlay HTML for the INPUT box. This sits in a
-  // layer directly behind the live, editable textarea: its text is fully
-  // transparent (see CSS), so only the background/ring effects on the
-  // rm/cv/iv spans show through, appearing to highlight the real text
-  // above it. That only works if this HTML has EXACTLY the same
-  // characters, in the same order, as the textarea's own raw value — so
-  // this builds off `rawText` (not the NFKC-normalized `changes[i].ch`)
-  // and groups consecutive rm/cv runs into single spans (perf: fewer DOM
-  // nodes), while invisible characters always get their own span since
-  // each needs its own tooltip. `changes` must be `rawText`'s own
-  // per-character pipeline result — if normalization changed the
-  // character count (rare: mainly typographic ligatures), the 1:1
-  // assumption breaks and this returns null; the caller falls back to no
-  // overlay for that render rather than show misaligned highlights.
-  function inputHighlightHtml(rawText, changes, maxChars) {
-    var rawChars = [...rawText];
-    var n = rawChars.length;
-    if (n !== changes.length) return null;
-    var budget = maxChars == null ? n : Math.min(maxChars, n);
+  // Shared by inputHighlightHtml/outputHighlightHtml: walks a sequence of
+  // displayed characters (`chars`) paired 1:1 with their change-log entry
+  // (`entries`) and produces per-logical-line HTML - each line wrapped in
+  // its own <div class="line">, tagged "line-changed" when it contains
+  // any removed/converted/invisible character, GitHub-diff style, so the
+  // whole row gets a background tint in addition to the precise rm/cv/iv
+  // spans within it. Consecutive same-type rm/cv characters within a line
+  // are grouped into one span (perf: fewer DOM nodes); invisible
+  // characters always get their own span, since each needs its own
+  // tooltip. Stops classifying past `budget` but still emits the
+  // remaining lines as plain (unhighlighted) text, so line/row structure
+  // - and therefore scroll alignment - holds for the whole document
+  // regardless of the budget.
+  function buildLineHighlightHtml(chars, entries, budget) {
+    var n = chars.length;
+    var lineHtml = [];
+    var lineChanged = false;
 
-    var html = [];
+    function flushLine() {
+      var cls = "line" + (lineChanged ? " line-changed" : "");
+      var html = '<div class="' + cls + '">' + lineHtml.join("") + "</div>";
+      lineHtml = [];
+      lineChanged = false;
+      return html;
+    }
+
+    var out = [];
     var i = 0;
     while (i < budget) {
-      var c = changes[i];
+      var c = entries[i];
+      if (chars[i] === "\n") {
+        if (c.type !== "kept") lineChanged = true;
+        out.push(flushLine());
+        i++;
+        continue;
+      }
       if (c.category === "invisible") {
-        var info = invisibleInfo(rawChars[i].codePointAt(0));
+        var info = invisibleInfo(chars[i].codePointAt(0));
         var cls = "iv" + (c.type === "removed" ? " rm" : "");
         var title = info.name + (c.type === "removed" ? " (removed)" : " (kept)");
-        html.push(markerSpan(cls, rawChars[i], title));
+        lineHtml.push(markerSpan(cls, chars[i], title));
+        lineChanged = true;
         i++;
         continue;
       }
       if (c.type === "kept") {
-        html.push(escapeHtml(rawChars[i]));
+        lineHtml.push(escapeHtml(chars[i]));
         i++;
         continue;
       }
       var type = c.type;
       var j = i;
       var buf = "";
-      while (j < budget && changes[j].type === type && changes[j].category !== "invisible") {
-        buf += rawChars[j];
+      while (j < budget && entries[j].type === type && entries[j].category !== "invisible" && chars[j] !== "\n") {
+        buf += chars[j];
         j++;
       }
-      html.push(markerSpan(type === "removed" ? "rm" : "cv", buf));
+      lineHtml.push(markerSpan(type === "removed" ? "rm" : "cv", buf));
+      lineChanged = true;
       i = j;
     }
-    if (i < n) html.push(escapeHtml(rawChars.slice(i).join("")));
-    return html.join("");
+
+    if (i < n) {
+      // Past the highlighting budget: still split on "\n" so every
+      // remaining line gets its own (unhighlighted) row, rather than
+      // dumping the whole rest of the document into the current line.
+      var restLines = chars.slice(i).join("").split("\n");
+      lineHtml.push(escapeHtml(restLines[0]));
+      out.push(flushLine());
+      for (var k = 1; k < restLines.length; k++) {
+        out.push('<div class="line">' + escapeHtml(restLines[k]) + "</div>");
+      }
+    } else {
+      out.push(flushLine());
+    }
+
+    return out.join("");
+  }
+
+  // Builds the highlight-overlay HTML for the INPUT box. This sits in a
+  // layer directly behind the live, editable textarea: its text is fully
+  // transparent (see CSS), so only the background/ring effects on the
+  // rm/cv/iv spans (and the whole-row line-changed tint) show through,
+  // appearing to highlight the real text above it. That only works if
+  // this HTML has EXACTLY the same characters, in the same order, as the
+  // textarea's own raw value — so this builds off `rawText` (not the
+  // NFKC-normalized `changes[i].ch`). `changes` must be `rawText`'s own
+  // per-character pipeline result — if normalization changed the
+  // character count (rare: mainly typographic ligatures), the 1:1
+  // assumption breaks and this returns null; the caller falls back to no
+  // overlay for that render rather than show misaligned highlights.
+  function inputHighlightHtml(rawText, changes, maxChars) {
+    var rawChars = [...rawText];
+    if (rawChars.length !== changes.length) return null;
+    var budget = maxChars == null ? rawChars.length : Math.min(maxChars, rawChars.length);
+    return buildLineHighlightHtml(rawChars, changes, budget);
   }
 
   // Same idea for the OUTPUT box. Output only ever contains non-removed
   // segments, and output.value is always exactly their replacements
   // joined together, so this is inherently 1:1 aligned (no null case).
   function outputHighlightHtml(changes, maxChars) {
-    var kept = [];
+    var entries = [];
+    var chars = [];
     for (var k = 0; k < changes.length; k++) {
-      if (changes[k].type !== "removed") kept.push(changes[k]);
-    }
-    var n = kept.length;
-    var budget = maxChars == null ? n : Math.min(maxChars, n);
-
-    var html = [];
-    var i = 0;
-    while (i < budget) {
-      var c = kept[i];
-      if (c.category === "invisible") {
-        var info = invisibleInfo(c.replacement.codePointAt(0));
-        html.push(markerSpan("iv", c.replacement, info.name + " (kept)"));
-        i++;
-        continue;
+      if (changes[k].type !== "removed") {
+        entries.push(changes[k]);
+        chars.push(changes[k].replacement);
       }
-      if (c.type === "kept") {
-        html.push(escapeHtml(c.replacement));
-        i++;
-        continue;
-      }
-      var j = i;
-      var buf = "";
-      while (j < budget && kept[j].type === "converted" && kept[j].category !== "invisible") {
-        buf += kept[j].replacement;
-        j++;
-      }
-      html.push(markerSpan("cv", buf));
-      i = j;
     }
-    if (i < n) {
-      var rest = "";
-      for (var m = i; m < n; m++) rest += kept[m].replacement;
-      html.push(escapeHtml(rest));
-    }
-    return html.join("");
+    var budget = maxChars == null ? chars.length : Math.min(maxChars, chars.length);
+    return buildLineHighlightHtml(chars, entries, budget);
   }
 
   // Max length of the first-line-derived slug used in the exported
@@ -513,40 +533,39 @@
   var diffCounts = document.getElementById("diffCounts");
   var diffNote = document.getElementById("diffNote");
 
-  var optNormalize = document.getElementById("optNormalize");
-  var optFoldAccents = document.getElementById("optFoldAccents");
-  var optStraightenQuotes = document.getElementById("optStraightenQuotes");
+  // [DOM id, opts key, default value] for every plain-checkbox fix toggle.
+  // Adding a new checkbox-backed fix only needs a new row here, instead of
+  // touching a separate element declaration, optEls entry, readOpts field,
+  // and applySavedOpts field individually.
+  var FIX_TOGGLES = [
+    ["optNormalize", "normalize", true],
+    ["optFoldAccents", "foldAccents", true],
+    ["optStraightenQuotes", "straightenQuotes", true],
+    ["optConvertDashes", "convertDashes", true],
+    ["optStripEmoji", "stripEmoji", true],
+    ["optStripInvisible", "stripInvisible", true],
+    ["optAllowHebrew", "allowHebrew", false],
+    ["optRemoveLineBreaks", "removeLineBreaks", false],
+    ["optRemoveParagraphBreaks", "removeParagraphBreaks", false],
+    ["optRemoveExtraSpaces", "removeExtraSpaces", true],
+    ["optRemoveTabs", "removeTabs", false]
+  ].map(function (t) {
+    return { el: document.getElementById(t[0]), key: t[1], def: t[2] };
+  });
+
+  // The one non-checkbox fix option (a <select>), handled alongside
+  // FIX_TOGGLES but separately since it reads/writes .value, not .checked.
   var optConvertDashes = document.getElementById("optConvertDashes");
   var optDashTarget = document.getElementById("optDashTarget");
-  var optStripEmoji = document.getElementById("optStripEmoji");
-  var optStripInvisible = document.getElementById("optStripInvisible");
-  var optAllowHebrew = document.getElementById("optAllowHebrew");
-  var optRemoveLineBreaks = document.getElementById("optRemoveLineBreaks");
-  var optRemoveParagraphBreaks = document.getElementById("optRemoveParagraphBreaks");
-  var optRemoveExtraSpaces = document.getElementById("optRemoveExtraSpaces");
-  var optRemoveTabs = document.getElementById("optRemoveTabs");
-  var optEls = [
-    optNormalize, optFoldAccents, optStraightenQuotes, optConvertDashes, optDashTarget, optStripEmoji, optStripInvisible, optAllowHebrew,
-    optRemoveLineBreaks, optRemoveParagraphBreaks, optRemoveExtraSpaces, optRemoveTabs
-  ];
+
+  var optEls = FIX_TOGGLES.map(function (t) { return t.el; }).concat([optDashTarget]);
 
   var OPTS_KEY = "cleartxt-opts";
 
   function readOpts() {
-    return {
-      normalize: optNormalize.checked,
-      foldAccents: optFoldAccents.checked,
-      straightenQuotes: optStraightenQuotes.checked,
-      convertDashes: optConvertDashes.checked,
-      dashTarget: optDashTarget.value,
-      stripEmoji: optStripEmoji.checked,
-      stripInvisible: optStripInvisible.checked,
-      allowHebrew: optAllowHebrew.checked,
-      removeLineBreaks: optRemoveLineBreaks.checked,
-      removeParagraphBreaks: optRemoveParagraphBreaks.checked,
-      removeExtraSpaces: optRemoveExtraSpaces.checked,
-      removeTabs: optRemoveTabs.checked
-    };
+    var opts = { dashTarget: optDashTarget.value };
+    FIX_TOGGLES.forEach(function (t) { opts[t.key] = t.el.checked; });
+    return opts;
   }
 
   function saveOpts(opts) {
@@ -558,18 +577,12 @@
       var raw = localStorage.getItem(OPTS_KEY);
       if (!raw) return;
       var saved = JSON.parse(raw);
-      optNormalize.checked = saved.normalize !== false;
-      optFoldAccents.checked = saved.foldAccents !== false;
-      optStraightenQuotes.checked = saved.straightenQuotes !== false;
-      optConvertDashes.checked = saved.convertDashes !== false;
+      // Same "on unless explicitly saved off" / "off unless explicitly
+      // saved on" logic as before per option, just table-driven now.
+      FIX_TOGGLES.forEach(function (t) {
+        t.el.checked = t.def ? saved[t.key] !== false : saved[t.key] === true;
+      });
       optDashTarget.value = saved.dashTarget === "–" ? "–" : "-";
-      optStripEmoji.checked = saved.stripEmoji !== false;
-      optStripInvisible.checked = saved.stripInvisible !== false;
-      optAllowHebrew.checked = saved.allowHebrew === true;
-      optRemoveLineBreaks.checked = saved.removeLineBreaks === true;
-      optRemoveParagraphBreaks.checked = saved.removeParagraphBreaks === true;
-      optRemoveExtraSpaces.checked = saved.removeExtraSpaces !== false;
-      optRemoveTabs.checked = saved.removeTabs === true;
     } catch (e) { /* ignore malformed storage */ }
   }
 

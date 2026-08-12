@@ -1,6 +1,6 @@
 {
   "name": "cleartxt",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "description": "Strip text down to a clean, safe character set.",
   "scripts": {
