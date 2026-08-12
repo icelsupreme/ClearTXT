@@ -342,7 +342,7 @@
       optAllowHebrew.checked = saved.allowHebrew === true;
       optRemoveLineBreaks.checked = saved.removeLineBreaks === true;
       optRemoveParagraphBreaks.checked = saved.removeParagraphBreaks === true;
-      optRemoveExtraSpaces.checked = saved.removeExtraSpaces === true;
+      optRemoveExtraSpaces.checked = saved.removeExtraSpaces !== false;
       optRemoveTabs.checked = saved.removeTabs === true;
     } catch (e) { /* ignore malformed storage */ }
   }
