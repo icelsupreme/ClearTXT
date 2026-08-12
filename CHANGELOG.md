@@ -2,6 +2,10 @@
 
 All notable changes to ClearTXT, versioned per [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`, tracked in `package.json`). A MAJOR bump means existing input can now produce different output, or a documented toggle/behavior was removed or renamed; MINOR adds functionality without changing what already worked; PATCH is a fix or docs change with no behavior change. Releases before 1.0.0 were pre-1.0 (`0.y.z`), and per semver's own rule for that phase, a MINOR release there could still include a behavior change - those are called out explicitly below.
 
+### 1.9.0
+- **Behavior change (batch mode):** "Download all" is now "Download changed" - the generated `.zip` now only includes files the current fixes actually changed, skipping any that were already clean. Renamed and re-tooltipped to make this explicit rather than a silent behavior change; disabled (like every other action button here) when there's nothing to download.
+- **Feature (batch mode):** a new "Remove unchanged" button clears already-clean files out of the list in one click, leaving files still being read/processed and files that failed to read untouched - only removes an entry once it's been fully processed *and* found to have no changes. Disabled when there's nothing to remove.
+
 ### 1.8.0
 - **Feature:** a new `docs/sitemap.xml` listing all four pages (index, batch, changelog, documentation), so search engines can discover and prioritize them without relying on crawling links alone.
 - **Fix:** moved `robots.txt` from the repo root into `docs/` - GitHub Pages serves this site from `docs/` only, so a root-level `robots.txt` was never actually reachable at the live site's URL (it 404'd) despite being present in the repo. Also added a `Sitemap:` directive pointing at the new `sitemap.xml`.

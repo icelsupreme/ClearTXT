@@ -117,6 +117,7 @@
   var batchList = document.getElementById("batchList");
   var batchSummary = document.getElementById("batchSummary");
   var downloadAllBtn = document.getElementById("downloadAllBtn");
+  var removeUnchangedBtn = document.getElementById("removeUnchangedBtn");
   var clearAllBtn = document.getElementById("clearAllBtn");
 
   // One entry per added file: { id, name, size, rawText, result, status }.
@@ -141,6 +142,22 @@
   function reprocessEntry(entry, opts) {
     if (entry.status === "error") return;
     entry.result = ClearTXT.processText(entry.rawText, opts);
+  }
+
+  // True once a file has actually been cleaned (loaded and processed) and
+  // the clean made at least one change - "kept" is the only type nothing
+  // removed/converted/whitespace-cleaned produces, so any other type means
+  // the file's output differs from what was pasted/dropped in.
+  function entryHasChanges(entry) {
+    return !!entry.result && entry.result.changes.some(function (c) { return c.type !== "kept"; });
+  }
+
+  // True only for a file that's actually been cleaned and turned out
+  // already clean - deliberately false (not "unchanged") for a file still
+  // being read or one that failed to read, so "Remove unchanged" never
+  // removes a file just because it hasn't finished processing yet.
+  function entryIsUnchanged(entry) {
+    return !!entry.result && !entryHasChanges(entry);
   }
 
   function reprocessAll() {
@@ -307,12 +324,14 @@
     batchPanel.style.display = files.length ? "" : "none";
     dropzone.style.display = files.length ? "none" : "";
 
-    var readyCount = files.filter(function (f) { return f.result; }).length;
+    var changedCount = files.filter(entryHasChanges).length;
+    var unchangedCount = files.filter(entryIsUnchanged).length;
     var errorCount = files.filter(function (f) { return f.status === "error"; }).length;
     var summaryBits = [files.length + (files.length === 1 ? " file" : " files")];
     if (errorCount) summaryBits.push(errorCount + " failed to read");
     batchSummary.textContent = summaryBits.join(" · ");
-    downloadAllBtn.disabled = readyCount === 0;
+    downloadAllBtn.disabled = changedCount === 0;
+    removeUnchangedBtn.disabled = unchangedCount === 0;
 
     renderRows();
   }
@@ -353,10 +372,10 @@
   });
 
   downloadAllBtn.addEventListener("click", function () {
-    var ready = files.filter(function (f) { return f.result; });
-    if (!ready.length) return;
+    var changed = files.filter(entryHasChanges);
+    if (!changed.length) return;
     var encoder = new TextEncoder();
-    var zipBytes = buildZip(ready.map(function (entry) {
+    var zipBytes = buildZip(changed.map(function (entry) {
       return { name: safeEntryName(entry.name), data: encoder.encode(entry.result.output) };
     }));
     var blob = new Blob([zipBytes], { type: "application/zip" });
@@ -369,6 +388,11 @@
     a.remove();
     URL.revokeObjectURL(url);
     ClearTXT.flashButtonLabel(downloadAllBtn, "Downloaded!");
+  });
+
+  removeUnchangedBtn.addEventListener("click", function () {
+    files = files.filter(function (f) { return !entryIsUnchanged(f); });
+    render();
   });
 
   clearAllBtn.addEventListener("click", function () {
