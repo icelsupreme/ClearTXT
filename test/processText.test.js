@@ -12,7 +12,7 @@ const DEFAULT_OPTS = {
   convertDashes: true,
   dashTarget: "-",
   stripEmoji: true,
-  keepCurrency: false,
+  stripCurrency: true,
   stripInvisible: true,
   allowHebrew: false,
   removeLineBreaks: false,
@@ -108,11 +108,12 @@ test("emoji and symbols are stripped by default and kept when the toggle is off"
   assert.equal(run("a😀b ±", { stripEmoji: false }), "a😀b ±");
 });
 
-test("currency symbols are stripped along with other symbols by default, kept when \"keep currency symbols\" is on, and the ASCII dollar sign is always kept regardless", () => {
+test("currency symbols are stripped along with other symbols by default, kept when \"strip currency symbols\" is off, and the ASCII dollar sign is always kept regardless", () => {
   assert.equal(run("a€£¥b"), "ab");
-  assert.equal(run("a€£¥b", { keepCurrency: true }), "a€£¥b");
-  // Turning off symbol-stripping entirely already keeps them too, independent of keepCurrency.
-  assert.equal(run("a€b", { stripEmoji: false, keepCurrency: false }), "a€b");
+  assert.equal(run("a€£¥b", { stripCurrency: false }), "a€£¥b");
+  // Turning off general symbol-stripping keeps currency too, even with stripCurrency still on -
+  // both toggles have to agree to strip it.
+  assert.equal(run("a€b", { stripEmoji: false, stripCurrency: true }), "a€b");
   assert.equal(run("a$b"), "a$b");
 });
 

@@ -216,11 +216,13 @@
       }
 
       // A currency symbol would otherwise fall into the generic
-      // emoji/symbol bucket below and get stripped whenever that toggle is
-      // on; this carve-out keeps it independent of that decision.
+      // emoji/symbol bucket below - stripped only when BOTH toggles agree
+      // to strip it: the general "Strip emoji & symbols" switch, and this
+      // category's own toggle (checked = stripped, same "checked = the
+      // action happens" convention every other fix toggle uses).
       if (isCurrencySymbol(ch)) {
-        var keepCurrency = opts.keepCurrency || !opts.stripEmoji;
-        changes.push({ ch: ch, type: keepCurrency ? "kept" : "removed", category: "currency", replacement: keepCurrency ? ch : "" });
+        var stripThisCurrency = opts.stripCurrency && opts.stripEmoji;
+        changes.push({ ch: ch, type: stripThisCurrency ? "removed" : "kept", category: "currency", replacement: stripThisCurrency ? "" : ch });
         continue;
       }
 
@@ -631,7 +633,7 @@
     ["optStraightenQuotes", "straightenQuotes", true, "typography"],
     ["optConvertDashes", "convertDashes", true, "typography"],
     ["optStripEmoji", "stripEmoji", true, "symbols"],
-    ["optKeepCurrency", "keepCurrency", false, "symbols"],
+    ["optStripCurrency", "stripCurrency", true, "symbols"],
     ["optStripInvisible", "stripInvisible", true, "symbols"],
     ["optAllowHebrew", "allowHebrew", false, "symbols"],
     ["optRemoveTabs", "removeTabs", false, "whitespace"],
@@ -662,6 +664,9 @@
     var onCount = toggles.filter(function (t) { return t.el.checked; }).length;
     header.checked = onCount === toggles.length;
     header.indeterminate = onCount > 0 && onCount < toggles.length;
+    // The indeterminate IDL property is visual-only - screen readers don't
+    // reliably announce it without an explicit ARIA state alongside it.
+    header.setAttribute("aria-checked", header.indeterminate ? "mixed" : String(header.checked));
   }
 
   function updateAllGroupHeaders() {
@@ -1106,8 +1111,12 @@
         input.focus();
       })
       .catch(function () {
-        // No toast/notification system to surface a read failure through;
-        // the input is simply left as it was.
+        // Same transient-label feedback pattern as copyBtn/exportBtn below,
+        // so a failed read isn't a silent no-op - the input is left as it
+        // was, but the user finds out the import didn't happen.
+        var old = importBtn.textContent;
+        importBtn.textContent = "Import failed";
+        setTimeout(function () { importBtn.textContent = old; }, 1500);
       })
       .finally(function () {
         // Reset so choosing the same file again still fires "change".

@@ -78,7 +78,11 @@ header p {
   background: var(--panel);
   overflow: hidden;
 }
-.editor:focus-within { border-color: var(--accent); }
+/* Replaces the native textarea:focus outline (removed below, since it
+   doesn't follow the box's rounded corners) with a ring on the whole
+   editor box - a 1px border-color change alone is too subtle to count as
+   a real focus indicator for keyboard users. */
+.editor:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,157,255,.3); }
 .gutter {
   flex: 0 0 auto;
   min-width: 38px;
@@ -125,6 +129,14 @@ header p {
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
+}
+@media (max-width: 760px) {
+  /* Below 16px, iOS Safari auto-zooms the page on focusing a text input -
+     jarring on a page whose two main controls are text boxes. Gutter must
+     match so its line-height-based row heights stay aligned with the text.
+     Placed after the base declarations above (not with the .grid rule
+     earlier in the file) so it actually wins the cascade at this width. */
+  .highlight, textarea, .gutter { font-size: 16px; }
 }
 .highlight {
   z-index: 0;
@@ -176,12 +188,23 @@ button {
   background: var(--panel);
   color: var(--text);
   padding: 8px 14px;
+  /* Padding alone (with this font-size) renders under the 44px minimum
+     touch target - guarantee it directly rather than tuning padding to
+     match font metrics that could drift later. Applies to every button on
+     the page, including the smaller .diffNav ones. */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 8px;
   font-size: 0.9rem;
   cursor: pointer;
   transition: border-color .15s, background .15s;
 }
 button:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: reduce) {
+  button { transition: none; }
+}
 .stats {
   margin-left: auto;
   color: var(--muted);
