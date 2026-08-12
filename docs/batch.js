@@ -104,12 +104,6 @@
     return concatBytes(localAndData.concat([centralDir, end]));
   }
 
-  function timestamp(d) {
-    function pad2(n) { return n < 10 ? "0" + n : "" + n; }
-    return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
-      "-" + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
-  }
-
   var dropzone = document.getElementById("dropzone");
   var chooseFilesBtn = document.getElementById("chooseFilesBtn");
   var filesInput = document.getElementById("filesInput");
@@ -322,23 +316,33 @@
   // and recreated every row's DOM - including the one showing the flash -
   // cutting the acknowledgement short before the user had time to see it.
   function renderRows() {
+    // Built once per call instead of a `batchList.querySelector(...)` scan
+    // per changed/removed row below - with many files loaded, toggling a
+    // fix that changes most rows' stats used to mean up to N scans over
+    // an N-element list (O(N^2)) just to find each row's existing element.
+    var existingById = {};
+    Array.prototype.forEach.call(batchList.children, function (el) {
+      existingById[el.dataset.id] = el;
+    });
+
     var currentIds = {};
     files.forEach(function (entry) {
       currentIds[entry.id] = true;
       var html = rowHtml(entry);
       if (lastRowHtml[entry.id] === html) return;
       lastRowHtml[entry.id] = html;
-      var existing = batchList.querySelector('.batchRow[data-id="' + entry.id + '"]');
+      var existing = existingById[entry.id];
       var template = document.createElement("template");
       template.innerHTML = html;
       var newRow = template.content.firstElementChild;
       if (existing) existing.replaceWith(newRow);
       else batchList.appendChild(newRow);
+      existingById[entry.id] = newRow;
     });
     Object.keys(lastRowHtml).forEach(function (id) {
       if (currentIds[id]) return;
       delete lastRowHtml[id];
-      var stale = batchList.querySelector('.batchRow[data-id="' + id + '"]');
+      var stale = existingById[id];
       if (stale) stale.remove();
     });
   }
@@ -405,7 +409,7 @@
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
-    a.download = "cleartxt-batch-" + timestamp(new Date()) + ".zip";
+    a.download = "cleartxt-batch-" + ClearTXT.fileTimestamp(new Date()) + ".zip";
     document.body.appendChild(a);
     a.click();
     a.remove();

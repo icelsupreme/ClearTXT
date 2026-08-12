@@ -4,26 +4,11 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const ClearTXT = require("../docs/script.js");
 
-// Mirrors the checkbox defaults in index.html.
-const DEFAULT_OPTS = {
-  normalize: true,
-  foldAccents: true,
-  straightenQuotes: true,
-  convertDashes: true,
-  dashTarget: "-",
-  stripEmoji: true,
-  stripCurrency: true,
-  stripInvisible: true,
-  stripHomoglyphs: true,
-  stripUnsafeLinks: true,
-  stripHebrew: true,
-  stripArabic: true,
-  stripCyrillic: true,
-  removeLineBreaks: false,
-  removeParagraphBreaks: false,
-  removeExtraSpaces: true,
-  removeTabs: false
-};
+// The same shipped-default opts object script.js's own Fixes panel derives
+// its checkboxes from (see FIX_TOGGLE_DEFS/defaultOpts there) - reading it
+// from ClearTXT directly instead of hand-duplicating the list here means
+// this fixture can't silently drift from the real defaults.
+const DEFAULT_OPTS = ClearTXT.defaultOpts;
 
 function opts(overrides) {
   return Object.assign({}, DEFAULT_OPTS, overrides || {});

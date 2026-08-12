@@ -727,11 +727,41 @@
   // character count (rare: mainly typographic ligatures), the 1:1
   // assumption breaks and this returns null; the caller falls back to no
   // overlay for that render rather than show misaligned highlights.
-  function inputHighlightHtml(rawText, changes, maxChars) {
+  // Shared by inputHighlightHtml/inputLineChanged: spreads `rawText` into a
+  // code-point array and checks it against `changes`' own 1:1 alignment
+  // requirement, once. The caller-facing functions below each still do
+  // this independently for a single call, but `update()`'s DOM-wiring code
+  // (which needs both the highlight HTML and the line-changed flags for
+  // the same render) calls this once itself and feeds the same array into
+  // both `highlightFromChars` and `lineChangedFlags` directly, rather than
+  // spreading the same (potentially large) string twice per keystroke.
+  function rawCharsForInput(rawText, changes) {
     var rawChars = [...rawText];
-    if (rawChars.length !== changes.length) return null;
-    var budget = maxChars == null ? rawChars.length : Math.min(maxChars, rawChars.length);
-    return buildLineHighlightHtml(rawChars, changes, budget);
+    return rawChars.length === changes.length ? rawChars : null;
+  }
+
+  // Shared by inputHighlightHtml/outputHighlightHtml: resolves the
+  // highlight character budget and delegates to buildLineHighlightHtml.
+  function highlightFromChars(chars, entries, maxChars) {
+    var budget = maxChars == null ? chars.length : Math.min(maxChars, chars.length);
+    return buildLineHighlightHtml(chars, entries, budget);
+  }
+
+  // Builds the highlight-overlay HTML for the INPUT box. This sits in a
+  // layer directly behind the live, editable textarea: its text is fully
+  // transparent (see CSS), so only the background/ring effects on the
+  // rm/cv/iv spans (and the whole-row line-changed tint) show through,
+  // appearing to highlight the real text above it. That only works if
+  // this HTML has EXACTLY the same characters, in the same order, as the
+  // textarea's own raw value — so this builds off `rawText` (not the
+  // NFKC-normalized `changes[i].ch`). `changes` must be `rawText`'s own
+  // per-character pipeline result — if normalization changed the
+  // character count (rare: mainly typographic ligatures), the 1:1
+  // assumption breaks and this returns null; the caller falls back to no
+  // overlay for that render rather than show misaligned highlights.
+  function inputHighlightHtml(rawText, changes, maxChars) {
+    var rawChars = rawCharsForInput(rawText, changes);
+    return rawChars === null ? null : highlightFromChars(rawChars, changes, maxChars);
   }
 
   // Shared by outputHighlightHtml/outputLineChanged: output only ever
@@ -755,8 +785,7 @@
   // Same idea for the OUTPUT box.
   function outputHighlightHtml(changes, maxChars) {
     var ce = outputCharsAndEntries(changes);
-    var budget = maxChars == null ? ce.chars.length : Math.min(maxChars, ce.chars.length);
-    return buildLineHighlightHtml(ce.chars, ce.entries, budget);
+    return highlightFromChars(ce.chars, ce.entries, maxChars);
   }
 
   // Per-logical-line "did this line change" flags (one per line the text
@@ -783,9 +812,8 @@
   // same rare normalization-length-mismatch condition inputHighlightHtml
   // does, since it relies on the same 1:1 alignment with rawText.
   function inputLineChanged(rawText, changes) {
-    var rawChars = [...rawText];
-    if (rawChars.length !== changes.length) return null;
-    return lineChangedFlags(rawChars, changes);
+    var rawChars = rawCharsForInput(rawText, changes);
+    return rawChars === null ? null : lineChangedFlags(rawChars, changes);
   }
 
   // Line-changed flags for the OUTPUT box's gutter.
@@ -831,15 +859,21 @@
 
   function pad2(n) { return n < 10 ? "0" + n : "" + n; }
 
+  // "YYYYMMDD-HHMMSS" local-time timestamp, e.g. "20260812-104015" -
+  // shared by exportFilename below and batch.js's own zip/per-file
+  // download filenames, both of which want the exact same
+  // filesystem-safe, lexically-sortable stamp format.
+  function fileTimestamp(d) {
+    return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
+      "-" + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
+  }
+
   // Builds the exported filename from the output's first line plus a
   // timestamp, e.g. "cleartxt-hello-world-20260812-104015.txt", falling
   // back to a generic name when the first line yields no usable slug.
   function exportFilename(text, now) {
-    var d = now || new Date();
-    var stamp = d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
-      "-" + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
     var slug = slugForFilename(text);
-    return "cleartxt-" + (slug || "output") + "-" + stamp + ".txt";
+    return "cleartxt-" + (slug || "output") + "-" + fileTimestamp(now || new Date()) + ".txt";
   }
 
   // Character budget for the highlighted view. Runs already keep the DOM
@@ -900,6 +934,42 @@
     return words.length;
   }
 
+  // [DOM id, opts key, default value, fix-group] for every plain-checkbox
+  // fix toggle - the single source of truth for both
+  // createFixOptionsController below (which maps each row to its live DOM
+  // element) and `defaultOpts` just below it, so a full opts object with
+  // everything at its shipped default (e.g. the test suite's own fixture)
+  // is derived from the same list instead of a hand-duplicated one that
+  // has to be kept in sync manually whenever a toggle is added.
+  var FIX_TOGGLE_DEFS = [
+    ["optNormalize", "normalize", true, "typography"],
+    ["optStraightenQuotes", "straightenQuotes", true, "typography"],
+    ["optConvertDashes", "convertDashes", true, "typography"],
+    ["optFoldAccents", "foldAccents", true, "languages"],
+    ["optStripHebrew", "stripHebrew", true, "languages"],
+    ["optStripArabic", "stripArabic", true, "languages"],
+    ["optStripCyrillic", "stripCyrillic", true, "languages"],
+    ["optStripEmoji", "stripEmoji", true, "symbols"],
+    ["optStripCurrency", "stripCurrency", true, "symbols"],
+    ["optStripInvisible", "stripInvisible", true, "symbols"],
+    ["optStripHomoglyphs", "stripHomoglyphs", true, "symbols"],
+    ["optStripUnsafeLinks", "stripUnsafeLinks", true, "symbols"],
+    ["optRemoveTabs", "removeTabs", false, "whitespace"],
+    ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
+    ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
+    ["optRemoveParagraphBreaks", "removeParagraphBreaks", false, "whitespace"]
+  ];
+
+  // A full `processText` opts object with every toggle at its shipped
+  // default, plus the one non-checkbox option (the em-dash target) -
+  // exported as `defaultOpts` for anything that needs one without a DOM
+  // (frozen so no consumer can mutate the shared instance out from under
+  // another).
+  var DEFAULT_OPTS = Object.freeze(FIX_TOGGLE_DEFS.reduce(function (acc, t) {
+    acc[t[1]] = t[2];
+    return acc;
+  }, { dashTarget: "-" }));
+
   // Everything above this point is pure text-processing logic with no DOM
   // dependency, exported below for unit testing (see test/). Everything
   // below wires that logic up to the actual page and only runs in a
@@ -927,10 +997,12 @@
     foldAccent: foldAccent,
     slugForFilename: slugForFilename,
     exportFilename: exportFilename,
+    fileTimestamp: fileTimestamp,
     stripMarkdown: stripMarkdown,
     wordCount: wordCount,
     createFixOptionsController: createFixOptionsController,
-    flashButtonLabel: flashButtonLabel
+    flashButtonLabel: flashButtonLabel,
+    defaultOpts: DEFAULT_OPTS
   };
 
   if (typeof module !== "undefined" && module.exports) {
@@ -1035,31 +1107,15 @@
   // page carry over to the other; each page just supplies its own
   // `onChange` callback to init() for what re-filtering means there.
   function createFixOptionsController() {
-    // [DOM id, opts key, default value, fix-group] for every plain-
-    // checkbox fix toggle. Adding a new checkbox-backed fix only needs a
-    // new row here, instead of touching a separate element declaration,
-    // optEls entry, readOpts field, and applySavedOpts field individually.
-    // The group is a pure UI-grouping label (drives the "select whole
-    // group" header checkboxes below) - it's never read from or written
-    // to opts/localStorage.
-    var FIX_TOGGLES = [
-      ["optNormalize", "normalize", true, "typography"],
-      ["optStraightenQuotes", "straightenQuotes", true, "typography"],
-      ["optConvertDashes", "convertDashes", true, "typography"],
-      ["optFoldAccents", "foldAccents", true, "languages"],
-      ["optStripHebrew", "stripHebrew", true, "languages"],
-      ["optStripArabic", "stripArabic", true, "languages"],
-      ["optStripCyrillic", "stripCyrillic", true, "languages"],
-      ["optStripEmoji", "stripEmoji", true, "symbols"],
-      ["optStripCurrency", "stripCurrency", true, "symbols"],
-      ["optStripInvisible", "stripInvisible", true, "symbols"],
-      ["optStripHomoglyphs", "stripHomoglyphs", true, "symbols"],
-      ["optStripUnsafeLinks", "stripUnsafeLinks", true, "symbols"],
-      ["optRemoveTabs", "removeTabs", false, "whitespace"],
-      ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
-      ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
-      ["optRemoveParagraphBreaks", "removeParagraphBreaks", false, "whitespace"]
-    ].map(function (t) {
+    // Maps FIX_TOGGLE_DEFS (module-scope, shared with the exported
+    // `defaultOpts`) to this page's live DOM elements. Adding a new
+    // checkbox-backed fix only needs a new row in FIX_TOGGLE_DEFS above,
+    // instead of touching a separate element declaration, optEls entry,
+    // readOpts field, and applySavedOpts field individually. The group is
+    // a pure UI-grouping label (drives the "select whole group" header
+    // checkboxes below) - it's never read from or written to
+    // opts/localStorage.
+    var FIX_TOGGLES = FIX_TOGGLE_DEFS.map(function (t) {
       return { el: document.getElementById(t[0]), key: t[1], def: t[2], group: t[3] };
     });
 
@@ -1393,12 +1449,14 @@
   }
 
   // Renders the removed/converted summary, and the highlight overlays that
-  // sit behind the actual input/output textareas (see inputHighlightHtml /
-  // outputHighlightHtml). `rawInput` is the input textarea's own raw
-  // value - required (rather than reusing result.normalizedInput) so the
-  // overlay's characters line up 1:1 with what the textarea itself shows.
-  function renderDiff(rawInput, result) {
-    var changes = result.changes;
+  // sit behind the actual input/output textareas. `rawChars`/`outputCE`
+  // are the precomputed arrays update() already built once for this
+  // render (see rawCharsForInput/outputCharsAndEntries) - passed in
+  // rather than rebuilt here, since update() also needs them for the
+  // line-changed-flags pass right after this call, and re-spreading the
+  // same (potentially large) input/output strings a second time per
+  // keystroke was pure waste.
+  function renderDiff(rawChars, outputCE, changes) {
     var sums = summarizeChanges(changes);
     var removedTotal = Object.keys(sums.removed).reduce(function (a, k) { return a + sums.removed[k]; }, 0);
     var convertedTotal = Object.keys(sums.converted).reduce(function (a, k) { return a + sums.converted[k]; }, 0);
@@ -1425,9 +1483,9 @@
       return;
     }
 
-    var inputOverlay = inputHighlightHtml(rawInput, changes, MAX_DIFF_CHARS);
+    var inputOverlay = rawChars === null ? null : highlightFromChars(rawChars, changes, MAX_DIFF_CHARS);
     inHighlight.innerHTML = inputOverlay === null ? "" : inputOverlay;
-    outHighlight.innerHTML = outputHighlightHtml(changes, MAX_DIFF_CHARS);
+    outHighlight.innerHTML = highlightFromChars(outputCE.chars, outputCE.entries, MAX_DIFF_CHARS);
 
     if (changes.length > MAX_DIFF_CHARS) {
       diffNote.textContent = "Detailed highlighting covers the first " + MAX_DIFF_CHARS.toLocaleString() + " of " + changes.length.toLocaleString() + " characters, for performance (the counts above cover the full text).";
@@ -1478,8 +1536,14 @@
     var result = processText(src, opts);
     output.value = result.output;
 
-    var inLen = [...src].length;
-    var outLen = [...result.output].length;
+    // Computed once and threaded through renderDiff/lineChangedFlags below
+    // instead of each being separately re-derived from `src`/`result.changes`
+    // twice more further down - see rawCharsForInput/outputCharsAndEntries.
+    var rawChars = rawCharsForInput(src, result.changes);
+    var outputCE = outputCharsAndEntries(result.changes);
+
+    var inLen = rawChars === null ? [...src].length : rawChars.length;
+    var outLen = outputCE.chars.length;
     inCount.textContent = inLen + " chars";
     outCount.textContent = outLen + " chars";
 
@@ -1513,9 +1577,9 @@
     stickyFooterCounts.innerHTML = footerBits.join(" &middot; ");
     stickyFooter.style.display = inLen === 0 ? "none" : "";
 
-    renderDiff(src, result);
-    lastInLineChanged = inputLineChanged(src, result.changes);
-    lastOutLineChanged = outputLineChanged(result.changes);
+    renderDiff(rawChars, outputCE, result.changes);
+    lastInLineChanged = rawChars === null ? null : lineChangedFlags(rawChars, result.changes);
+    lastOutLineChanged = lineChangedFlags(outputCE.chars, outputCE.entries);
     updateGutter(input, inGutter, lastInLineChanged);
     updateGutter(output, outGutter, lastOutLineChanged);
     updateDiffNav();

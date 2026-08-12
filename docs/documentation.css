@@ -1,19 +1,12 @@
 /* Styles specific to documentation.html - shares :root tokens, header, and
-   button styling with styles.css, loaded alongside it. */
+   button styling with styles.css, loaded alongside it. The .docSection
+   "bordered entry" block/heading/list pattern it shares verbatim with
+   changelog.html's .changelogEntry lives in styles.css instead; only the
+   margins/rules that differ between the two pages stay here. */
 
 .docIntro { color: var(--muted); font-size: 0.9rem; margin: 0 0 24px; line-height: 1.6; }
 
-.docSection {
-  margin-bottom: 22px;
-  padding-bottom: 22px;
-  border-bottom: 1px solid var(--border);
-}
-.docSection:last-of-type { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
-.docSection h2 {
-  margin: 0 0 6px;
-  font-size: 1.05rem;
-  color: var(--text);
-}
+.docSection h2 { margin: 0 0 6px; }
 .docGoverned {
   margin: 0 0 10px;
   color: var(--muted);
@@ -27,16 +20,9 @@
   line-height: 1.6;
 }
 .docSection p:last-child { margin-bottom: 0; }
-.docSection ul {
-  margin: 0 0 10px;
-  padding-left: 20px;
-  color: var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
+.docSection ul { margin: 0 0 10px; }
 .docSection ul:last-child { margin-bottom: 0; }
 .docSection li { margin-bottom: 6px; }
-.docSection li:last-child { margin-bottom: 0; }
 .docSection li strong { color: var(--text); }
 .docDetail { font-size: 0.85rem; }
 .docSection code { color: var(--accent); background: #0d1017; padding: 1px 5px; border-radius: 4px; font-family: var(--font-mono); }

@@ -341,4 +341,40 @@ details code { color: var(--accent); background: #0d1017; padding: 1px 5px; bord
 .pageCredit a { color: var(--muted); }
 .pageCredit a:hover { color: var(--accent); }
 .shareRow { display: flex; justify-content: center; margin-top: 10px; }
+
+/* Shared "bordered entry" block pattern used by documentation.html's
+   .docSection and changelog.html's .changelogEntry - identical layout
+   rhythm (spacing + border, reset on the last one) on both pages, so it
+   lives here once instead of being duplicated verbatim in each page's own
+   stylesheet. Properties that differ between the two pages (heading/list
+   margins) are deliberately left out here and stay in documentation.css/
+   changelog.css - only what's actually identical is shared. */
+.docSection,
+.changelogEntry {
+  margin-bottom: 22px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+.docSection:last-of-type,
+.changelogEntry:last-of-type {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.docSection h2,
+.changelogEntry h2 {
+  font-size: 1.05rem;
+  color: var(--text);
+}
+.docSection ul,
+.changelogEntry ul {
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+.docSection li:last-child,
+.changelogEntry li:last-child {
+  margin-bottom: 0;
+}
 .shareRow button { font-size: 0.8rem; padding: 6px 12px; }
