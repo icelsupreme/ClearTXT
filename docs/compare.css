@@ -1,0 +1,54 @@
+/* Styles specific to compare.html - shares :root tokens, header, button,
+   editor/gutter/highlight, diffNav, and Fixes-panel styling with
+   styles.css, loaded alongside it. */
+
+.applyCleanupRow {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  padding-bottom: 14px !important;
+}
+
+/* Dims (but doesn't disable) the Fixes panel while "Apply cleanup before
+   comparing" is off - the fixes stay interactive so preferences can still
+   be set up for when it's turned back on, they just aren't affecting the
+   comparison right now. */
+.fixList.fixListDisabled { opacity: .55; }
+
+.reportGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+@media (max-width: 700px) {
+  .reportGrid { grid-template-columns: 1fr; }
+}
+.reportStat {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 12px 14px;
+}
+.reportStat h3 {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.reportStat .reportBig {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.reportStat .reportSub {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+.reportStat .reportSub .removed { color: var(--danger); }
+.reportStat .reportSub .converted { color: var(--accent); }

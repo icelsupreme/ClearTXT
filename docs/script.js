@@ -926,12 +926,205 @@
     return s;
   }
 
-  // Word count with Markdown syntax stripped out first, so headings/list
-  // markers/emphasis characters don't inflate the count.
-  function wordCount(text) {
-    var stripped = stripMarkdown(text);
-    var words = stripped.split(/\s+/).filter(function (w) { return w.length > 0; });
-    return words.length;
+  // Splits `text` into its words, the same Markdown-aware tokenization
+  // wordCount always used - stripped by default so headings/list
+  // markers/emphasis characters don't inflate the count, unless
+  // `keepMarkdown` is true (used by the Compare tool's "count Markdown
+  // syntax" report toggle, which wants the syntax characters included
+  // instead).
+  function wordsOf(text, keepMarkdown) {
+    var stripped = keepMarkdown ? text : stripMarkdown(text);
+    return stripped.split(/\s+/).filter(function (w) { return w.length > 0; });
+  }
+
+  // Word count, Markdown-stripped by default (see wordsOf above).
+  function wordCount(text, keepMarkdown) {
+    return wordsOf(text, keepMarkdown).length;
+  }
+
+  // Character count (code points, not UTF-16 code units), Markdown-stripped
+  // by default - the Compare tool's char-count report shares wordsOf's
+  // "keepMarkdown" toggle so both numbers move together.
+  function charCount(text, keepMarkdown) {
+    var s = keepMarkdown ? text : stripMarkdown(text);
+    return Array.from(s).length;
+  }
+
+  // A fast, order-independent "how similar are these two texts" percentage
+  // for the Compare tool's report panel - a Sorensen-Dice coefficient over
+  // each text's multiset (bag) of words: twice the number of words the two
+  // texts have in common (matched up one-for-one, not just "appears in
+  // both"), divided by their combined word count. Deliberately NOT derived
+  // from the line/char-level diff below - that diff is alignment-sensitive
+  // (a single inserted line shifts every line after it), which is exactly
+  // right for showing *where* two files differ but would make "how similar
+  // are they overall" swing wildly on something as small as one added
+  // blank line. A bag-of-words comparison has no such alignment to lose,
+  // stays fast (linear, via a hash map) regardless of how different the two
+  // texts are, and honors the same "keepMarkdown" report toggle as
+  // wordsOf/charCount above.
+  function textSimilarityPercent(aText, bText, keepMarkdown) {
+    var aWords = wordsOf(aText, keepMarkdown);
+    var bWords = wordsOf(bText, keepMarkdown);
+    if (aWords.length === 0 && bWords.length === 0) return 100;
+    var counts = new Map();
+    aWords.forEach(function (w) { counts.set(w, (counts.get(w) || 0) + 1); });
+    var common = 0;
+    bWords.forEach(function (w) {
+      var c = counts.get(w);
+      if (c > 0) { common++; counts.set(w, c - 1); }
+    });
+    return (2 * common / (aWords.length + bWords.length)) * 100;
+  }
+
+  // ---- Two-file diffing (used by the Compare tool) ----------------------
+  //
+  // A classic Longest Common Subsequence dynamic-programming diff, generic
+  // over any array of comparable values (used both for whole lines, and for
+  // individual characters within one changed line pair). O(n*m) time and
+  // space - fine for the line/character-scale inputs this app deals with,
+  // and far simpler to get right than an O(ND) Myers-style implementation -
+  // but that product grows fast, so `maxCells` bounds it: past that, this
+  // returns null and the caller falls back to treating the whole pair as
+  // fully replaced rather than hanging the tab on a huge diff.
+  function lcsDiffOps(a, b, maxCells) {
+    var n = a.length, m = b.length;
+    if (n * m > maxCells) return null;
+    var dp = new Array(n + 1);
+    var i, j;
+    for (i = 0; i <= n; i++) dp[i] = new Uint32Array(m + 1);
+    for (i = 1; i <= n; i++) {
+      for (j = 1; j <= m; j++) {
+        dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+    var ops = [];
+    i = n; j = m;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+        ops.push({ type: "equal", a: i - 1, b: j - 1 });
+        i--; j--;
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        ops.push({ type: "insert", a: i, b: j - 1 });
+        j--;
+      } else {
+        ops.push({ type: "delete", a: i - 1, b: j });
+        i--;
+      }
+    }
+    ops.reverse();
+    return ops;
+  }
+
+  // Above this size (line-count product), lcsDiffOps' O(n*m) DP table would
+  // get impractically large - 2000x2000 lines is already an unusual amount
+  // of text to be comparing by hand in a browser tab.
+  var MAX_LINE_DIFF_CELLS = 4000000;
+  // Individual lines are comfortably short in the overwhelming majority of
+  // real text, so this only exists to guard the pathological case (one
+  // single enormous line with no line breaks at all).
+  var MAX_CHAR_DIFF_CELLS = 4000000;
+
+  function splitLines(text) {
+    return text.length ? text.split("\n") : [""];
+  }
+
+  // Turns a raw equal/delete/insert edit script into display-ready rows,
+  // one per line on the "wider" side of each edit - pairing up a run of
+  // consecutive deletes with a run of consecutive inserts (in whichever
+  // order lcsDiffOps happened to emit them) as "modified" lines up to
+  // however many of each there are, the same way a tool like `git diff`
+  // visually pairs a changed line's old and new version instead of showing
+  // it as an unrelated remove-then-add. Leftover deletes/inserts beyond
+  // that (the two runs are rarely the same length) fall back to plain
+  // removed/added rows.
+  function pairModifiedRows(ops) {
+    var rows = [];
+    var i = 0;
+    while (i < ops.length) {
+      if (ops[i].type === "equal") {
+        rows.push({ type: "equal", aIndex: ops[i].a, bIndex: ops[i].b });
+        i++;
+        continue;
+      }
+      var dels = [], inss = [];
+      while (i < ops.length && ops[i].type !== "equal") {
+        if (ops[i].type === "delete") dels.push(ops[i].a);
+        else inss.push(ops[i].b);
+        i++;
+      }
+      var pairCount = Math.min(dels.length, inss.length);
+      var p;
+      for (p = 0; p < pairCount; p++) rows.push({ type: "modified", aIndex: dels[p], bIndex: inss[p] });
+      for (p = pairCount; p < dels.length; p++) rows.push({ type: "removed", aIndex: dels[p], bIndex: null });
+      for (p = pairCount; p < inss.length; p++) rows.push({ type: "added", aIndex: null, bIndex: inss[p] });
+    }
+    return rows;
+  }
+
+  // Line-level diff between two whole texts, for the Compare tool. Returns
+  // `{ aLines, bLines, rows, truncated }` - `rows` is display-ready (see
+  // pairModifiedRows), and `truncated` is true when the texts were too
+  // large for a real line-by-line diff (see MAX_LINE_DIFF_CELLS), in which
+  // case `rows` falls back to one "removed" row per aLines entry followed
+  // by one "added" row per bLines entry - correct (nothing here claims a
+  // false match), just not useful for spotting exactly what moved.
+  function diffLines(aText, bText) {
+    var aLines = splitLines(aText);
+    var bLines = splitLines(bText);
+    var ops = lcsDiffOps(aLines, bLines, MAX_LINE_DIFF_CELLS);
+    if (ops === null) {
+      var rows = [];
+      var i;
+      for (i = 0; i < aLines.length; i++) rows.push({ type: "removed", aIndex: i, bIndex: null });
+      for (i = 0; i < bLines.length; i++) rows.push({ type: "added", aIndex: null, bIndex: i });
+      return { aLines: aLines, bLines: bLines, rows: rows, truncated: true };
+    }
+    return { aLines: aLines, bLines: bLines, rows: pairModifiedRows(ops), truncated: false };
+  }
+
+  // Groups a char-level edit script into contiguous same-status runs for one
+  // side, e.g. [{text:"foo ", changed:false}, {text:"bar", changed:true}].
+  // `skipType` is the op type that belongs to the OTHER side only ("insert"
+  // for the "a" side, "delete" for the "b" side) and is skipped entirely.
+  function sideSegments(ops, arr, indexKey, skipType) {
+    var segs = [];
+    var curText = "", curChanged = null;
+    for (var k = 0; k < ops.length; k++) {
+      var op = ops[k];
+      if (op.type === skipType) continue;
+      var changed = op.type !== "equal";
+      var ch = arr[op[indexKey]];
+      if (curChanged === changed) {
+        curText += ch;
+      } else {
+        if (curChanged !== null) segs.push({ text: curText, changed: curChanged });
+        curText = ch;
+        curChanged = changed;
+      }
+    }
+    if (curChanged !== null) segs.push({ text: curText, changed: curChanged });
+    return segs;
+  }
+
+  // Character-level diff between one paired-up line from each side (see
+  // pairModifiedRows' "modified" rows), for showing precisely which part of
+  // a changed line differs rather than just tinting the whole row. Returns
+  // `{ aSegs, bSegs }`; falls back to marking each line fully changed when
+  // it's too large for MAX_CHAR_DIFF_CELLS (see lcsDiffOps).
+  function charDiffSegments(aLine, bLine) {
+    var aArr = Array.from(aLine), bArr = Array.from(bLine);
+    var ops = lcsDiffOps(aArr, bArr, MAX_CHAR_DIFF_CELLS);
+    if (ops === null) {
+      return {
+        aSegs: aLine.length ? [{ text: aLine, changed: true }] : [],
+        bSegs: bLine.length ? [{ text: bLine, changed: true }] : []
+      };
+    }
+    return {
+      aSegs: sideSegments(ops, aArr, "a", "insert"),
+      bSegs: sideSegments(ops, bArr, "b", "delete")
+    };
   }
 
   // [DOM id, opts key, default value, fix-group] for every plain-checkbox
@@ -999,7 +1192,12 @@
     exportFilename: exportFilename,
     fileTimestamp: fileTimestamp,
     stripMarkdown: stripMarkdown,
+    wordsOf: wordsOf,
     wordCount: wordCount,
+    charCount: charCount,
+    textSimilarityPercent: textSimilarityPercent,
+    diffLines: diffLines,
+    charDiffSegments: charDiffSegments,
     createFixOptionsController: createFixOptionsController,
     flashButtonLabel: flashButtonLabel,
     defaultOpts: DEFAULT_OPTS

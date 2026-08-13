@@ -16,6 +16,7 @@ It's a single static page: no backend, no build step, and none of your text ever
 - **Import, copy, or export** - load any text file (plain text or source code) straight into the input, copy the output to the clipboard, or download it as a `.txt` file named after the output's first line.
 - **Your fix preferences persist** across visits via `localStorage`.
 - **Batch mode** ([batch.html](docs/batch.html)) cleans multiple files at once - drag files in (or pick them), each is filtered with the same fixes and downloaded under its original filename. Fix preferences are shared with the single-file page.
+- **Compare mode** ([compare.html](docs/compare.html)) diffs two files against each other in the same two-box editor layout, with removed/added/changed lines highlighted (down to the exact changed characters within a line), Previous/Next-difference navigation, and a report panel with a percentage-diff figure plus character and word counts (and their difference) for each file - with a toggle to include or exclude Markdown syntax from those numbers. An "Apply cleanup before comparing" toggle runs both files through the same fixes (preferences shared with the other two pages) before diffing, or compares them exactly as imported.
 
 ## Fonts
 
@@ -48,14 +49,17 @@ The site itself lives in `docs/` - not because it's documentation, but because t
 docs/
   index.html          markup for the single-file page
   batch.html          markup for the batch (multi-file) page
+  compare.html        markup for the compare (two-file diff) page
   changelog.html      a condensed, user-facing "what's new," linked from every page's footer
   documentation.html  what ClearTXT defends against and how, linked from every page's footer
   styles.css          shared styling
   batch.css           styling specific to the batch page
+  compare.css         styling specific to the compare page
   changelog.css       styling specific to the changelog page
   documentation.css   styling specific to the documentation page
-  script.js           filtering logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
+  script.js           filtering/diffing logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
   batch.js            batch page's DOM wiring, built on script.js's shared logic
+  compare.js          compare page's DOM wiring, built on script.js's shared logic
   favicon.svg         browser tab icon, also embedded inline as the header's logo icon
   social-card.png     social sharing preview image (og:image/twitter:image), built from favicon.svg's icon
   sitemap.xml         lists every page for search engine crawlers
@@ -83,7 +87,7 @@ CI runs lint and tests on every push to `main` and on every pull request (see `.
 There's no build step here, so the version number is kept in sync by hand in three places - bump all three together on every release:
 
 1. `version` in `package.json`
-2. the `?v=` query string on every `.css`/`.js`/`.svg` reference across `docs/index.html`, `docs/batch.html`, `docs/changelog.html`, and `docs/documentation.html`
+2. the `?v=` query string on every `.css`/`.js`/`.svg` reference across `docs/index.html`, `docs/batch.html`, `docs/compare.html`, `docs/changelog.html`, and `docs/documentation.html`
 3. the version badge next to the title in each page's `<header>`
 
 The `?v=` matters functionally, not just cosmetically: without it, browsers (especially since this page is often opened directly over `file://`) can keep serving a stale cached copy of `styles.css`/`script.js` after an update. The on-page badge exists so you can tell at a glance whether the copy you're looking at is current.
