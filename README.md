@@ -66,8 +66,8 @@ docs/
   compare.js           compare page's DOM wiring, built on script.js's shared logic
   favicon.svg          browser tab icon, also embedded inline as the header's logo icon
   social-card.png      social sharing preview image (og:image/twitter:image), built from favicon.svg's icon
-  sitemap.xml           lists every page for search engine crawlers
-  robots.txt            crawler allow/deny rules; points crawlers at sitemap.xml above
+  sitemap.xml          lists every page for search engine crawlers
+  robots.txt           crawler allow/deny rules; points crawlers at sitemap.xml above
 test/             unit tests for the filtering logic
 CHANGELOG.md      full version history
 ```
@@ -93,7 +93,7 @@ CI runs lint and tests on every push to `main` and on every pull request (see `.
 There's no build step here, so the version number is kept in sync by hand in three places - bump all three together on every release:
 
 1. `version` in `package.json`
-2. the `?v=` query string on every `.css`/`.js`/`.svg` reference across `docs/index.html`, `docs/batch/index.html`, `docs/compare/index.html`, `docs/changelog/index.html`, and `docs/documentation/index.html`
+2. the `?v=` query string on every `.css`/`.js`/`.svg` reference across `docs/index.html`, `docs/batch/index.html`, `docs/compare/index.html`, `docs/changelog/index.html`, `docs/documentation/index.html`, and `docs/404.html`
 3. the version badge next to the title in each page's `<header>`
 
 The `?v=` matters functionally, not just cosmetically: without it, browsers (especially since this page is often opened directly over `file://`) can keep serving a stale cached copy of `styles.css`/`script.js` after an update. The on-page badge exists so you can tell at a glance whether the copy you're looking at is current.
