@@ -701,9 +701,12 @@ test("diffLines: a paragraph re-wrapped across a different number of lines is NO
   assert.ok(longestChanged <= 4, "expected only a small changed span around \"lazy\", got " + JSON.stringify(aSegs));
 });
 
-test("diffLines falls back to a fully-replaced diff (no false matches) when the line-count product is too large", () => {
-  const aLines = Array.from({ length: 2001 }, (_, i) => "a-line-" + i);
-  const bLines = Array.from({ length: 2001 }, (_, i) => "b-line-" + i);
+test("diffLines falls back to a fully-replaced diff (no false matches) when the edit distance is too large", () => {
+  // Every line differs from every other line (no shared content at all),
+  // so the edit distance is ~2x the line count - comfortably past
+  // MAX_LINE_EDIT_DISTANCE with room to spare.
+  const aLines = Array.from({ length: 4500 }, (_, i) => "a-line-" + i);
+  const bLines = Array.from({ length: 4500 }, (_, i) => "b-line-" + i);
   const result = ClearTXT.diffLines(aLines.join("\n"), bLines.join("\n"));
   assert.equal(result.truncated, true);
   assert.equal(result.hunks.length, 1);
@@ -711,6 +714,31 @@ test("diffLines falls back to a fully-replaced diff (no false matches) when the 
   assert.equal(result.hunks[0].bIndices.length, bLines.length);
   assert.ok(result.aLineDiffs.every((ld) => ld.changed === true));
   assert.ok(result.bLineDiffs.every((ld) => ld.changed === true));
+});
+
+test("diffLines finds the true edit distance regardless of how much shared text surrounds it (the bug this replaced the O(n*m) diff for)", () => {
+  // 150 list items, each getting a 2-character \"- \" prefix in B - a tiny
+  // edit distance (300) buried in a large amount of shared text (the old
+  // O(n*m)-bounded diff rejected this as \"too large\" and fell back to
+  // marking the whole block fully changed, even though 99%+ of it was
+  // identical).
+  const aLines = Array.from({ length: 150 }, (_, i) => "Item number " + i + " describing something about the topic in reasonable detail.");
+  const bLines = aLines.map((line) => "- " + line);
+  const result = ClearTXT.diffLines(aLines.join("\n"), bLines.join("\n"));
+  assert.equal(result.truncated, false);
+  assert.equal(result.hunks.length, 1);
+  // A's own text is present, verbatim, on both sides - only B has the
+  // extra "- " - so A's lines are correctly unchanged, not just "less
+  // changed than a naive diff would show".
+  result.aLineDiffs.forEach((ld, i) => {
+    assert.deepEqual(ld, { changed: false, segs: [{ text: aLines[i], changed: false }] });
+  });
+  result.bLineDiffs.forEach((ld, i) => {
+    assert.deepEqual(ld, {
+      changed: true,
+      segs: [{ text: "- ", changed: true }, { text: aLines[i], changed: false }]
+    });
+  });
 });
 
 test("charDiffSegments marks the common prefix unchanged and the rest changed", () => {
