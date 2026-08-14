@@ -623,40 +623,82 @@ test("textSimilarityPercent's keepMarkdown flag treats Markdown syntax as litera
   assert.equal(ClearTXT.textSimilarityPercent("**bold**", "bold", true), 0);
 });
 
-test("diffLines: identical texts produce all-equal rows", () => {
+test("diffLines: identical texts produce all-unchanged lines and no hunks", () => {
   const result = ClearTXT.diffLines("a\nb\nc", "a\nb\nc");
   assert.equal(result.truncated, false);
-  assert.deepEqual(result.rows, [
-    { type: "equal", aIndex: 0, bIndex: 0 },
-    { type: "equal", aIndex: 1, bIndex: 1 },
-    { type: "equal", aIndex: 2, bIndex: 2 }
+  assert.deepEqual(result.hunks, []);
+  assert.deepEqual(result.aLineDiffs, [
+    { changed: false, segs: [{ text: "a", changed: false }] },
+    { changed: false, segs: [{ text: "b", changed: false }] },
+    { changed: false, segs: [{ text: "c", changed: false }] }
   ]);
+  assert.deepEqual(result.bLineDiffs, result.aLineDiffs);
 });
 
 test("diffLines: a removed line", () => {
   const result = ClearTXT.diffLines("a\nb\nc", "a\nc");
-  assert.deepEqual(result.rows, [
-    { type: "equal", aIndex: 0, bIndex: 0 },
-    { type: "removed", aIndex: 1, bIndex: null },
-    { type: "equal", aIndex: 2, bIndex: 1 }
-  ]);
+  assert.deepEqual(result.hunks, [{ aIndices: [1], bIndices: [] }]);
+  assert.equal(result.aLineDiffs[0].changed, false);
+  assert.deepEqual(result.aLineDiffs[1], { changed: true, segs: [{ text: "b", changed: true }] });
+  assert.equal(result.aLineDiffs[2].changed, false);
+  assert.equal(result.bLineDiffs[0].changed, false);
+  assert.equal(result.bLineDiffs[1].changed, false);
 });
 
 test("diffLines: an added line", () => {
   const result = ClearTXT.diffLines("a\nc", "a\nb\nc");
-  assert.deepEqual(result.rows, [
-    { type: "equal", aIndex: 0, bIndex: 0 },
-    { type: "added", aIndex: null, bIndex: 1 },
-    { type: "equal", aIndex: 1, bIndex: 2 }
-  ]);
+  assert.deepEqual(result.hunks, [{ aIndices: [], bIndices: [1] }]);
+  assert.equal(result.aLineDiffs[0].changed, false);
+  assert.equal(result.aLineDiffs[1].changed, false);
+  assert.equal(result.bLineDiffs[0].changed, false);
+  assert.deepEqual(result.bLineDiffs[1], { changed: true, segs: [{ text: "b", changed: true }] });
+  assert.equal(result.bLineDiffs[2].changed, false);
 });
 
-test("diffLines: a single changed line pairs up as \"modified\" rather than remove+add", () => {
+test("diffLines: a single changed line gets a character-level diff instead of a whole-line remove+add", () => {
   const result = ClearTXT.diffLines("hello\nworld", "hello\nthere");
-  assert.deepEqual(result.rows, [
-    { type: "equal", aIndex: 0, bIndex: 0 },
-    { type: "modified", aIndex: 1, bIndex: 1 }
-  ]);
+  assert.deepEqual(result.hunks, [{ aIndices: [1], bIndices: [1] }]);
+  assert.equal(result.aLineDiffs[0].changed, false);
+  assert.equal(result.aLineDiffs[1].changed, true);
+  assert.equal(result.bLineDiffs[1].changed, true);
+  // Same LCS-found common subsequence as the equivalent charDiffSegments
+  // case below ("world" and "there" share "r" and "y dog"-style overlap).
+  assert.deepEqual(result.aLineDiffs[1].segs, ClearTXT.charDiffSegments("world", "there").aSegs);
+});
+
+test("diffLines: a paragraph re-wrapped across a different number of lines is NOT shown as fully rewritten", () => {
+  // Regression test: the two sides say almost the same thing, but B splits
+  // the sentence across two lines where A keeps it on one, and B's first
+  // line also gets a "# " heading marker prepended. A positional line-pairing
+  // diff would compare A's whole line against only the first fragment of
+  // B's re-wrapped version, making nearly all of it look changed even
+  // though most of the words are identical - this hunk-level diff should
+  // instead find that overlap regardless of which line it falls on.
+  const aText = "Heading\nThe quick brown fox jumps over the lazy dog and runs away fast.";
+  const bText = "# Heading\nThe quick brown fox jumps\nover the sleepy dog and runs away fast.";
+  const result = ClearTXT.diffLines(aText, bText);
+
+  assert.equal(result.truncated, false);
+  assert.deepEqual(result.hunks, [{ aIndices: [0, 1], bIndices: [0, 1, 2] }]);
+
+  // B's second line ("The quick brown fox jumps") is a verbatim substring
+  // of A's single long line, so it should come back fully unchanged even
+  // though it's part of the same hunk as the "# " and "lazy"->"sleepy"
+  // changes.
+  assert.deepEqual(result.bLineDiffs[1], { changed: false, segs: [{ text: "The quick brown fox jumps", changed: false }] });
+
+  // A's line should NOT be one giant "changed" span - most of it should
+  // survive as unchanged segments, with only the actually-different word
+  // ("lazy") flagged.
+  const aSegs = result.aLineDiffs[1].segs;
+  const unchangedChars = aSegs.filter((s) => !s.changed).reduce((n, s) => n + s.text.length, 0);
+  const changedChars = aSegs.filter((s) => s.changed).reduce((n, s) => n + s.text.length, 0);
+  assert.ok(unchangedChars > changedChars, "expected mostly-unchanged text, got " + JSON.stringify(aSegs));
+  // The LCS is free to match "lazy"/"sleepy" on any common letters (e.g.
+  // the shared "l"/"y"), not necessarily the whole word - what matters is
+  // that no single changed span swallows most of the line.
+  const longestChanged = Math.max(0, ...aSegs.filter((s) => s.changed).map((s) => s.text.length));
+  assert.ok(longestChanged <= 4, "expected only a small changed span around \"lazy\", got " + JSON.stringify(aSegs));
 });
 
 test("diffLines falls back to a fully-replaced diff (no false matches) when the line-count product is too large", () => {
@@ -664,9 +706,11 @@ test("diffLines falls back to a fully-replaced diff (no false matches) when the 
   const bLines = Array.from({ length: 2001 }, (_, i) => "b-line-" + i);
   const result = ClearTXT.diffLines(aLines.join("\n"), bLines.join("\n"));
   assert.equal(result.truncated, true);
-  assert.equal(result.rows.length, aLines.length + bLines.length);
-  assert.equal(result.rows[0].type, "removed");
-  assert.equal(result.rows[aLines.length].type, "added");
+  assert.equal(result.hunks.length, 1);
+  assert.equal(result.hunks[0].aIndices.length, aLines.length);
+  assert.equal(result.hunks[0].bIndices.length, bLines.length);
+  assert.ok(result.aLineDiffs.every((ld) => ld.changed === true));
+  assert.ok(result.bLineDiffs.every((ld) => ld.changed === true));
 });
 
 test("charDiffSegments marks the common prefix unchanged and the rest changed", () => {

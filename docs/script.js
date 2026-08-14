@@ -1020,25 +1020,36 @@
   // get impractically large - 2000x2000 lines is already an unusual amount
   // of text to be comparing by hand in a browser tab.
   var MAX_LINE_DIFF_CELLS = 4000000;
-  // Individual lines are comfortably short in the overwhelming majority of
-  // real text, so this only exists to guard the pathological case (one
-  // single enormous line with no line breaks at all).
-  var MAX_CHAR_DIFF_CELLS = 4000000;
+  // Bounds the character-level diff run within one changed hunk (see
+  // buildHunks/diffLines below) - a hunk can legitimately span many
+  // thousands of characters (e.g. several paragraphs' worth of real prose),
+  // not just a single short line, so this needs more headroom than a
+  // "one huge line" guard would: 25M cells is roughly a 5000x5000-character
+  // hunk, comfortably past anything a genuine multi-paragraph edit is
+  // likely to produce, while still bounding memory/time against a
+  // pathological one (e.g. two files with no overlap at all, which would
+  // otherwise try to diff their entire contents as a single hunk).
+  var MAX_CHAR_DIFF_CELLS = 25000000;
 
   function splitLines(text) {
     return text.length ? text.split("\n") : [""];
   }
 
-  // Turns a raw equal/delete/insert edit script into display-ready rows,
-  // one per line on the "wider" side of each edit - pairing up a run of
-  // consecutive deletes with a run of consecutive inserts (in whichever
-  // order lcsDiffOps happened to emit them) as "modified" lines up to
-  // however many of each there are, the same way a tool like `git diff`
-  // visually pairs a changed line's old and new version instead of showing
-  // it as an unrelated remove-then-add. Leftover deletes/inserts beyond
-  // that (the two runs are rarely the same length) fall back to plain
-  // removed/added rows.
-  function pairModifiedRows(ops) {
+  // Groups a raw equal/delete/insert edit script into "equal" line pairs
+  // and "hunks" - a hunk is a contiguous run of deletes/inserts between two
+  // equal anchors, kept together as two whole groups of line indices
+  // (rather than paired off one-to-one by position) so a single
+  // character-level diff can run across the WHOLE hunk at once. That
+  // matters whenever the two files don't share the same line-wrapping for
+  // otherwise-identical content - the same paragraph re-wrapped across a
+  // different number of lines, or a heading marker added to the first line
+  // of an unchanged block - where pairing single lines positionally would
+  // compare the wrong lines against each other (e.g. the first half of a
+  // paragraph on one side against the first THIRD of it on the other) and
+  // make mostly-identical text look completely rewritten. Diffing the whole
+  // hunk as one block finds the real character-level overlap regardless of
+  // which side's line boundaries it happens to fall on.
+  function buildHunks(ops) {
     var rows = [];
     var i = 0;
     while (i < ops.length) {
@@ -1047,40 +1058,112 @@
         i++;
         continue;
       }
-      var dels = [], inss = [];
+      var aIndices = [], bIndices = [];
       while (i < ops.length && ops[i].type !== "equal") {
-        if (ops[i].type === "delete") dels.push(ops[i].a);
-        else inss.push(ops[i].b);
+        if (ops[i].type === "delete") aIndices.push(ops[i].a);
+        else bIndices.push(ops[i].b);
         i++;
       }
-      var pairCount = Math.min(dels.length, inss.length);
-      var p;
-      for (p = 0; p < pairCount; p++) rows.push({ type: "modified", aIndex: dels[p], bIndex: inss[p] });
-      for (p = pairCount; p < dels.length; p++) rows.push({ type: "removed", aIndex: dels[p], bIndex: null });
-      for (p = pairCount; p < inss.length; p++) rows.push({ type: "added", aIndex: null, bIndex: inss[p] });
+      rows.push({ type: "hunk", aIndices: aIndices, bIndices: bIndices });
     }
     return rows;
   }
 
+  // Splits a flat list of char-diff segments (as from charDiffSegments)
+  // back into one segment-array per "\n"-delimited line - the inverse of
+  // joining several lines together with "\n" before diffing them as one
+  // block (see diffLines below). A segment straddling a line break is cut
+  // at the break, both pieces keeping its own `changed` flag; an empty
+  // piece (two line breaks back to back, or one at the very start/end)
+  // contributes no segment for that line. Always yields exactly one more
+  // line than there are "\n" characters across all the segments' text.
+  function splitSegsIntoLines(segs) {
+    var lines = [];
+    var current = [];
+    segs.forEach(function (seg) {
+      var parts = seg.text.split("\n");
+      for (var p = 0; p < parts.length; p++) {
+        if (p > 0) { lines.push(current); current = []; }
+        if (parts[p].length) current.push({ text: parts[p], changed: seg.changed });
+      }
+    });
+    lines.push(current);
+    return lines;
+  }
+
   // Line-level diff between two whole texts, for the Compare tool. Returns
-  // `{ aLines, bLines, rows, truncated }` - `rows` is display-ready (see
-  // pairModifiedRows), and `truncated` is true when the texts were too
-  // large for a real line-by-line diff (see MAX_LINE_DIFF_CELLS), in which
-  // case `rows` falls back to one "removed" row per aLines entry followed
-  // by one "added" row per bLines entry - correct (nothing here claims a
-  // false match), just not useful for spotting exactly what moved.
+  // `{ aLines, bLines, aLineDiffs, bLineDiffs, hunks, truncated }`:
+  //   - `aLineDiffs`/`bLineDiffs` mirror `aLines`/`bLines` one-for-one -
+  //     each entry is `{ changed, segs }`, `segs` being the same
+  //     `{text, changed}` list charDiffSegments returns for one side,
+  //     ready to render that exact line. An "equal" line (matched exactly
+  //     at the line level) gets a single unchanged segment; a line inside
+  //     a hunk gets whatever the hunk's own character-level diff found for
+  //     it (see buildHunks/splitSegsIntoLines above) - which can turn out
+  //     partially or even fully unchanged, despite sitting in a hunk,
+  //     whenever its exact text reappears elsewhere in the other side's
+  //     re-wrapped version of the same content.
+  //   - `hunks` is the list of change regions (`{aIndices, bIndices}`) for
+  //     the Compare tool's Previous/Next-difference navigation - one entry
+  //     per contiguous run of changed lines, not one per line, so a single
+  //     re-wrapped paragraph counts as one difference to jump to rather
+  //     than however many lines it happens to span on either side.
+  //   - `truncated` is true when the texts were too large for a real
+  //     line-by-line diff (see MAX_LINE_DIFF_CELLS), in which case every
+  //     line on both sides is marked fully changed and there's one hunk
+  //     covering everything - correct (nothing here claims a false match),
+  //     just not useful for spotting exactly what moved.
   function diffLines(aText, bText) {
     var aLines = splitLines(aText);
     var bLines = splitLines(bText);
     var ops = lcsDiffOps(aLines, bLines, MAX_LINE_DIFF_CELLS);
+
+    var aLineDiffs = new Array(aLines.length);
+    var bLineDiffs = new Array(bLines.length);
+    var hunks = [];
+    var i;
+
     if (ops === null) {
-      var rows = [];
-      var i;
-      for (i = 0; i < aLines.length; i++) rows.push({ type: "removed", aIndex: i, bIndex: null });
-      for (i = 0; i < bLines.length; i++) rows.push({ type: "added", aIndex: null, bIndex: i });
-      return { aLines: aLines, bLines: bLines, rows: rows, truncated: true };
+      for (i = 0; i < aLines.length; i++) {
+        aLineDiffs[i] = { changed: true, segs: aLines[i].length ? [{ text: aLines[i], changed: true }] : [] };
+      }
+      for (i = 0; i < bLines.length; i++) {
+        bLineDiffs[i] = { changed: true, segs: bLines[i].length ? [{ text: bLines[i], changed: true }] : [] };
+      }
+      if (aLines.length || bLines.length) {
+        hunks.push({
+          aIndices: aLines.map(function (_line, idx) { return idx; }),
+          bIndices: bLines.map(function (_line, idx) { return idx; })
+        });
+      }
+      return { aLines: aLines, bLines: bLines, aLineDiffs: aLineDiffs, bLineDiffs: bLineDiffs, hunks: hunks, truncated: true };
     }
-    return { aLines: aLines, bLines: bLines, rows: pairModifiedRows(ops), truncated: false };
+
+    buildHunks(ops).forEach(function (row) {
+      if (row.type === "equal") {
+        aLineDiffs[row.aIndex] = { changed: false, segs: aLines[row.aIndex].length ? [{ text: aLines[row.aIndex], changed: false }] : [] };
+        bLineDiffs[row.bIndex] = { changed: false, segs: bLines[row.bIndex].length ? [{ text: bLines[row.bIndex], changed: false }] : [] };
+        return;
+      }
+
+      hunks.push({ aIndices: row.aIndices, bIndices: row.bIndices });
+      var aBlock = row.aIndices.map(function (idx) { return aLines[idx]; }).join("\n");
+      var bBlock = row.bIndices.map(function (idx) { return bLines[idx]; }).join("\n");
+      var blockDiff = charDiffSegments(aBlock, bBlock);
+      var aBlockLines = splitSegsIntoLines(blockDiff.aSegs);
+      var bBlockLines = splitSegsIntoLines(blockDiff.bSegs);
+
+      row.aIndices.forEach(function (idx, k) {
+        var segs = aBlockLines[k] || [];
+        aLineDiffs[idx] = { changed: segs.some(function (s) { return s.changed; }), segs: segs };
+      });
+      row.bIndices.forEach(function (idx, k) {
+        var segs = bBlockLines[k] || [];
+        bLineDiffs[idx] = { changed: segs.some(function (s) { return s.changed; }), segs: segs };
+      });
+    });
+
+    return { aLines: aLines, bLines: bLines, aLineDiffs: aLineDiffs, bLineDiffs: bLineDiffs, hunks: hunks, truncated: false };
   }
 
   // Groups a char-level edit script into contiguous same-status runs for one
@@ -1107,11 +1190,12 @@
     return segs;
   }
 
-  // Character-level diff between one paired-up line from each side (see
-  // pairModifiedRows' "modified" rows), for showing precisely which part of
-  // a changed line differs rather than just tinting the whole row. Returns
-  // `{ aSegs, bSegs }`; falls back to marking each line fully changed when
-  // it's too large for MAX_CHAR_DIFF_CELLS (see lcsDiffOps).
+  // Character-level diff between two arbitrary strings - a single line pair,
+  // or (see diffLines above) several lines from a hunk joined with "\n"
+  // into one block, for showing precisely which part differs rather than
+  // just tinting a whole row. Returns `{ aSegs, bSegs }`; falls back to
+  // marking the whole input fully changed when it's too large for
+  // MAX_CHAR_DIFF_CELLS (see lcsDiffOps).
   function charDiffSegments(aLine, bLine) {
     var aArr = Array.from(aLine), bArr = Array.from(bLine);
     var ops = lcsDiffOps(aArr, bArr, MAX_CHAR_DIFF_CELLS);

@@ -1,7 +1,5 @@
 /* Styles specific to batch.html - shares :root tokens, header, button,
-   and Fixes-panel styling with styles.css, loaded alongside it. The
-   .batchNavLink rule itself lives in styles.css since index.html links to
-   this page too. */
+   .toolsNav, and Fixes-panel styling with styles.css, loaded alongside it. */
 
 .dropzone {
   border: 2px dashed var(--border);
