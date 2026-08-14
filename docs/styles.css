@@ -60,9 +60,43 @@ header p {
   color: var(--muted);
   font-size: 0.95rem;
 }
-.batchNavLink { margin: 4px 0 0; font-size: 0.85rem; }
-.batchNavLink a { color: var(--muted); }
-.batchNavLink a:hover { color: var(--accent); }
+/* Persistent tab bar listing all three tools (single-file, batch, compare),
+   identical on every tool page so switching between them is always one
+   click - not tucked into a context-dependent "back to X"/"go to Y" link
+   that only ever pointed at whichever tool happened to be adjacent.
+   Pill-tab styling, not filled buttons - matches this app's existing
+   "outline first, low-opacity accent tint for emphasis" language (see
+   .line-changed's own rgba(accent) background) rather than introducing a
+   solid-fill button style found nowhere else on the page. */
+.toolsNav {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+}
+.toolsNavLink {
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.toolsNavLink:hover { border-color: var(--accent); color: var(--text); }
+.toolsNavLink.is-active {
+  border-color: var(--accent);
+  background: rgba(79,157,255,.14);
+  color: var(--accent-hover);
+  font-weight: 600;
+}
+/* The active tab still needs a hover style of its own - otherwise hovering
+   it (e.g. while dragging across the bar) would flip it back to the same
+   muted color every other, non-active tab uses on hover. */
+.toolsNavLink.is-active:hover { color: var(--accent-hover); }
 .wrap {
   max-width: 1100px;
   margin: 0 auto;
