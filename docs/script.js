@@ -979,57 +979,121 @@
 
   // ---- Two-file diffing (used by the Compare tool) ----------------------
   //
-  // A classic Longest Common Subsequence dynamic-programming diff, generic
-  // over any array of comparable values (used both for whole lines, and for
-  // individual characters within one changed line pair). O(n*m) time and
-  // space - fine for the line/character-scale inputs this app deals with,
-  // and far simpler to get right than an O(ND) Myers-style implementation -
-  // but that product grows fast, so `maxCells` bounds it: past that, this
-  // returns null and the caller falls back to treating the whole pair as
-  // fully replaced rather than hanging the tab on a huge diff.
-  function lcsDiffOps(a, b, maxCells) {
+  // Myers' O(ND) shortest-edit-script diff (D = number of inserted/deleted
+  // elements, not the length of the inputs), generic over any array of
+  // comparable values - used both for whole lines, and for individual
+  // characters within one changed hunk. This is the algorithm real diff
+  // tools use, and for good reason: this app's whole use case is "a long,
+  // mostly-shared document with a handful of small edits scattered through
+  // it" - exactly the case an O(n*m) DP table (this function's earlier
+  // implementation) handles badly, since its cost depends on the LENGTH of
+  // the two inputs regardless of how similar they are. A single Markdown
+  // list marker added to a hundred otherwise-unchanged lines, for instance,
+  // is a tiny edit distance (D ~ 200) buried in a large n*m product (tens
+  // of millions) - the DP version's size cap had to reject exactly that
+  // case as "too large", falling back to marking the whole hundred-line
+  // block as fully changed even though 99% of it was identical. Cost here
+  // instead tracks D directly, so the same edit stays cheap no matter how
+  // long the shared surrounding text is.
+  //
+  // `maxD` bounds it: past that many edits, this returns null and the
+  // caller falls back to treating the whole pair as fully replaced rather
+  // than hanging the tab on a huge diff - past a few thousand real edits,
+  // "these are just different documents" is an accurate read anyway, not
+  // a false negative.
+  //
+  // Standard "greedy" formulation (see e.g. James Coglan's "The Myers diff
+  // algorithm" or the original 1986 paper): `trace[d]` records, for each
+  // reachable diagonal `k` at edit-distance `d`, the furthest-along
+  // position reached - sized to exactly the `2d+1` diagonals that exist at
+  // that depth (not a fixed (n+m)-sized snapshot), which is what keeps
+  // memory at O(D^2) instead of O(D*(n+m)); the difference matters a lot
+  // here since n+m can be tens of thousands of characters while D, for
+  // this app's realistic inputs, typically stays in the hundreds.
+  function editDiffOps(a, b, maxD) {
     var n = a.length, m = b.length;
-    if (n * m > maxCells) return null;
-    var dp = new Array(n + 1);
-    var i, j;
-    for (i = 0; i <= n; i++) dp[i] = new Uint32Array(m + 1);
-    for (i = 1; i <= n; i++) {
-      for (j = 1; j <= m; j++) {
-        dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    if (n === 0 && m === 0) return [];
+    var maxPossible = n + m;
+    var boundD = maxD == null ? maxPossible : Math.min(maxD, maxPossible);
+
+    var trace = [];
+    var prev = null;
+    var found = -1;
+
+    for (var d = 0; d <= boundD; d++) {
+      var cur = new Int32Array(2 * d + 1);
+      for (var k = -d; k <= d; k += 2) {
+        var x;
+        if (d === 0) {
+          x = 0;
+        } else if (k === -d || (k !== d && prev[k - 1 + (d - 1)] < prev[k + 1 + (d - 1)])) {
+          x = prev[k + 1 + (d - 1)];
+        } else {
+          x = prev[k - 1 + (d - 1)] + 1;
+        }
+        var y = x - k;
+        while (x < n && y < m && a[x] === b[y]) { x++; y++; }
+        cur[k + d] = x;
+        if (x >= n && y >= m) found = d;
       }
+      trace.push(cur);
+      if (found !== -1) break;
+      prev = cur;
     }
-    var ops = [];
-    i = n; j = m;
-    while (i > 0 || j > 0) {
-      if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-        ops.push({ type: "equal", a: i - 1, b: j - 1 });
-        i--; j--;
-      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-        ops.push({ type: "insert", a: i, b: j - 1 });
-        j--;
-      } else {
-        ops.push({ type: "delete", a: i - 1, b: j });
-        i--;
-      }
-    }
-    ops.reverse();
-    return ops;
+
+    if (found === -1) return null;
+    return editDiffBacktrack(trace, n, m, found);
   }
 
-  // Above this size (line-count product), lcsDiffOps' O(n*m) DP table would
-  // get impractically large - 2000x2000 lines is already an unusual amount
-  // of text to be comparing by hand in a browser tab.
-  var MAX_LINE_DIFF_CELLS = 4000000;
-  // Bounds the character-level diff run within one changed hunk (see
-  // buildHunks/diffLines below) - a hunk can legitimately span many
-  // thousands of characters (e.g. several paragraphs' worth of real prose),
-  // not just a single short line, so this needs more headroom than a
-  // "one huge line" guard would: 25M cells is roughly a 5000x5000-character
-  // hunk, comfortably past anything a genuine multi-paragraph edit is
-  // likely to produce, while still bounding memory/time against a
-  // pathological one (e.g. two files with no overlap at all, which would
-  // otherwise try to diff their entire contents as a single hunk).
-  var MAX_CHAR_DIFF_CELLS = 25000000;
+  // Walks `trace` (see editDiffOps above) backward from (n, m) to (0, 0),
+  // re-deriving at each depth `d` the same "which diagonal did this come
+  // from" choice the forward pass made, to recover the actual edit script.
+  function editDiffBacktrack(trace, n, m, D) {
+    var x = n, y = m;
+    var ops = [];
+    for (var d = D; d > 0; d--) {
+      var prev = trace[d - 1];
+      var k = x - y;
+      var prevK;
+      if (k === -d || (k !== d && prev[k - 1 + (d - 1)] < prev[k + 1 + (d - 1)])) {
+        prevK = k + 1;
+      } else {
+        prevK = k - 1;
+      }
+      var prevX = prev[prevK + (d - 1)];
+      var prevY = prevX - prevK;
+      while (x > prevX && y > prevY) {
+        ops.push({ type: "equal", a: x - 1, b: y - 1 });
+        x--; y--;
+      }
+      if (x === prevX) {
+        ops.push({ type: "insert", a: x, b: y - 1 });
+      } else {
+        ops.push({ type: "delete", a: x - 1, b: y });
+      }
+      x = prevX; y = prevY;
+    }
+    while (x > 0 && y > 0) {
+      ops.push({ type: "equal", a: x - 1, b: y - 1 });
+      x--; y--;
+    }
+    return ops.reverse();
+  }
+
+  // Above this many actual edits, two files have stopped being "mostly the
+  // same document with some changes" in any useful sense - showing them as
+  // fully different is an accurate read, not a cop-out. Both cost (O(D^2))
+  // and memory scale with D, not with how long the texts are, so this
+  // bounds worst-case latency directly: 8000 keeps the pathological case
+  // (no match ever found, so every one of the 8000 depths gets fully
+  // explored) to a bit over a second in testing, while still covering
+  // realistic edits - even a heavily-reworded multi-paragraph section - many
+  // times over, since D tracks actual edits rather than text length. The
+  // same bound is used for both the line-level diff and the character-level
+  // diff run within one changed hunk (see buildHunks/diffLines below);
+  // nothing about the trade-off differs between the two.
+  var MAX_LINE_EDIT_DISTANCE = 8000;
+  var MAX_CHAR_EDIT_DISTANCE = 8000;
 
   function splitLines(text) {
     return text.length ? text.split("\n") : [""];
@@ -1109,14 +1173,14 @@
   //     re-wrapped paragraph counts as one difference to jump to rather
   //     than however many lines it happens to span on either side.
   //   - `truncated` is true when the texts were too large for a real
-  //     line-by-line diff (see MAX_LINE_DIFF_CELLS), in which case every
+  //     line-by-line diff (see MAX_LINE_EDIT_DISTANCE), in which case every
   //     line on both sides is marked fully changed and there's one hunk
   //     covering everything - correct (nothing here claims a false match),
   //     just not useful for spotting exactly what moved.
   function diffLines(aText, bText) {
     var aLines = splitLines(aText);
     var bLines = splitLines(bText);
-    var ops = lcsDiffOps(aLines, bLines, MAX_LINE_DIFF_CELLS);
+    var ops = editDiffOps(aLines, bLines, MAX_LINE_EDIT_DISTANCE);
 
     var aLineDiffs = new Array(aLines.length);
     var bLineDiffs = new Array(bLines.length);
@@ -1195,10 +1259,10 @@
   // into one block, for showing precisely which part differs rather than
   // just tinting a whole row. Returns `{ aSegs, bSegs }`; falls back to
   // marking the whole input fully changed when it's too large for
-  // MAX_CHAR_DIFF_CELLS (see lcsDiffOps).
+  // MAX_CHAR_EDIT_DISTANCE (see editDiffOps).
   function charDiffSegments(aLine, bLine) {
     var aArr = Array.from(aLine), bArr = Array.from(bLine);
-    var ops = lcsDiffOps(aArr, bArr, MAX_CHAR_DIFF_CELLS);
+    var ops = editDiffOps(aArr, bArr, MAX_CHAR_EDIT_DISTANCE);
     if (ops === null) {
       return {
         aSegs: aLine.length ? [{ text: aLine, changed: true }] : [],
