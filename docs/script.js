@@ -1254,14 +1254,38 @@
     return segs;
   }
 
-  // Character-level diff between two arbitrary strings - a single line pair,
-  // or (see diffLines above) several lines from a hunk joined with "\n"
-  // into one block, for showing precisely which part differs rather than
-  // just tinting a whole row. Returns `{ aSegs, bSegs }`; falls back to
-  // marking the whole input fully changed when it's too large for
-  // MAX_CHAR_EDIT_DISTANCE (see editDiffOps).
+  // Splits `text` into diff tokens: each maximal run of "word" characters
+  // (the same `\p{L}\p{M}\p{Nd}` set used elsewhere in this file, plus `_`
+  // for identifier-style words) becomes one token, and every other
+  // character - whitespace, punctuation, symbols, emoji - becomes its own
+  // single-character token. `tokens.join("") === text` always holds, so
+  // this is a lossless re-partitioning of the same text, just at a coarser
+  // grain than individual code points.
+  var WORD_TOKEN_RE = /[\p{L}\p{M}\p{Nd}_]+|[^\p{L}\p{M}\p{Nd}_]/gu;
+  function tokenizeForDiff(text) {
+    return text.length ? text.match(WORD_TOKEN_RE) : [];
+  }
+
+  // Word-level diff between two arbitrary strings - a single line pair, or
+  // (see diffLines above) several lines from a hunk joined with "\n" into
+  // one block - for showing precisely which words differ rather than just
+  // tinting a whole row. Diffs whole words as atomic units (see
+  // tokenizeForDiff above) rather than individual characters: a
+  // character-level diff is technically "more precise", but for two
+  // different words that happen to share a letter or two (e.g. "mortals"
+  // vs "people", both containing "o") it produces a confusing scatter of
+  // tiny matched/unmatched runs that reads as noise rather than showing
+  // what actually changed - a whole word either matches or it doesn't.
+  // Punctuation and whitespace stay individually diffable either way,
+  // since those are tokenized one character at a time.
+  //
+  // Returns `{ aSegs, bSegs }`; falls back to marking the whole input fully
+  // changed when it's too large for MAX_CHAR_EDIT_DISTANCE (see
+  // editDiffOps) - "chars" in that name now really means "diff tokens",
+  // but a token-per-word input reaches that bound at a vastly larger
+  // amount of actual text than a token-per-character one would have.
   function charDiffSegments(aLine, bLine) {
-    var aArr = Array.from(aLine), bArr = Array.from(bLine);
+    var aArr = tokenizeForDiff(aLine), bArr = tokenizeForDiff(bLine);
     var ops = editDiffOps(aArr, bArr, MAX_CHAR_EDIT_DISTANCE);
     if (ops === null) {
       return {
