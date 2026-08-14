@@ -4,92 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ClearTXT Documentation</title>
-<meta name="description" content="What ClearTXT actively defends against, and how - hidden characters, bidirectional text spoofing, and look-alike character tricks. Made by Aviv M. Icel.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://icelsupreme.github.io/ClearTXT/documentation.html">
-<meta property="og:title" content="ClearTXT Documentation">
-<meta property="og:description" content="What ClearTXT actively defends against, and how - hidden characters, bidirectional text spoofing, and look-alike character tricks. Made by Aviv M. Icel.">
-<meta property="og:image" content="https://icelsupreme.github.io/ClearTXT/social-card.png?v=1.12.2">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="900">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ClearTXT Documentation">
-<meta name="twitter:description" content="What ClearTXT actively defends against, and how - hidden characters, bidirectional text spoofing, and look-alike character tricks. Made by Aviv M. Icel.">
-<meta name="twitter:image" content="https://icelsupreme.github.io/ClearTXT/social-card.png?v=1.12.2">
-<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.12.2">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Mono:wght@400;500;700&family=Noto+Sans+Hebrew:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=1.12.2">
-<link rel="stylesheet" href="documentation.css?v=1.12.2">
+<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0; url=documentation/">
+<link rel="canonical" href="https://icelsupreme.github.io/ClearTXT/documentation/">
+<style>
+  :root { --bg: #0f1115; --text: #e6e9ef; --accent: #4f9dff; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--text); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  p { text-align: center; }
+  a { color: var(--accent); }
+</style>
 </head>
 <body>
-  <header>
-    <h1><svg class="logoIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2v2"/><path d="M12 3h-2"/><path d="M13.5 10.5 22 2"/><path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z"/><path d="M20 15v4"/><path d="M22 17h-4"/><path d="M4 4v4"/><path d="m5 18 2-2"/><path d="M6 6H2"/><path d="m7.699 10.7 5.602 5.601"/></svg>ClearTXT <span class="version" title="Version, matches package.json">v1.12.2</span></h1>
-    <p>What ClearTXT actively defends against, and why.</p>
-    <nav class="toolsNav" aria-label="Tools">
-      <a href="index.html" class="toolsNavLink">Single-file</a>
-      <a href="batch.html" class="toolsNavLink">Batch</a>
-      <a href="compare.html" class="toolsNavLink">Compare</a>
-    </nav>
-  </header>
-
-  <div class="wrap">
-    <p class="docIntro">Pasted text can carry more than what's on screen - characters with no visible glyph, formatting tricks that make text display in a different order than it's actually stored, and letters swapped for deceptive look-alikes from another alphabet. None of these need a human reader to fail to notice; they're just as effective against an AI assistant, a search index, or any other program that reads the raw text. Every fix below is on by default; turning one off in the "Fixes &amp; explanation" panel leaves its characters exactly as pasted.</p>
-
-    <section class="docSection">
-      <h2>Hidden &amp; invisible characters</h2>
-      <p class="docGoverned">Governed by: <strong>Strip invisible &amp; control characters</strong></p>
-      <ul>
-        <li><strong>Zero-width characters.</strong> Characters like the zero-width space, zero-width joiner, and byte order mark render as nothing at all, but they're still real characters in the underlying text - a message that looks identical on screen can contain extra hidden characters a program will still process.</li>
-        <li><strong>Bidirectional overrides ("Trojan Source," <a href="https://nvd.nist.gov/vuln/detail/CVE-2021-42574" target="_blank" rel="noopener noreferrer">CVE-2021-42574</a>).</strong> A small set of control characters can force part of the text to display right-to-left (or force the reading order back), making text or code visually read in a different order than the characters are actually stored in - e.g. disguising which part of a filename is really the extension, or making a malicious line look like a harmless comment.</li>
-        <li><strong>Unicode Tag smuggling ("ASCII smuggling").</strong> A whole block of invisible characters, originally meant for obsolete language tagging, can be freely combined to encode arbitrary hidden text - including full instructions - inside a message that looks completely blank at that spot.</li>
-        <li><strong>Deprecated variation selectors.</strong> A second, less-known invisible channel with the same effect: no legitimate modern use, but freely combinable to hide text the same way.</li>
-        <li><strong>Plain control characters</strong>, plus a couple of easy-to-miss individual characters (the soft hyphen, the Arabic letter mark) that don't fit neatly into any of the categories above but are just as invisible in normal rendering.</li>
-      </ul>
-      <p class="docDetail">Detected by testing every character against Unicode's own "Format" (<code>Cf</code>) general category, rather than a hand-maintained list of known offenders - this stays complete as Unicode adds more such characters in the future, with no maintenance needed here.</p>
-      <p class="docDetail">Filenames get this same treatment, unconditionally: a file you export, download, or add in batch mode never has one of these characters in its own name - not just its text content - regardless of whether "Strip invisible &amp; control characters" is on. A filename is a different context from the text in the boxes above; it becomes a real name in your OS's file listings and Save dialogs, where a right-to-left override could visually disguise the file's own extension.</p>
-    </section>
-
-    <section class="docSection">
-      <h2>Look-alike (homoglyph) characters</h2>
-      <p class="docGoverned">Governed by: <strong>Strip look-alike characters</strong></p>
-      <p>Swapping a letter for a similar- or identical-looking one from another alphabet is a classic way to disguise a fake domain or brand name as the real one - a Greek "ο" standing in for the Latin "o" in <code>gοogle.com</code>, or a Cyrillic "а" standing in for the Latin "a" in <code>pаypal.com</code>. To a human eye they're indistinguishable in most fonts; to a computer they're completely different characters.</p>
-      <p class="docDetail">Rather than maintaining a table of which specific characters "look like" which Latin letters (Unicode's own confusables data runs to thousands of entries), this works the way browsers already defend against the same trick in web addresses: text is split into "words," and any word mixing a Latin letter with a letter from any other script has just that minority-script character flagged - not the whole word, and not a word written entirely in another language (an actual Greek or Russian sentence is left alone). This runs ahead of the dedicated Hebrew/Arabic/Cyrillic options below, so turning one of those off to keep genuine text in that script doesn't also let a character from it slip through when it's hiding inside an otherwise-Latin spoofed word.</p>
-    </section>
-
-    <section class="docSection">
-      <h2>Unsafe link protocols</h2>
-      <p class="docGoverned">Governed by: <strong>Strip unsafe link protocols</strong></p>
-      <p>A Markdown link's visible text and its actual destination are two separate things - <code>[Click here](url)</code> - and the destination doesn't have to be a web address. A vulnerability disclosed in Windows Notepad's Markdown mode (CVE-2026-20841) showed that clicking a link with an unexpected protocol could load or run a local or remote file with no further warning - the same risk applies to any Markdown-rendering app text cleaned here might later be opened in (chat apps, note-taking apps, IDE previews, and now Notepad itself).</p>
-      <p class="docDetail">A link's target is only kept if it starts with <code>http:</code>, <code>https:</code>, <code>mailto:</code>, or <code>tel:</code>, or has no protocol at all (a relative path or same-page link, which can't invoke a protocol handler either way) - anything else is removed, keeping the link's own visible text in place rather than deleting it outright. Image references (<code>![alt](url)</code>) are left alone regardless of their target, since an image isn't something you click to invoke a protocol the way a link is.</p>
-    </section>
-
-    <section class="docSection">
-      <h2>Script confusion</h2>
-      <p class="docGoverned">Governed by: <strong>Strip Hebrew / Arabic / Cyrillic characters</strong></p>
-      <p>Beyond look-alike letters mixed into Latin words, an entire message can be written in a script you weren't expecting - dedicated options remove Hebrew, Arabic, or Cyrillic text outright if that's not something you want to see, independent of everything else on this page. A handful of mathematical symbols that are visually built from Hebrew letters (like ℵ, used for aleph-null) are protected from being silently folded into actual Hebrew letters by Unicode normalization, so they're governed by the general symbol option instead of quietly disappearing as "Hebrew."</p>
-    </section>
-
-    <section class="docSection">
-      <h2>Deceptive fonts</h2>
-      <p class="docGoverned">Always true - not a toggle, nothing to turn on</p>
-      <p>A different trick skips character tricks entirely: redefine a custom font's own glyphs so certain characters <em>display</em> as something other than what they actually are - text that reads one way to a human's eyes and another way to anything reading the underlying Unicode, including an AI tool. This one isn't something ClearTXT strips, because it doesn't need to be: a font is never part of copied or pasted text, only the characters are, so whatever you paste here always renders in ClearTXT's own typeface, never whatever font the original page or document specified. Pasting suspicious text in and reading it back from the output box already shows you the real characters, however the source tried to make them look.</p>
-    </section>
-
-    <section class="docSection">
-      <h2>What this page doesn't cover</h2>
-      <ul>
-        <li>ClearTXT cleans characters, not meaning - it can strip a hidden instruction's invisible packaging, but it can't judge whether the visible text left behind is itself trying to manipulate you.</li>
-        <li>It's a text-cleaning tool, not a comprehensive security scanner, and every fix above can be turned off - nothing here applies to text you don't run through it, or to a fix you've disabled.</li>
-        <li>Everything happens entirely in your own browser - nothing you paste is uploaded, logged, or sent anywhere. See the <a href="https://github.com/icelsupreme/ClearTXT#readme" target="_blank" rel="noopener noreferrer">README</a> for the full privacy picture.</li>
-      </ul>
-    </section>
-
-    <p class="pageCredit">Made by <a href="https://github.com/icelsupreme" target="_blank" rel="noopener noreferrer">Aviv M. Icel</a> &middot; <a href="https://bsky.app/profile/icel.me" target="_blank" rel="noopener noreferrer">Bluesky</a> &middot; <a href="changelog.html">Changelog</a></p>
-    <div class="shareRow"><button id="shareBtn" title="Copy this page's link to your clipboard"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg><span class="btnLabel">Share</span></button></div>
-  </div>
-
-<script src="script.js?v=1.12.2"></script>
+  <p>This page has moved to <a href="documentation/">ClearTXT Documentation</a>.</p>
 </body>
 </html>
