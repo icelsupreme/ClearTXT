@@ -7,25 +7,25 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://icelsupreme.github.io/ClearTXT/batch.html</loc>
+    <loc>https://icelsupreme.github.io/ClearTXT/batch/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://icelsupreme.github.io/ClearTXT/compare.html</loc>
+    <loc>https://icelsupreme.github.io/ClearTXT/compare/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://icelsupreme.github.io/ClearTXT/documentation.html</loc>
+    <loc>https://icelsupreme.github.io/ClearTXT/documentation/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://icelsupreme.github.io/ClearTXT/changelog.html</loc>
+    <loc>https://icelsupreme.github.io/ClearTXT/changelog/</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>

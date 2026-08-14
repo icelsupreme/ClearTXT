@@ -15,8 +15,8 @@ It's a single static page: no backend, no build step, and none of your text ever
 - **Line numbers** on both text boxes, kept aligned even when lines wrap.
 - **Import, copy, or export** - load any text file (plain text or source code) straight into the input, copy the output to the clipboard, or download it as a `.txt` file named after the output's first line.
 - **Your fix preferences persist** across visits via `localStorage`.
-- **Batch mode** ([batch.html](docs/batch.html)) cleans multiple files at once - drag files in (or pick them), each is filtered with the same fixes and downloaded under its original filename. Fix preferences are shared with the single-file page.
-- **Compare mode** ([compare.html](docs/compare.html)) diffs two files against each other in the same two-box editor layout, with removed/added/changed lines highlighted down to the exact changed *words* within a line (punctuation and whitespace stay individually diffable too - only two different words are treated as a single atomic unit, so two unrelated words that happen to share a letter or two never show up as a confusing partial match), Previous/Next-difference navigation, and a report panel with a percentage-diff figure plus character and word counts (and their difference) for each file - with a toggle to include or exclude Markdown syntax from those numbers, and Copy/Download buttons for the report itself. An "Apply cleanup before comparing" toggle runs both files through the same fixes (preferences shared with the other two pages) before diffing, or compares them exactly as imported.
+- **Batch mode** ([batch/index.html](docs/batch/index.html)) cleans multiple files at once - drag files in (or pick them), each is filtered with the same fixes and downloaded under its original filename. Fix preferences are shared with the single-file page.
+- **Compare mode** ([compare/index.html](docs/compare/index.html)) diffs two files against each other in the same two-box editor layout, with removed/added/changed lines highlighted down to the exact changed *words* within a line (punctuation and whitespace stay individually diffable too - only two different words are treated as a single atomic unit, so two unrelated words that happen to share a letter or two never show up as a confusing partial match), Previous/Next-difference navigation, and a report panel with a percentage-diff figure plus character and word counts (and their difference) for each file - with a toggle to include or exclude Markdown syntax from those numbers, and Copy/Download buttons for the report itself. An "Apply cleanup before comparing" toggle runs both files through the same fixes (preferences shared with the other two pages) before diffing, or compares them exactly as imported.
 
 ## Fonts
 
@@ -47,26 +47,32 @@ The site itself lives in `docs/` - not because it's documentation, but because t
 
 ```
 docs/
-  index.html          markup for the single-file page
-  batch.html          markup for the batch (multi-file) page
-  compare.html        markup for the compare (two-file diff) page
-  changelog.html      a condensed, user-facing "what's new," linked from every page's footer
-  documentation.html  what ClearTXT defends against and how, linked from every page's footer
-  styles.css          shared styling
-  batch.css           styling specific to the batch page
-  compare.css         styling specific to the compare page
-  changelog.css       styling specific to the changelog page
-  documentation.css   styling specific to the documentation page
-  script.js           filtering/diffing logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
-  batch.js            batch page's DOM wiring, built on script.js's shared logic
-  compare.js          compare page's DOM wiring, built on script.js's shared logic
-  favicon.svg         browser tab icon, also embedded inline as the header's logo icon
-  social-card.png     social sharing preview image (og:image/twitter:image), built from favicon.svg's icon
-  sitemap.xml         lists every page for search engine crawlers
-  robots.txt          crawler allow/deny rules; points crawlers at sitemap.xml above
+  index.html               markup for the single-file page
+  batch/index.html         markup for the batch (multi-file) page
+  compare/index.html       markup for the compare (two-file diff) page
+  changelog/index.html     a condensed, user-facing "what's new," linked from every page's footer
+  documentation/index.html what ClearTXT defends against and how, linked from every page's footer
+  batch.html, compare.html, changelog.html, documentation.html
+                       meta-refresh stubs at the old flat paths, redirecting to the
+                       subdirectory URLs above so pre-existing links/bookmarks keep working
+  404.html             branded not-found page, served by GitHub Pages for any unmatched path
+  styles.css           shared styling
+  batch.css            styling specific to the batch page
+  compare.css          styling specific to the compare page
+  changelog.css        styling specific to the changelog page
+  documentation.css    styling specific to the documentation page
+  script.js            filtering/diffing logic + single-file page's DOM wiring (dual-purpose: also require()-able for tests, see below)
+  batch.js             batch page's DOM wiring, built on script.js's shared logic
+  compare.js           compare page's DOM wiring, built on script.js's shared logic
+  favicon.svg          browser tab icon, also embedded inline as the header's logo icon
+  social-card.png      social sharing preview image (og:image/twitter:image), built from favicon.svg's icon
+  sitemap.xml           lists every page for search engine crawlers
+  robots.txt            crawler allow/deny rules; points crawlers at sitemap.xml above
 test/             unit tests for the filtering logic
 CHANGELOG.md      full version history
 ```
+
+Every subdirectory page (`batch/`, `compare/`, `changelog/`, `documentation/`) is an `index.html`, so GitHub Pages serves it at the clean directory URL (`/ClearTXT/batch/`, etc.) with no `.html` in the address bar. The four `docs/*.html` stubs at the old flat paths only exist for backwards compatibility with links or bookmarks made before this restructuring.
 
 ## Development
 
@@ -87,7 +93,7 @@ CI runs lint and tests on every push to `main` and on every pull request (see `.
 There's no build step here, so the version number is kept in sync by hand in three places - bump all three together on every release:
 
 1. `version` in `package.json`
-2. the `?v=` query string on every `.css`/`.js`/`.svg` reference across `docs/index.html`, `docs/batch.html`, `docs/compare.html`, `docs/changelog.html`, and `docs/documentation.html`
+2. the `?v=` query string on every `.css`/`.js`/`.svg` reference across `docs/index.html`, `docs/batch/index.html`, `docs/compare/index.html`, `docs/changelog/index.html`, and `docs/documentation/index.html`
 3. the version badge next to the title in each page's `<header>`
 
 The `?v=` matters functionally, not just cosmetically: without it, browsers (especially since this page is often opened directly over `file://`) can keep serving a stale cached copy of `styles.css`/`script.js` after an update. The on-page badge exists so you can tell at a glance whether the copy you're looking at is current.
