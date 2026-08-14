@@ -592,3 +592,97 @@ test("wordCount counts words after stripping Markdown syntax, and handles empty/
   assert.equal(ClearTXT.wordCount(""), 0);
   assert.equal(ClearTXT.wordCount("   \n\t  "), 0);
 });
+
+test("wordCount's keepMarkdown flag counts syntax characters as their own words instead of stripping them", () => {
+  assert.equal(ClearTXT.wordCount("# Heading One"), 2);
+  assert.equal(ClearTXT.wordCount("# Heading One", true), 3); // "#", "Heading", "One"
+  assert.equal(ClearTXT.wordCount("**bold**", true), 1);
+});
+
+test("charCount counts code points, Markdown-stripped by default, raw when keepMarkdown is true", () => {
+  assert.equal(ClearTXT.charCount("**bold**"), 4); // stripped down to "bold"
+  assert.equal(ClearTXT.charCount("**bold**", true), 8);
+  assert.equal(ClearTXT.charCount(""), 0);
+  // Counts code points, not UTF-16 code units - a single astral emoji is
+  // two UTF-16 units but one code point.
+  assert.equal(ClearTXT.charCount("😀", true), 1);
+});
+
+test("textSimilarityPercent is a bag-of-words Dice coefficient, 0-100", () => {
+  assert.equal(ClearTXT.textSimilarityPercent("hello world", "hello world"), 100);
+  assert.equal(ClearTXT.textSimilarityPercent("", ""), 100);
+  assert.equal(ClearTXT.textSimilarityPercent("apple banana", "cherry durian"), 0);
+  // aWords=[a,b,c], bWords=[a,b,d]: 2 words in common out of 6 total.
+  assert.equal(ClearTXT.textSimilarityPercent("a b c", "a b d"), (2 * 2 / 6) * 100);
+  // Repeated words are matched up one-for-one, not just "present in both".
+  assert.equal(ClearTXT.textSimilarityPercent("a a a", "a"), (2 * 1 / 4) * 100);
+});
+
+test("textSimilarityPercent's keepMarkdown flag treats Markdown syntax as literal text instead of stripping it first", () => {
+  assert.equal(ClearTXT.textSimilarityPercent("**bold**", "bold"), 100);
+  assert.equal(ClearTXT.textSimilarityPercent("**bold**", "bold", true), 0);
+});
+
+test("diffLines: identical texts produce all-equal rows", () => {
+  const result = ClearTXT.diffLines("a\nb\nc", "a\nb\nc");
+  assert.equal(result.truncated, false);
+  assert.deepEqual(result.rows, [
+    { type: "equal", aIndex: 0, bIndex: 0 },
+    { type: "equal", aIndex: 1, bIndex: 1 },
+    { type: "equal", aIndex: 2, bIndex: 2 }
+  ]);
+});
+
+test("diffLines: a removed line", () => {
+  const result = ClearTXT.diffLines("a\nb\nc", "a\nc");
+  assert.deepEqual(result.rows, [
+    { type: "equal", aIndex: 0, bIndex: 0 },
+    { type: "removed", aIndex: 1, bIndex: null },
+    { type: "equal", aIndex: 2, bIndex: 1 }
+  ]);
+});
+
+test("diffLines: an added line", () => {
+  const result = ClearTXT.diffLines("a\nc", "a\nb\nc");
+  assert.deepEqual(result.rows, [
+    { type: "equal", aIndex: 0, bIndex: 0 },
+    { type: "added", aIndex: null, bIndex: 1 },
+    { type: "equal", aIndex: 1, bIndex: 2 }
+  ]);
+});
+
+test("diffLines: a single changed line pairs up as \"modified\" rather than remove+add", () => {
+  const result = ClearTXT.diffLines("hello\nworld", "hello\nthere");
+  assert.deepEqual(result.rows, [
+    { type: "equal", aIndex: 0, bIndex: 0 },
+    { type: "modified", aIndex: 1, bIndex: 1 }
+  ]);
+});
+
+test("diffLines falls back to a fully-replaced diff (no false matches) when the line-count product is too large", () => {
+  const aLines = Array.from({ length: 2001 }, (_, i) => "a-line-" + i);
+  const bLines = Array.from({ length: 2001 }, (_, i) => "b-line-" + i);
+  const result = ClearTXT.diffLines(aLines.join("\n"), bLines.join("\n"));
+  assert.equal(result.truncated, true);
+  assert.equal(result.rows.length, aLines.length + bLines.length);
+  assert.equal(result.rows[0].type, "removed");
+  assert.equal(result.rows[aLines.length].type, "added");
+});
+
+test("charDiffSegments marks the common prefix unchanged and the rest changed", () => {
+  const result = ClearTXT.charDiffSegments("cat", "cats");
+  assert.deepEqual(result.aSegs, [{ text: "cat", changed: false }]);
+  assert.deepEqual(result.bSegs, [{ text: "cat", changed: false }, { text: "s", changed: true }]);
+});
+
+test("charDiffSegments: identical lines produce one unchanged segment per side", () => {
+  const result = ClearTXT.charDiffSegments("same", "same");
+  assert.deepEqual(result.aSegs, [{ text: "same", changed: false }]);
+  assert.deepEqual(result.bSegs, [{ text: "same", changed: false }]);
+});
+
+test("charDiffSegments: a fully-new line has no aSegs at all", () => {
+  const result = ClearTXT.charDiffSegments("", "new");
+  assert.deepEqual(result.aSegs, []);
+  assert.deepEqual(result.bSegs, [{ text: "new", changed: true }]);
+});

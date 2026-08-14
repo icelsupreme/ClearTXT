@@ -29,14 +29,21 @@ module.exports = [
     }
   },
   {
-    files: ["docs/batch.js"],
+    files: ["docs/batch.js", "docs/compare.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "script",
       // Browser-only, unlike script.js - no module.exports/require() side,
       // so no need for Node's globals too. `ClearTXT` comes from script.js,
-      // loaded as a plain <script> before this file on batch.html.
+      // loaded as a plain <script> before either of these on batch.html /
+      // compare.html.
       globals: Object.assign({ ClearTXT: "readonly" }, globals.browser)
+    },
+    rules: {
+      // Matches script.js's own override - both files use the same
+      // "try/catch with an intentionally unused error binding" pattern for
+      // best-effort localStorage/selection calls.
+      "no-unused-vars": ["error", { args: "none", caughtErrors: "none" }]
     }
   }
 ];
