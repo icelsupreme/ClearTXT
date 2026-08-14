@@ -741,10 +741,47 @@ test("diffLines finds the true edit distance regardless of how much shared text 
   });
 });
 
-test("charDiffSegments marks the common prefix unchanged and the rest changed", () => {
+test("charDiffSegments diffs whole words, not individual characters - two different words never share a partial match", () => {
+  // "cat" and "cats" are two different word-tokens (not "cat" + an added
+  // "s") - matches how a word-level diff should read: the word changed,
+  // full stop, rather than claiming three of its four letters survived.
   const result = ClearTXT.charDiffSegments("cat", "cats");
-  assert.deepEqual(result.aSegs, [{ text: "cat", changed: false }]);
-  assert.deepEqual(result.bSegs, [{ text: "cat", changed: false }, { text: "s", changed: true }]);
+  assert.deepEqual(result.aSegs, [{ text: "cat", changed: true }]);
+  assert.deepEqual(result.bSegs, [{ text: "cats", changed: true }]);
+});
+
+test("charDiffSegments: two unrelated words that happen to share letters don't produce a scattered partial match (the bug this replaced character-level diffing for)", () => {
+  // "mortals" and "people" share letters ("o", "e", "l") that a naive
+  // character-level LCS would happily match up piecemeal, producing a
+  // confusing scatter of tiny matched/unmatched runs. Word-level diffing
+  // treats each as one atomic token, so they're either the same word or
+  // they're not.
+  const result = ClearTXT.charDiffSegments("mortals", "people");
+  assert.deepEqual(result.aSegs, [{ text: "mortals", changed: true }]);
+  assert.deepEqual(result.bSegs, [{ text: "people", changed: true }]);
+});
+
+test("charDiffSegments keeps the surrounding unchanged words intact around a single changed word", () => {
+  const result = ClearTXT.charDiffSegments("brave the lazy dog", "brave the sleepy dog");
+  assert.deepEqual(result.aSegs, [
+    { text: "brave the ", changed: false },
+    { text: "lazy", changed: true },
+    { text: " dog", changed: false }
+  ]);
+  assert.deepEqual(result.bSegs, [
+    { text: "brave the ", changed: false },
+    { text: "sleepy", changed: true },
+    { text: " dog", changed: false }
+  ]);
+});
+
+test("charDiffSegments still diffs punctuation/whitespace one character at a time", () => {
+  const result = ClearTXT.charDiffSegments("hello, world", "hello world");
+  assert.deepEqual(result.aSegs, [{ text: "hello", changed: false }, { text: ",", changed: true }, { text: " world", changed: false }]);
+  // Adjacent unchanged tokens ("hello" and " world") merge into one
+  // segment - segments group by changed-status, not by original token
+  // boundary.
+  assert.deepEqual(result.bSegs, [{ text: "hello world", changed: false }]);
 });
 
 test("charDiffSegments: identical lines produce one unchanged segment per side", () => {
