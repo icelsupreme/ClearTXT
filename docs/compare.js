@@ -26,6 +26,8 @@
 
   var reportGrid = document.getElementById("reportGrid");
   var reportKeepMarkdown = document.getElementById("reportKeepMarkdown");
+  var copyReportBtn = document.getElementById("copyReportBtn");
+  var downloadReportBtn = document.getElementById("downloadReportBtn");
   var applyCleanupToggle = document.getElementById("applyCleanupToggle");
   var fixListEl = document.getElementById("fixList");
 
@@ -322,10 +324,13 @@
     if (idx !== -1) jumpToNavIndex(idx);
   }
 
+  function signedNumber(delta) {
+    return (delta > 0 ? "+" : "") + delta.toLocaleString();
+  }
+
   function deltaText(delta, unit) {
     var cls = delta > 0 ? "converted" : (delta < 0 ? "removed" : "");
-    var sign = delta > 0 ? "+" : "";
-    return '<span class="' + cls + '">' + sign + delta.toLocaleString() + " " + unit + "</span>";
+    return '<span class="' + cls + '">' + signedNumber(delta) + " " + unit + "</span>";
   }
 
   function reportTile(label, big, subHtml) {
@@ -334,26 +339,57 @@
       '<div class="reportSub">' + subHtml + "</div></div>";
   }
 
+  // Shared by renderReport (the on-page grid) and buildReportText (Copy/
+  // Download) so both always agree - computed fresh from whatever's
+  // currently in the two boxes (post-cleanup if that toggle is on) each
+  // time, rather than cached, since it's cheap (bag-of-words counting, not
+  // the line/char diff above it) and this way can never go stale.
+  function computeReportStats(aText, bText) {
+    var keepMarkdown = reportKeepMarkdown.checked;
+    var pct = ClearTXT.textSimilarityPercent(aText, bText, keepMarkdown);
+    return {
+      keepMarkdown: keepMarkdown,
+      pct: pct,
+      diffPct: 100 - pct,
+      charsA: ClearTXT.charCount(aText, keepMarkdown),
+      charsB: ClearTXT.charCount(bText, keepMarkdown),
+      wordsA: ClearTXT.wordCount(aText, keepMarkdown),
+      wordsB: ClearTXT.wordCount(bText, keepMarkdown)
+    };
+  }
+
   // Reads straight off whatever's currently displayed in the two boxes
   // (post-cleanup if that toggle is on) - doesn't need the line-level diff
   // at all, so a change to just this toggle re-renders the report alone
   // without re-running the (more expensive) line/char diff above it.
   function renderReport(aText, bText) {
-    var keepMarkdown = reportKeepMarkdown.checked;
-    saveBool(KEEP_MARKDOWN_KEY, keepMarkdown);
-
-    var pct = ClearTXT.textSimilarityPercent(aText, bText, keepMarkdown);
-    var diffPct = 100 - pct;
-    var charsA = ClearTXT.charCount(aText, keepMarkdown);
-    var charsB = ClearTXT.charCount(bText, keepMarkdown);
-    var wordsA = ClearTXT.wordCount(aText, keepMarkdown);
-    var wordsB = ClearTXT.wordCount(bText, keepMarkdown);
+    saveBool(KEEP_MARKDOWN_KEY, reportKeepMarkdown.checked);
+    var s = computeReportStats(aText, bText);
 
     reportGrid.innerHTML = [
-      reportTile("Percentage diff", diffPct.toFixed(1) + "%", pct.toFixed(1) + "% similar"),
-      reportTile("Characters", charsA.toLocaleString() + " → " + charsB.toLocaleString(), deltaText(charsB - charsA, "chars")),
-      reportTile("Words", wordsA.toLocaleString() + " → " + wordsB.toLocaleString(), deltaText(wordsB - wordsA, "words"))
+      reportTile("Percentage diff", s.diffPct.toFixed(1) + "%", s.pct.toFixed(1) + "% similar"),
+      reportTile("Characters", s.charsA.toLocaleString() + " → " + s.charsB.toLocaleString(), deltaText(s.charsB - s.charsA, "chars")),
+      reportTile("Words", s.wordsA.toLocaleString() + " → " + s.wordsB.toLocaleString(), deltaText(s.wordsB - s.wordsA, "words"))
     ].join("");
+  }
+
+  // Plain-text rendering of the report panel, for the Copy/Download
+  // buttons - a `reportGrid.textContent` scrape would work too, but this
+  // stays correct even if that markup's exact wording/layout changes
+  // later, and reads better as a stand-alone text file than a DOM dump
+  // would.
+  function buildReportText() {
+    var aText = fileA.value, bText = fileB.value;
+    var s = computeReportStats(aText, bText);
+    return [
+      "ClearTXT Comparison Report",
+      "Generated: " + new Date().toLocaleString(),
+      "Markdown syntax: " + (s.keepMarkdown ? "included" : "excluded") + " in report",
+      "",
+      "Percentage diff: " + s.diffPct.toFixed(1) + "% (" + s.pct.toFixed(1) + "% similar)",
+      "Characters: " + s.charsA.toLocaleString() + " → " + s.charsB.toLocaleString() + " (" + signedNumber(s.charsB - s.charsA) + " chars)",
+      "Words: " + s.wordsA.toLocaleString() + " → " + s.wordsB.toLocaleString() + " (" + signedNumber(s.wordsB - s.wordsA) + " words)"
+    ].join("\n") + "\n";
   }
 
   function updateFixListEnabled(applyCleanup) {
@@ -487,6 +523,24 @@
   applyCleanupToggle.addEventListener("change", update);
   reportKeepMarkdown.addEventListener("change", function () {
     renderReport(fileA.value, fileB.value);
+  });
+
+  copyReportBtn.addEventListener("click", function () {
+    if (navigator.clipboard) navigator.clipboard.writeText(buildReportText());
+    ClearTXT.flashButtonLabel(copyReportBtn, "Copied!");
+  });
+
+  downloadReportBtn.addEventListener("click", function () {
+    var blob = new Blob([buildReportText()], { type: "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "cleartxt-compare-report-" + ClearTXT.fileTimestamp(new Date()) + ".txt";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    ClearTXT.flashButtonLabel(downloadReportBtn, "Downloaded!");
   });
 
   var fixOptions = ClearTXT.createFixOptionsController();

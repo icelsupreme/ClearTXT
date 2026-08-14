@@ -52,3 +52,6 @@
 }
 .reportStat .reportSub .removed { color: var(--danger); }
 .reportStat .reportSub .converted { color: var(--accent); }
+
+.reportActions { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 2px; }
+.reportActions button { font-size: 0.85rem; padding: 6px 12px; }
