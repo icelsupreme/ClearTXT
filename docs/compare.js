@@ -166,71 +166,44 @@
     return '<span class="' + cls + '">' + ClearTXT.escapeHtml(text) + "</span>";
   }
 
-  // Builds one side's highlight-overlay HTML from the shared diff rows
-  // (see ClearTXT.diffLines). Only rows that actually have a line on this
-  // side are rendered, in row order - since every one of that side's line
-  // indices appears in exactly one row, in increasing order, concatenating
-  // them reproduces that side's full text exactly, line for line, keeping
-  // this overlay aligned with the real textarea behind it even though File
-  // A and File B are two independent documents that don't otherwise share
-  // line structure.
-  function buildSideHighlight(rows, side) {
-    var idxKey = side === "a" ? "aIndex" : "bIndex";
-    var segKey = side === "a" ? "aSegs" : "bSegs";
+  // Builds one side's highlight-overlay HTML straight from ClearTXT.diffLines'
+  // per-line `aLineDiffs`/`bLineDiffs` - each entry already carries that
+  // exact line's own text (split into changed/unchanged segments), so this
+  // has no notion of "pairing" with the other side at all: it just renders
+  // this side's lines, in order, which is what keeps this overlay aligned
+  // with the real textarea behind it even though File A and File B are two
+  // independent documents that don't otherwise share line structure.
+  function buildSideHighlight(lineDiffs, side) {
     var wholeClass = side === "a" ? "rm" : "cv";
-    var lines = side === "a" ? lastResult.aLines : lastResult.bLines;
     var html = [];
-    for (var i = 0; i < rows.length; i++) {
-      var row = rows[i];
-      var idx = row[idxKey];
-      if (idx === null) continue;
-      var lineText = lines[idx];
-
-      if (row.type === "equal") {
-        html.push('<div class="line">' + ClearTXT.escapeHtml(lineText) + "</div>");
-        continue;
+    for (var i = 0; i < lineDiffs.length; i++) {
+      var ld = lineDiffs[i];
+      var inner = "";
+      for (var s = 0; s < ld.segs.length; s++) {
+        inner += ld.segs[s].changed ? markerSpan(wholeClass, ld.segs[s].text) : ClearTXT.escapeHtml(ld.segs[s].text);
       }
-      if (row.type === "modified") {
-        var segs = row.charDiff[segKey];
-        var inner = "";
-        for (var s = 0; s < segs.length; s++) {
-          inner += segs[s].changed ? markerSpan(wholeClass, segs[s].text) : ClearTXT.escapeHtml(segs[s].text);
-        }
-        html.push('<div class="line line-changed">' + inner + "</div>");
-        continue;
-      }
-      // "removed" (side a) / "added" (side b): the whole line only exists
-      // on this side, so it's marked changed in full.
-      html.push('<div class="line line-changed">' + (lineText.length ? markerSpan(wholeClass, lineText) : "") + "</div>");
+      html.push('<div class="line' + (ld.changed ? " line-changed" : "") + '">' + inner + "</div>");
     }
     return html.join("");
   }
 
   // Per-line "did this line differ" flags for one side, used to tint the
-  // matching gutter number - built the same "every index appears exactly
-  // once" way buildSideHighlight is.
-  function sideLineChangedFlags(rows, idxKey) {
-    var flags = [];
-    rows.forEach(function (row) {
-      var idx = row[idxKey];
-      if (idx === null) return;
-      flags[idx] = row.type !== "equal";
-    });
-    return flags;
+  // matching gutter number.
+  function sideLineChangedFlags(lineDiffs) {
+    return lineDiffs.map(function (ld) { return ld.changed; });
   }
 
-  var lastResult = null;
   var lastFlagsA = null;
   var lastFlagsB = null;
-  var diffNavRows = [];
+  var diffNavHunks = [];
   var diffNavIndex = -1;
 
   function renderDiffSummary(result) {
     var removed = 0, added = 0, modified = 0;
-    result.rows.forEach(function (row) {
-      if (row.type === "removed") removed++;
-      else if (row.type === "added") added++;
-      else if (row.type === "modified") modified++;
+    result.hunks.forEach(function (h) {
+      if (h.bIndices.length === 0) removed++;
+      else if (h.aIndices.length === 0) added++;
+      else modified++;
     });
     var bothEmpty = result.aLines.length === 1 && result.aLines[0] === "" &&
       result.bLines.length === 1 && result.bLines[0] === "";
@@ -240,9 +213,9 @@
       diffSummary.textContent = "(no differences)";
     } else {
       var parts = [];
-      if (removed) parts.push(removed + (removed === 1 ? " line" : " lines") + " only in A");
-      if (added) parts.push(added + (added === 1 ? " line" : " lines") + " only in B");
-      if (modified) parts.push(modified + (modified === 1 ? " line" : " lines") + " modified");
+      if (removed) parts.push(removed + (removed === 1 ? " block" : " blocks") + " only in A");
+      if (added) parts.push(added + (added === 1 ? " block" : " blocks") + " only in B");
+      if (modified) parts.push(modified + (modified === 1 ? " block" : " blocks") + " modified");
       diffSummary.textContent = "(" + parts.join(", ") + ")";
     }
 
@@ -255,23 +228,23 @@
   }
 
   function renderHighlights(result) {
-    highlightA.innerHTML = buildSideHighlight(result.rows, "a");
-    highlightB.innerHTML = buildSideHighlight(result.rows, "b");
-    lastFlagsA = sideLineChangedFlags(result.rows, "aIndex");
-    lastFlagsB = sideLineChangedFlags(result.rows, "bIndex");
+    highlightA.innerHTML = buildSideHighlight(result.aLineDiffs, "a");
+    highlightB.innerHTML = buildSideHighlight(result.bLineDiffs, "b");
+    lastFlagsA = sideLineChangedFlags(result.aLineDiffs);
+    lastFlagsB = sideLineChangedFlags(result.bLineDiffs);
     updateGutter(fileA, gutterA, lastFlagsA);
     updateGutter(fileB, gutterB, lastFlagsB);
   }
 
   function updateDiffNav(result) {
-    diffNavRows = result.rows.filter(function (r) { return r.type !== "equal"; });
+    diffNavHunks = result.hunks;
     diffNavIndex = -1;
-    if (!diffNavRows.length) {
+    if (!diffNavHunks.length) {
       diffNav.style.display = "none";
       return;
     }
     diffNav.style.display = "";
-    diffNavCount.textContent = diffNavRows.length + (diffNavRows.length === 1 ? " difference" : " differences");
+    diffNavCount.textContent = diffNavHunks.length + (diffNavHunks.length === 1 ? " difference" : " differences");
   }
 
   function clearCurrentDiffLine() {
@@ -286,41 +259,44 @@
     if (el) el.classList.add("line-current");
   }
 
-  // Jumps to position `idx` within diffNavRows (wrapping into range),
-  // scrolling/marking whichever side(s) that row actually has a line on -
-  // a pure add/remove row only exists on one side, so the other pane is
-  // left where it is rather than jumping to a misleading nearby line.
+  // Jumps to position `idx` within diffNavHunks (wrapping into range),
+  // scrolling/marking each side to the FIRST line the hunk covers there -
+  // a hunk that's a pure add/remove only has lines on one side, so the
+  // other pane is left where it is rather than jumping to a misleading
+  // nearby line.
   function jumpToNavIndex(idx) {
-    if (!diffNavRows.length) return;
-    diffNavIndex = ((idx % diffNavRows.length) + diffNavRows.length) % diffNavRows.length;
-    var row = diffNavRows[diffNavIndex];
+    if (!diffNavHunks.length) return;
+    diffNavIndex = ((idx % diffNavHunks.length) + diffNavHunks.length) % diffNavHunks.length;
+    var hunk = diffNavHunks[diffNavIndex];
 
     clearCurrentDiffLine();
 
-    if (row.aIndex !== null) {
-      scrollLineIntoView(fileA, gutterA, highlightA, row.aIndex);
-      markCurrentDiffLine(highlightA, row.aIndex);
+    if (hunk.aIndices.length) {
+      scrollLineIntoView(fileA, gutterA, highlightA, hunk.aIndices[0]);
+      markCurrentDiffLine(highlightA, hunk.aIndices[0]);
     }
-    if (row.bIndex !== null) {
-      scrollLineIntoView(fileB, gutterB, highlightB, row.bIndex);
-      markCurrentDiffLine(highlightB, row.bIndex);
+    if (hunk.bIndices.length) {
+      scrollLineIntoView(fileB, gutterB, highlightB, hunk.bIndices[0]);
+      markCurrentDiffLine(highlightB, hunk.bIndices[0]);
     }
 
-    diffNavCount.textContent = (diffNavIndex + 1) + " / " + diffNavRows.length;
+    diffNavCount.textContent = (diffNavIndex + 1) + " / " + diffNavHunks.length;
   }
 
   function gotoChange(delta) {
     flushUpdate();
-    if (!diffNavRows.length) return;
+    if (!diffNavHunks.length) return;
     jumpToNavIndex(diffNavIndex + delta);
   }
 
   // Lets clicking a changed line number in either gutter jump straight to
-  // it, same as the main page's own gutter-click-to-jump.
+  // the hunk it belongs to, same as the main page's own gutter-click-to-jump.
   function jumpToLineOnSide(side, lineNo) {
     flushUpdate();
-    var idxKey = side === "a" ? "aIndex" : "bIndex";
-    var idx = diffNavRows.findIndex(function (r) { return r[idxKey] === lineNo; });
+    var idx = diffNavHunks.findIndex(function (h) {
+      var indices = side === "a" ? h.aIndices : h.bIndices;
+      return indices.indexOf(lineNo) !== -1;
+    });
     if (idx !== -1) jumpToNavIndex(idx);
   }
 
@@ -410,12 +386,6 @@
     syncPaneValue(fileB, displayB);
 
     var result = ClearTXT.diffLines(displayA, displayB);
-    result.rows.forEach(function (row) {
-      if (row.type === "modified") {
-        row.charDiff = ClearTXT.charDiffSegments(result.aLines[row.aIndex], result.bLines[row.bIndex]);
-      }
-    });
-    lastResult = result;
 
     countA.textContent = Array.from(displayA).length + " chars";
     countB.textContent = Array.from(displayB).length + " chars";
