@@ -4,10 +4,18 @@
    documentation.html's .docSection lives in styles.css instead; only the
    margins/rules that differ between the two pages stay here. */
 
-.changelogIntro { color: var(--muted); font-size: 0.9rem; margin: 0 0 24px; }
-.changelogIntro a { color: var(--accent); }
+.changelogIntro {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 24px;
+}
+.changelogIntro a {
+  color: var(--accent);
+}
 
-.changelogEntry h2 { margin: 0 0 8px; }
+.changelogEntry h2 {
+  margin: 0 0 8px;
+}
 .changelogVer {
   display: inline-block;
   margin-right: 8px;
@@ -21,5 +29,9 @@
   font-size: 0.75rem;
   font-weight: 500;
 }
-.changelogEntry ul { margin: 0; }
-.changelogEntry li { margin-bottom: 4px; }
+.changelogEntry ul {
+  margin: 0;
+}
+.changelogEntry li {
+  margin-bottom: 4px;
+}

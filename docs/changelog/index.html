@@ -41,6 +41,7 @@
       <h2><span class="changelogVer">1.14.0</span>MDX file support</h2>
       <ul>
         <li>The Import, Batch, and Compare file pickers now offer <code>.mdx</code> files alongside <code>.md</code>. MDX is Markdown with embedded JSX, and ClearTXT already preserves Markdown syntax and treats everything else as plain text, so an <code>.mdx</code> file cleans exactly like any other text file - the only change is that the file picker no longer greys it out.</li>
+        <li>Tooling only, no change to the page: replaced ESLint with <a href="https://biomejs.dev" target="_blank" rel="noopener noreferrer">Biome</a> as the project's linter and formatter, and reformatted the JavaScript, CSS, and test files to Biome's style. No app behavior changed.</li>
       </ul>
     </section>
 

@@ -15,10 +15,16 @@
      Mono, no matter which stack it's mixed into. System fonts stay as the
      fallback in case the Google Fonts request fails (offline, blocked,
      etc.). */
-  --font-sans: "Noto Sans", "Noto Sans Hebrew", "Noto Sans Arabic", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: "Noto Sans Mono", "Noto Sans Hebrew", "Noto Sans Arabic", "SF Mono", Menlo, Consolas, monospace;
+  --font-sans:
+    "Noto Sans", "Noto Sans Hebrew", "Noto Sans Arabic", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono:
+    "Noto Sans Mono", "Noto Sans Hebrew", "Noto Sans Arabic", "SF Mono", Menlo,
+    Consolas, monospace;
 }
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 body {
   margin: 0;
   font-family: var(--font-sans);
@@ -84,19 +90,27 @@ header p {
   font-size: 0.82rem;
   font-weight: 500;
   text-decoration: none;
-  transition: border-color .15s, background .15s, color .15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
 }
-.toolsNavLink:hover { border-color: var(--accent); color: var(--text); }
+.toolsNavLink:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
 .toolsNavLink.is-active {
   border-color: var(--accent);
-  background: rgba(79,157,255,.14);
+  background: rgba(79, 157, 255, 0.14);
   color: var(--accent-hover);
   font-weight: 600;
 }
 /* The active tab still needs a hover style of its own - otherwise hovering
    it (e.g. while dragging across the bar) would flip it back to the same
    muted color every other, non-active tab uses on hover. */
-.toolsNavLink.is-active:hover { color: var(--accent-hover); }
+.toolsNavLink.is-active:hover {
+  color: var(--accent-hover);
+}
 .wrap {
   max-width: 1100px;
   margin: 0 auto;
@@ -110,7 +124,9 @@ header p {
   gap: 16px;
 }
 @media (max-width: 760px) {
-  .grid { grid-template-columns: 1fr; }
+  .grid {
+    grid-template-columns: 1fr;
+  }
 }
 .field label {
   display: flex;
@@ -130,14 +146,17 @@ header p {
   border: 1px solid var(--border);
   background: var(--panel);
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,.25);
-  transition: box-shadow .15s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: box-shadow 0.15s;
 }
 /* Replaces the native textarea:focus outline (removed below, since it
    doesn't follow the box's rounded corners) with a ring on the whole
    editor box - a 1px border-color change alone is too subtle to count as
    a real focus indicator for keyboard users. */
-.editor:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,157,255,.3); }
+.editor:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79, 157, 255, 0.3);
+}
 .gutter {
   flex: 0 0 auto;
   min-width: 38px;
@@ -155,8 +174,14 @@ header p {
 /* Ties a gutter's line number to its row's highlight, so a changed line
    is visible in the gutter too, not just in the text itself. Clickable -
    jumps straight to that line, same as stepping to it with Previous/Next. */
-.gutter .gutter-changed { color: var(--accent); font-weight: 700; cursor: pointer; }
-.gutter .gutter-changed:hover { text-decoration: underline; }
+.gutter .gutter-changed {
+  color: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+.gutter .gutter-changed:hover {
+  text-decoration: underline;
+}
 /* textWrap stacks two layers filling the same box: .highlight (behind,
    invisible text, only its rm/cv/iv marker effects are visible) and the
    real textarea (in front, normal visible text). Both must share
@@ -169,8 +194,11 @@ header p {
   min-width: 0;
   min-height: 0;
 }
-.textWrap:has(textarea[readonly]) { background: #12151b; }
-.highlight, textarea {
+.textWrap:has(textarea[readonly]) {
+  background: #12151b;
+}
+.highlight,
+textarea {
   position: absolute;
   inset: 0;
   box-sizing: border-box;
@@ -191,7 +219,11 @@ header p {
      match so its line-height-based row heights stay aligned with the text.
      Placed after the base declarations above (not with the .grid rule
      earlier in the file) so it actually wins the cascade at this width. */
-  .highlight, textarea, .gutter { font-size: 16px; }
+  .highlight,
+  textarea,
+  .gutter {
+    font-size: 16px;
+  }
 }
 .highlight {
   z-index: 0;
@@ -205,14 +237,30 @@ header p {
    marks within it. min-height keeps a completely empty (blank) line from
    collapsing to 0 height, which would desync every line after it from
    the textarea's own rendering of that blank line. */
-.highlight .line { min-height: 1.55em; }
-.highlight .line-changed { background: rgba(79,157,255,.14); box-shadow: inset 4px 0 0 0 rgba(79,157,255,.9); }
+.highlight .line {
+  min-height: 1.55em;
+}
+.highlight .line-changed {
+  background: rgba(79, 157, 255, 0.14);
+  box-shadow: inset 4px 0 0 0 rgba(79, 157, 255, 0.9);
+}
 /* Marks the line the diff-navigation buttons last jumped to - layered on
    top of (and overriding) .line-changed's own box-shadow via source order,
    since a class list always carries both together. */
-.highlight .line-current { background: rgba(79,157,255,.22); box-shadow: inset 4px 0 0 0 var(--accent-hover), inset 0 0 0 1px rgba(107,176,255,.5); }
-.highlight .rm { background: rgba(255,107,107,.55); border-radius: 2px; }
-.highlight .cv { background: rgba(79,157,255,.5); border-radius: 2px; }
+.highlight .line-current {
+  background: rgba(79, 157, 255, 0.22);
+  box-shadow:
+    inset 4px 0 0 0 var(--accent-hover),
+    inset 0 0 0 1px rgba(107, 176, 255, 0.5);
+}
+.highlight .rm {
+  background: rgba(255, 107, 107, 0.55);
+  border-radius: 2px;
+}
+.highlight .cv {
+  background: rgba(79, 157, 255, 0.5);
+  border-radius: 2px;
+}
 /* Purely a passive visual cue, not an interactive one: the real textarea
    sits on top of this whole layer (so clicking/typing anywhere always
    reaches it), which means nothing in this layer - however it's
@@ -221,8 +269,13 @@ header p {
    box, so box-shadow (which isn't hit-tested anyway) is drawn centered
    on that exact point without adding any layout width of its own,
    keeping this layer's characters aligned with the textarea's. */
-.highlight .iv { box-shadow: 0 0 0 1.5px var(--invisible); border-radius: 1px; }
-.highlight .iv.rm { box-shadow: 0 0 0 1.5px var(--danger); }
+.highlight .iv {
+  box-shadow: 0 0 0 1.5px var(--invisible);
+  border-radius: 1px;
+}
+.highlight .iv.rm {
+  box-shadow: 0 0 0 1.5px var(--danger);
+}
 textarea {
   z-index: 1;
   background: transparent;
@@ -230,7 +283,9 @@ textarea {
   overflow-y: auto;
   overflow-x: hidden;
 }
-textarea:focus { outline: none; }
+textarea:focus {
+  outline: none;
+}
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -256,25 +311,55 @@ button {
   font-family: var(--font-sans);
   font-size: 0.9rem;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0,0,0,.2);
-  transition: border-color .15s, background .15s, box-shadow .15s, transform .1s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s,
+    transform 0.1s;
 }
-button:hover { border-color: var(--accent); background: #1c2029; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
-button:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-button:disabled:hover { border-color: var(--border); background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
-.btnIcon { width: 16px; height: 16px; flex-shrink: 0; }
+button:hover {
+  border-color: var(--accent);
+  background: #1c2029;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+button:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+button:disabled:hover {
+  border-color: var(--border);
+  background: var(--panel);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.btnIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
 @media (prefers-reduced-motion: reduce) {
-  button { transition: none; }
-  button:active { transform: none; }
+  button {
+    transition: none;
+  }
+  button:active {
+    transform: none;
+  }
 }
 .stats {
   margin-left: auto;
   color: var(--muted);
   font-size: 0.85rem;
 }
-.stats .removed { color: var(--danger); }
-.stats .converted { color: var(--accent); }
+.stats .removed {
+  color: var(--danger);
+}
+.stats .converted {
+  color: var(--accent);
+}
 .diffNav {
   display: flex;
   align-items: center;
@@ -282,8 +367,16 @@ button:disabled:hover { border-color: var(--border); background: var(--panel); b
   gap: 12px;
   margin-top: 12px;
 }
-.diffNav button { font-size: 0.85rem; padding: 6px 12px; }
-.diffNavCount { color: var(--muted); font-size: 0.85rem; min-width: 60px; text-align: center; }
+.diffNav button {
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}
+.diffNavCount {
+  color: var(--muted);
+  font-size: 0.85rem;
+  min-width: 60px;
+  text-align: center;
+}
 /* Mirrors #stats so the removed/converted counts stay visible while
    scrolled down configuring fixes, far below where #stats normally sits. */
 .stickyFooter {
@@ -297,18 +390,22 @@ button:disabled:hover { border-color: var(--border); background: var(--panel); b
   font-size: 0.85rem;
   color: var(--muted);
   text-align: center;
-  box-shadow: 0 -4px 12px rgba(0,0,0,.3);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
   z-index: 10;
 }
-.stickyFooter .removed { color: var(--danger); }
-.stickyFooter .converted { color: var(--accent); }
+.stickyFooter .removed {
+  color: var(--danger);
+}
+.stickyFooter .converted {
+  color: var(--accent);
+}
 details {
   margin-top: 22px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 4px 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 details summary {
   cursor: pointer;
@@ -316,13 +413,30 @@ details summary {
   font-size: 0.9rem;
   color: var(--muted);
 }
-details code { color: var(--accent); background: #0d1017; padding: 1px 5px; border-radius: 4px; font-family: var(--font-mono); }
+details code {
+  color: var(--accent);
+  background: #0d1017;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
 
-.fixActions { margin: 8px 0 4px; }
-.fixActions button { font-size: 0.85rem; padding: 6px 12px; }
-.fixList { margin: 4px 0 16px; }
-.fixGroup { margin-bottom: 6px; }
-.fixGroup:last-child { margin-bottom: 0; }
+.fixActions {
+  margin: 8px 0 4px;
+}
+.fixActions button {
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}
+.fixList {
+  margin: 4px 0 16px;
+}
+.fixGroup {
+  margin-bottom: 6px;
+}
+.fixGroup:last-child {
+  margin-bottom: 0;
+}
 .fixGroupHeader {
   display: flex;
   align-items: center;
@@ -330,7 +444,12 @@ details code { color: var(--accent); background: #0d1017; padding: 1px 5px; bord
   padding: 10px 0 6px;
   border-bottom: 1px solid var(--border);
 }
-.fixGroupHeader input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); flex: 0 0 auto; }
+.fixGroupHeader input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  flex: 0 0 auto;
+}
 .fixGroupTitle {
   font-weight: 600;
   font-size: 0.78rem;
@@ -346,10 +465,25 @@ details code { color: var(--accent); background: #0d1017; padding: 1px 5px; bord
   padding: 8px 0 8px 23px;
   border-bottom: 1px solid var(--border);
 }
-.fixRow:last-child { border-bottom: none; }
-.fixRow input[type="checkbox"] { margin-top: 4px; width: 15px; height: 15px; accent-color: var(--accent); flex: 0 0 auto; }
-.fixRow .fixText strong { color: var(--text); font-size: 0.9rem; }
-.fixRow .fixText div { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+.fixRow:last-child {
+  border-bottom: none;
+}
+.fixRow input[type="checkbox"] {
+  margin-top: 4px;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  flex: 0 0 auto;
+}
+.fixRow .fixText strong {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.fixRow .fixText div {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-top: 2px;
+}
 .fixRow select {
   margin-left: 6px;
   border: 1px solid var(--border);
@@ -362,19 +496,60 @@ details code { color: var(--accent); background: #0d1017; padding: 1px 5px; bord
   border-radius: 6px;
   vertical-align: middle;
 }
-.fixRow select:disabled { opacity: 0.5; cursor: not-allowed; }
+.fixRow select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
-.diffCounts { color: var(--muted); font-size: 0.8rem; margin: 2px 0 10px; }
-.legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 0.8rem; color: var(--muted); }
-.legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
-.legend .sw.removed { background: rgba(255,107,107,.5); }
-.legend .sw.converted { background: rgba(79,157,255,.4); }
-.legend .sw.invisible { background: transparent; box-shadow: 0 0 0 1.5px var(--invisible); }
+.diffCounts {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 2px 0 10px;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.legend .sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.legend .sw.removed {
+  background: rgba(255, 107, 107, 0.5);
+}
+.legend .sw.converted {
+  background: rgba(79, 157, 255, 0.4);
+}
+.legend .sw.invisible {
+  background: transparent;
+  box-shadow: 0 0 0 1.5px var(--invisible);
+}
 
-.pageCredit { text-align: center; color: var(--muted); font-size: 0.8rem; margin: 20px 0 0; }
-.pageCredit a { color: var(--muted); }
-.pageCredit a:hover { color: var(--accent); }
-.shareRow { display: flex; justify-content: center; margin-top: 10px; }
+.pageCredit {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 20px 0 0;
+}
+.pageCredit a {
+  color: var(--muted);
+}
+.pageCredit a:hover {
+  color: var(--accent);
+}
+.shareRow {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
 
 /* Shared "bordered entry" block pattern used by documentation.html's
    .docSection and changelog.html's .changelogEntry - identical layout
@@ -411,4 +586,7 @@ details code { color: var(--accent); background: #0d1017; padding: 1px 5px; bord
 .changelogEntry li:last-child {
   margin-bottom: 0;
 }
-.shareRow button { font-size: 0.8rem; padding: 6px 12px; }
+.shareRow button {
+  font-size: 0.8rem;
+  padding: 6px 12px;
+}

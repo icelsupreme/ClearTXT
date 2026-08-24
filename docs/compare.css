@@ -12,7 +12,9 @@
    comparing" is off - the fixes stay interactive so preferences can still
    be set up for when it's turned back on, they just aren't affecting the
    comparison right now. */
-.fixList.fixListDisabled { opacity: .55; }
+.fixList.fixListDisabled {
+  opacity: 0.55;
+}
 
 .reportGrid {
   display: grid;
@@ -21,7 +23,9 @@
   margin: 14px 0 4px;
 }
 @media (max-width: 700px) {
-  .reportGrid { grid-template-columns: 1fr; }
+  .reportGrid {
+    grid-template-columns: 1fr;
+  }
 }
 .reportStat {
   border: 1px solid var(--border);
@@ -50,8 +54,20 @@
   color: var(--muted);
   font-family: var(--font-mono);
 }
-.reportStat .reportSub .removed { color: var(--danger); }
-.reportStat .reportSub .converted { color: var(--accent); }
+.reportStat .reportSub .removed {
+  color: var(--danger);
+}
+.reportStat .reportSub .converted {
+  color: var(--accent);
+}
 
-.reportActions { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 2px; }
-.reportActions button { font-size: 0.85rem; padding: 6px 12px; }
+.reportActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+.reportActions button {
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}

@@ -79,10 +79,13 @@ Every subdirectory page (`batch/`, `compare/`, `changelog/`, `documentation/`) i
 Requires Node.js (for linting and tests only - the page itself has no runtime dependencies).
 
 ```sh
-npm install   # dev dependencies: eslint + test runner support
-npm run lint  # ESLint
-npm test      # unit tests (node:test) against the filtering logic in docs/script.js
+npm install    # dev dependency: Biome (lint + format) + test runner support
+npm run lint   # Biome check - lints and verifies formatting (biome.jsonc)
+npm run format # Biome - auto-format the code in place
+npm test       # unit tests (node:test) against the filtering logic in docs/script.js
 ```
+
+Linting and formatting are both handled by [Biome](https://biomejs.dev) (configured in `biome.jsonc`), which replaced ESLint. `npm run lint` runs `biome check`, so it fails on either a lint violation or unformatted code; `npm run format` rewrites files to match.
 
 `docs/script.js` runs as a plain browser script, but its pure text-processing functions (`processText`, `applyWhitespaceCleanup`, `inputHighlightHtml`, etc.) are also exposed via `module.exports` when loaded under Node, which is what `test/processText.test.js` exercises directly - no DOM or browser needed to run the test suite.
 
