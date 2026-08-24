@@ -4,26 +4,56 @@
    changelog.html's .changelogEntry lives in styles.css instead; only the
    margins/rules that differ between the two pages stay here. */
 
-.docIntro { color: var(--muted); font-size: 0.9rem; margin: 0 0 24px; line-height: 1.6; }
+.docIntro {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 24px;
+  line-height: 1.6;
+}
 
-.docSection h2 { margin: 0 0 6px; }
+.docSection h2 {
+  margin: 0 0 6px;
+}
 .docGoverned {
   margin: 0 0 10px;
   color: var(--muted);
   font-size: 0.8rem;
 }
-.docGoverned strong { color: var(--accent); font-weight: 500; }
+.docGoverned strong {
+  color: var(--accent);
+  font-weight: 500;
+}
 .docSection p {
   margin: 0 0 10px;
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.6;
 }
-.docSection p:last-child { margin-bottom: 0; }
-.docSection ul { margin: 0 0 10px; }
-.docSection ul:last-child { margin-bottom: 0; }
-.docSection li { margin-bottom: 6px; }
-.docSection li strong { color: var(--text); }
-.docDetail { font-size: 0.85rem; }
-.docSection code { color: var(--accent); background: #0d1017; padding: 1px 5px; border-radius: 4px; font-family: var(--font-mono); }
-.docSection a { color: var(--accent); }
+.docSection p:last-child {
+  margin-bottom: 0;
+}
+.docSection ul {
+  margin: 0 0 10px;
+}
+.docSection ul:last-child {
+  margin-bottom: 0;
+}
+.docSection li {
+  margin-bottom: 6px;
+}
+.docSection li strong {
+  color: var(--text);
+}
+.docDetail {
+  font-size: 0.85rem;
+}
+.docSection code {
+  color: var(--accent);
+  background: #0d1017;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+.docSection a {
+  color: var(--accent);
+}

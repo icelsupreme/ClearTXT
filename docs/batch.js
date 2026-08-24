@@ -10,18 +10,18 @@
     var table = new Uint32Array(256);
     for (var n = 0; n < 256; n++) {
       var c = n;
-      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      for (var k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
       table[n] = c >>> 0;
     }
     return table;
   })();
 
   function crc32(bytes) {
-    var crc = 0xFFFFFFFF;
+    var crc = 0xffffffff;
     for (var i = 0; i < bytes.length; i++) {
-      crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+      crc = CRC_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
     }
-    return (crc ^ 0xFFFFFFFF) >>> 0;
+    return (crc ^ 0xffffffff) >>> 0;
   }
 
   function u16(n) {
@@ -52,8 +52,14 @@
   // worth the file's real mtime (browsers don't expose it reliably anyway
   // for File objects read via .text()), so every entry just gets "now".
   function dosDateTime(date) {
-    var time = ((date.getHours() & 0x1F) << 11) | ((date.getMinutes() & 0x3F) << 5) | ((Math.floor(date.getSeconds() / 2)) & 0x1F);
-    var day = (((date.getFullYear() - 1980) & 0x7F) << 9) | (((date.getMonth() + 1) & 0xF) << 5) | (date.getDate() & 0x1F);
+    var time =
+      ((date.getHours() & 0x1f) << 11) |
+      ((date.getMinutes() & 0x3f) << 5) |
+      (Math.floor(date.getSeconds() / 2) & 0x1f);
+    var day =
+      (((date.getFullYear() - 1980) & 0x7f) << 9) |
+      (((date.getMonth() + 1) & 0xf) << 5) |
+      (date.getDate() & 0x1f);
     return { time: time, date: day };
   }
 
@@ -62,9 +68,9 @@
   var ZIP_LOCAL_FILE_HEADER_SIG = 0x04034b50;
   var ZIP_CENTRAL_DIR_HEADER_SIG = 0x02014b50;
   var ZIP_END_OF_CENTRAL_DIR_SIG = 0x06054b50;
-  var ZIP_VERSION = 20;              // "version needed to extract" / "version made by" - 2.0, covers everything this writer uses
-  var ZIP_FLAG_UTF8_NAME = 0x0800;   // general purpose bit 11: file name is UTF-8
-  var ZIP_METHOD_STORED = 0;         // compression method: none (stored as-is)
+  var ZIP_VERSION = 20; // "version needed to extract" / "version made by" - 2.0, covers everything this writer uses
+  var ZIP_FLAG_UTF8_NAME = 0x0800; // general purpose bit 11: file name is UTF-8
+  var ZIP_METHOD_STORED = 0; // compression method: none (stored as-is)
 
   // Builds a single valid, uncompressed ZIP archive from `entries`
   // ([{ name, data: Uint8Array }]) and returns it as a Uint8Array.
@@ -81,24 +87,56 @@
       var localOffset = offset;
 
       var local = concatBytes([
-        u32(ZIP_LOCAL_FILE_HEADER_SIG), u16(ZIP_VERSION), u16(ZIP_FLAG_UTF8_NAME), u16(ZIP_METHOD_STORED),
-        u16(dt.time), u16(dt.date), u32(crc), u32(data.length), u32(data.length),
-        u16(nameBytes.length), u16(0), nameBytes
+        u32(ZIP_LOCAL_FILE_HEADER_SIG),
+        u16(ZIP_VERSION),
+        u16(ZIP_FLAG_UTF8_NAME),
+        u16(ZIP_METHOD_STORED),
+        u16(dt.time),
+        u16(dt.date),
+        u32(crc),
+        u32(data.length),
+        u32(data.length),
+        u16(nameBytes.length),
+        u16(0),
+        nameBytes,
       ]);
       localAndData.push(local, data);
       offset += local.length + data.length;
 
-      centralParts.push(concatBytes([
-        u32(ZIP_CENTRAL_DIR_HEADER_SIG), u16(ZIP_VERSION), u16(ZIP_VERSION), u16(ZIP_FLAG_UTF8_NAME), u16(ZIP_METHOD_STORED),
-        u16(dt.time), u16(dt.date), u32(crc), u32(data.length), u32(data.length),
-        u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(localOffset), nameBytes
-      ]));
+      centralParts.push(
+        concatBytes([
+          u32(ZIP_CENTRAL_DIR_HEADER_SIG),
+          u16(ZIP_VERSION),
+          u16(ZIP_VERSION),
+          u16(ZIP_FLAG_UTF8_NAME),
+          u16(ZIP_METHOD_STORED),
+          u16(dt.time),
+          u16(dt.date),
+          u32(crc),
+          u32(data.length),
+          u32(data.length),
+          u16(nameBytes.length),
+          u16(0),
+          u16(0),
+          u16(0),
+          u16(0),
+          u32(0),
+          u32(localOffset),
+          nameBytes,
+        ]),
+      );
     });
 
     var centralDir = concatBytes(centralParts);
     var end = concatBytes([
-      u32(ZIP_END_OF_CENTRAL_DIR_SIG), u16(0), u16(0), u16(entries.length), u16(entries.length),
-      u32(centralDir.length), u32(offset), u16(0)
+      u32(ZIP_END_OF_CENTRAL_DIR_SIG),
+      u16(0),
+      u16(0),
+      u16(entries.length),
+      u16(entries.length),
+      u32(centralDir.length),
+      u32(offset),
+      u16(0),
     ]);
 
     return concatBytes(localAndData.concat([centralDir, end]));
@@ -129,7 +167,8 @@
     var val = bytes;
     for (var i = 0; i < units.length; i++) {
       val /= 1024;
-      if (val < 1024 || i === units.length - 1) return val.toFixed(val < 10 ? 1 : 0) + " " + units[i];
+      if (val < 1024 || i === units.length - 1)
+        return val.toFixed(val < 10 ? 1 : 0) + " " + units[i];
     }
   }
 
@@ -143,7 +182,12 @@
   // removed/converted/whitespace-cleaned produces, so any other type means
   // the file's output differs from what was pasted/dropped in.
   function entryHasChanges(entry) {
-    return !!entry.result && entry.result.changes.some(function (c) { return c.type !== "kept"; });
+    return (
+      !!entry.result &&
+      entry.result.changes.some(function (c) {
+        return c.type !== "kept";
+      })
+    );
   }
 
   // True only for a file that's actually been cleaned and turned out
@@ -157,16 +201,26 @@
   function reprocessAll() {
     var opts = fixOptions.readOpts();
     fixOptions.saveOpts(opts);
-    files.forEach(function (entry) { reprocessEntry(entry, opts); });
+    files.forEach(function (entry) {
+      reprocessEntry(entry, opts);
+    });
     render();
   }
 
   function addFiles(fileList) {
     var opts = fixOptions.readOpts();
     Array.prototype.forEach.call(fileList, function (file) {
-      var entry = { id: nextId++, name: file.name, size: file.size, rawText: "", result: null, status: "ready" };
+      var entry = {
+        id: nextId++,
+        name: file.name,
+        size: file.size,
+        rawText: "",
+        result: null,
+        status: "ready",
+      };
       files.push(entry);
-      file.text()
+      file
+        .text()
         .then(function (text) {
           entry.rawText = text;
           reprocessEntry(entry, opts);
@@ -181,7 +235,9 @@
   }
 
   function removeEntry(id) {
-    files = files.filter(function (f) { return f.id !== id; });
+    files = files.filter(function (f) {
+      return f.id !== id;
+    });
     render();
   }
 
@@ -226,11 +282,14 @@
 
   function safeEntryName(name) {
     var base = name.split(/[\\/]/).pop() || "";
-    base = Array.from(base).filter(function (ch) {
-      var cp = ch.codePointAt(0);
-      return !ClearTXT.isFormatChar(cp) && !ClearTXT.isHiddenPayloadRange(cp);
-    }).join("");
-    // eslint-disable-next-line no-control-regex -- intentionally stripping control chars
+    base = Array.from(base)
+      .filter(function (ch) {
+        var cp = ch.codePointAt(0);
+        return !ClearTXT.isFormatChar(cp) && !ClearTXT.isHiddenPayloadRange(cp);
+      })
+      .join("");
+    // Intentionally stripping control chars (the regex range is deliberate;
+    // Biome's noControlCharactersInRegex is off project-wide).
     base = base.replace(/[\x00-\x1F]/g, "").slice(0, ENTRY_NAME_MAX_LENGTH);
     if (base === "" || base === "." || base === "..") base = "file";
     return base;
@@ -238,7 +297,9 @@
 
   function downloadEntry(entry, btn) {
     if (!entry.result) return;
-    var blob = new Blob([entry.result.output], { type: "text/plain;charset=utf-8" });
+    var blob = new Blob([entry.result.output], {
+      type: "text/plain;charset=utf-8",
+    });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
@@ -254,14 +315,18 @@
     ClearTXT.flashButtonLabel(btn, "Downloaded!");
   }
 
-  function escapeHtml(s) { return ClearTXT.escapeHtml(s); }
+  function escapeHtml(s) {
+    return ClearTXT.escapeHtml(s);
+  }
 
   function rowStatsHtml(entry) {
-    if (entry.status === "error") return '<span class="error">Couldn\'t read this file</span>';
+    if (entry.status === "error")
+      return '<span class="error">Couldn\'t read this file</span>';
     if (!entry.result) return "Reading…";
     var inLen = [...entry.rawText].length;
     var outLen = [...entry.result.output].length;
-    var removed = 0, converted = 0;
+    var removed = 0,
+      converted = 0;
     entry.result.changes.forEach(function (c) {
       if (c.type === "removed") removed++;
       else if (c.type === "converted") converted++;
@@ -269,8 +334,12 @@
     var bits = [inLen + " → " + outLen + " chars"];
     if (removed || converted) {
       var parts = [];
-      if (removed) parts.push('<span class="removed">' + removed + "</span> removed");
-      if (converted) parts.push('<span class="converted">' + converted + "</span> converted");
+      if (removed)
+        parts.push('<span class="removed">' + removed + "</span> removed");
+      if (converted)
+        parts.push(
+          '<span class="converted">' + converted + "</span> converted",
+        );
       bits.push(parts.join(" · "));
     } else {
       bits.push("no changes");
@@ -284,16 +353,32 @@
     // entry.name - so what's shown here can never visually diverge from
     // what you actually get, including its extension.
     var displayName = safeEntryName(entry.name);
-    return '<div class="batchRow" data-id="' + entry.id + '">' +
+    return (
+      '<div class="batchRow" data-id="' +
+      entry.id +
+      '">' +
       '<div class="batchRowInfo">' +
-      '<div class="batchRowName" title="' + escapeHtml(displayName) + '">' + escapeHtml(displayName) + " &middot; " + humanSize(entry.size) + "</div>" +
-      '<div class="batchRowStats">' + rowStatsHtml(entry) + "</div>" +
+      '<div class="batchRowName" title="' +
+      escapeHtml(displayName) +
+      '">' +
+      escapeHtml(displayName) +
+      " &middot; " +
+      humanSize(entry.size) +
+      "</div>" +
+      '<div class="batchRowStats">' +
+      rowStatsHtml(entry) +
+      "</div>" +
       "</div>" +
       '<div class="batchRowActions">' +
-      '<button class="downloadOneBtn" ' + (entry.result ? "" : "disabled") + '><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg><span class="btnLabel">Download</span></button>' +
-      '<button class="removeOneBtn iconOnly" aria-label="Remove ' + escapeHtml(displayName) + '" title="Remove"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>' +
+      '<button class="downloadOneBtn" ' +
+      (entry.result ? "" : "disabled") +
+      '><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg><span class="btnLabel">Download</span></button>' +
+      '<button class="removeOneBtn iconOnly" aria-label="Remove ' +
+      escapeHtml(displayName) +
+      '" title="Remove"><svg class="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>' +
       "</div>" +
-      "</div>";
+      "</div>"
+    );
   }
 
   // Tracks each row's last-rendered HTML, keyed by entry id and computed
@@ -353,8 +438,12 @@
 
     var changedCount = files.filter(entryHasChanges).length;
     var unchangedCount = files.filter(entryIsUnchanged).length;
-    var errorCount = files.filter(function (f) { return f.status === "error"; }).length;
-    var summaryBits = [files.length + (files.length === 1 ? " file" : " files")];
+    var errorCount = files.filter(function (f) {
+      return f.status === "error";
+    }).length;
+    var summaryBits = [
+      files.length + (files.length === 1 ? " file" : " files"),
+    ];
     if (errorCount) summaryBits.push(errorCount + " failed to read");
     batchSummary.textContent = summaryBits.join(" · ");
     downloadAllBtn.disabled = changedCount === 0;
@@ -363,7 +452,9 @@
     renderRows();
   }
 
-  chooseFilesBtn.addEventListener("click", function () { filesInput.click(); });
+  chooseFilesBtn.addEventListener("click", function () {
+    filesInput.click();
+  });
 
   filesInput.addEventListener("change", function () {
     if (filesInput.files.length) addFiles(filesInput.files);
@@ -377,12 +468,15 @@
     });
   });
   ["dragleave", "dragend"].forEach(function (evt) {
-    dropzone.addEventListener(evt, function () { dropzone.classList.remove("dragover"); });
+    dropzone.addEventListener(evt, function () {
+      dropzone.classList.remove("dragover");
+    });
   });
   dropzone.addEventListener("drop", function (e) {
     e.preventDefault();
     dropzone.classList.remove("dragover");
-    if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+    if (e.dataTransfer && e.dataTransfer.files.length)
+      addFiles(e.dataTransfer.files);
   });
 
   // Delegated: rows are rebuilt wholesale on every render(), so listeners
@@ -391,7 +485,9 @@
     var row = e.target.closest(".batchRow");
     if (!row) return;
     var id = Number(row.dataset.id);
-    var entry = files.find(function (f) { return f.id === id; });
+    var entry = files.find(function (f) {
+      return f.id === id;
+    });
     if (!entry) return;
     var downloadBtn = e.target.closest(".downloadOneBtn");
     if (downloadBtn) downloadEntry(entry, downloadBtn);
@@ -402,14 +498,20 @@
     var changed = files.filter(entryHasChanges);
     if (!changed.length) return;
     var encoder = new TextEncoder();
-    var zipBytes = buildZip(changed.map(function (entry) {
-      return { name: safeEntryName(entry.name), data: encoder.encode(entry.result.output) };
-    }));
+    var zipBytes = buildZip(
+      changed.map(function (entry) {
+        return {
+          name: safeEntryName(entry.name),
+          data: encoder.encode(entry.result.output),
+        };
+      }),
+    );
     var blob = new Blob([zipBytes], { type: "application/zip" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
-    a.download = "cleartxt-batch-" + ClearTXT.fileTimestamp(new Date()) + ".zip";
+    a.download =
+      "cleartxt-batch-" + ClearTXT.fileTimestamp(new Date()) + ".zip";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -418,7 +520,9 @@
   });
 
   removeUnchangedBtn.addEventListener("click", function () {
-    files = files.filter(function (f) { return !entryIsUnchanged(f); });
+    files = files.filter(function (f) {
+      return !entryIsUnchanged(f);
+    });
     render();
   });
 

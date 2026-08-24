@@ -1,0 +1,67 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.10/schema.json",
+  "files": {
+    // Claude Code skill assets, not part of this project's own source - the
+    // same directory the old eslint.config.js ignored. Kept as a defensive
+    // ignore even though the directory isn't checked in.
+    "includes": ["**", "!.claude"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 80
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "suspicious": {
+        // This app's whole purpose is manipulating control characters, so its
+        // filter/strip regexes deliberately contain them (the old ESLint setup
+        // suppressed the equivalent no-control-regex per-line).
+        "noControlCharactersInRegex": "off",
+        // docs/*.js are plain browser <script>s (IIFE, sourceType "script"),
+        // not ES modules, so their top-level "use strict" is meaningful, not
+        // redundant.
+        "noRedundantUseStrict": "off",
+        // isNaN() is only ever called here on a parseFloat() result, where it
+        // behaves identically to Number.isNaN() - no coercion footgun.
+        "noGlobalIsNan": "off"
+      },
+      "correctness": {
+        // Not part of ESLint's recommended set (so the old setup allowed it),
+        // and the codebase leans on block-scoped function declarations.
+        "noInnerDeclarations": "off"
+      },
+      "complexity": {
+        // The codebase is deliberately written in an ES5-script style: named
+        // function expressions rather than arrows, and Unicode code points as
+        // hex object keys (0x2028, ...) for readability. Left as-is.
+        "useArrowFunction": "off",
+        "useSimpleNumberKeys": "off",
+        "useOptionalChain": "off",
+        // The stylesheets use !important deliberately (overlay/gutter layering).
+        "noImportantStyles": "off"
+      },
+      "style": {
+        // String concatenation is the established style in these scripts.
+        "useTemplate": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      // The old ESLint setup only ever linted JavaScript. Biome's HTML/SVG
+      // linters (a11y rules, etc.) are new scope, out of this migration -
+      // formatting of JS/CSS/JSON still applies to everything else.
+      "includes": ["**/*.html", "**/*.svg"],
+      "linter": { "enabled": false }
+    }
+  ]
+}

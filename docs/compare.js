@@ -50,10 +50,16 @@
     try {
       var raw = localStorage.getItem(key);
       return raw === null ? def : raw === "true";
-    } catch (e) { return def; }
+    } catch {
+      return def;
+    }
   }
   function saveBool(key, val) {
-    try { localStorage.setItem(key, String(val)); } catch (e) { /* ignore */ }
+    try {
+      localStorage.setItem(key, String(val));
+    } catch {
+      /* ignore */
+    }
   }
 
   // Hidden mirror element used to measure how many visual rows each logical
@@ -83,7 +89,8 @@
     ruler.style.lineHeight = cs.lineHeight;
 
     var lineHeight = parseFloat(cs.lineHeight);
-    if (!lineHeight || isNaN(lineHeight)) lineHeight = parseFloat(cs.fontSize) * 1.2;
+    if (!lineHeight || isNaN(lineHeight))
+      lineHeight = parseFloat(cs.fontSize) * 1.2;
 
     var frag = document.createDocumentFragment();
     var divs = new Array(logicalLines.length);
@@ -110,7 +117,9 @@
 
     function numHtml(n) {
       var s = String(n + 1);
-      return (lineChanged && lineChanged[n]) ? '<span class="gutter-changed">' + s + "</span>" : s;
+      return lineChanged && lineChanged[n]
+        ? '<span class="gutter-changed">' + s + "</span>"
+        : s;
     }
 
     var plain = [];
@@ -132,14 +141,15 @@
 
     var cs = getComputedStyle(ta);
     var lineHeight = parseFloat(cs.lineHeight);
-    if (!lineHeight || isNaN(lineHeight)) lineHeight = parseFloat(cs.fontSize) * 1.2;
+    if (!lineHeight || isNaN(lineHeight))
+      lineHeight = parseFloat(cs.fontSize) * 1.2;
 
     var rowCounts = countWrappedRows(ta, logicalLines);
     var rowsBefore = 0;
     for (var i = 0; i < lineNo; i++) rowsBefore += rowCounts[i];
 
     var targetTop = rowsBefore * lineHeight;
-    var targetCenter = targetTop - (ta.clientHeight / 2) + (lineHeight / 2);
+    var targetCenter = targetTop - ta.clientHeight / 2 + lineHeight / 2;
     var maxScroll = Math.max(0, ta.scrollHeight - ta.clientHeight);
     ta.scrollTop = Math.max(0, Math.min(maxScroll, targetCenter));
     gutter.scrollTop = ta.scrollTop;
@@ -159,7 +169,11 @@
     if (ta.value === newValue) return;
     var pos = Math.min(ta.selectionStart, newValue.length);
     ta.value = newValue;
-    try { ta.setSelectionRange(pos, pos); } catch (e) { /* ignore */ }
+    try {
+      ta.setSelectionRange(pos, pos);
+    } catch {
+      /* ignore */
+    }
   }
 
   function markerSpan(cls, text) {
@@ -180,9 +194,17 @@
       var ld = lineDiffs[i];
       var inner = "";
       for (var s = 0; s < ld.segs.length; s++) {
-        inner += ld.segs[s].changed ? markerSpan(wholeClass, ld.segs[s].text) : ClearTXT.escapeHtml(ld.segs[s].text);
+        inner += ld.segs[s].changed
+          ? markerSpan(wholeClass, ld.segs[s].text)
+          : ClearTXT.escapeHtml(ld.segs[s].text);
       }
-      html.push('<div class="line' + (ld.changed ? " line-changed" : "") + '">' + inner + "</div>");
+      html.push(
+        '<div class="line' +
+          (ld.changed ? " line-changed" : "") +
+          '">' +
+          inner +
+          "</div>",
+      );
     }
     return html.join("");
   }
@@ -190,7 +212,9 @@
   // Per-line "did this line differ" flags for one side, used to tint the
   // matching gutter number.
   function sideLineChangedFlags(lineDiffs) {
-    return lineDiffs.map(function (ld) { return ld.changed; });
+    return lineDiffs.map(function (ld) {
+      return ld.changed;
+    });
   }
 
   var lastFlagsA = null;
@@ -199,28 +223,41 @@
   var diffNavIndex = -1;
 
   function renderDiffSummary(result) {
-    var removed = 0, added = 0, modified = 0;
+    var removed = 0,
+      added = 0,
+      modified = 0;
     result.hunks.forEach(function (h) {
       if (h.bIndices.length === 0) removed++;
       else if (h.aIndices.length === 0) added++;
       else modified++;
     });
-    var bothEmpty = result.aLines.length === 1 && result.aLines[0] === "" &&
-      result.bLines.length === 1 && result.bLines[0] === "";
+    var bothEmpty =
+      result.aLines.length === 1 &&
+      result.aLines[0] === "" &&
+      result.bLines.length === 1 &&
+      result.bLines[0] === "";
     if (bothEmpty) {
       diffSummary.textContent = "";
     } else if (removed + added + modified === 0) {
       diffSummary.textContent = "(no differences)";
     } else {
       var parts = [];
-      if (removed) parts.push(removed + (removed === 1 ? " block" : " blocks") + " only in A");
-      if (added) parts.push(added + (added === 1 ? " block" : " blocks") + " only in B");
-      if (modified) parts.push(modified + (modified === 1 ? " block" : " blocks") + " modified");
+      if (removed)
+        parts.push(
+          removed + (removed === 1 ? " block" : " blocks") + " only in A",
+        );
+      if (added)
+        parts.push(added + (added === 1 ? " block" : " blocks") + " only in B");
+      if (modified)
+        parts.push(
+          modified + (modified === 1 ? " block" : " blocks") + " modified",
+        );
       diffSummary.textContent = "(" + parts.join(", ") + ")";
     }
 
     if (result.truncated) {
-      diffNote.textContent = "These files are too large for a detailed line-by-line diff, so they're shown as fully different rather than risk a false match.";
+      diffNote.textContent =
+        "These files are too large for a detailed line-by-line diff, so they're shown as fully different rather than risk a false match.";
       diffNote.style.display = "";
     } else {
       diffNote.style.display = "none";
@@ -244,7 +281,9 @@
       return;
     }
     diffNav.style.display = "";
-    diffNavCount.textContent = diffNavHunks.length + (diffNavHunks.length === 1 ? " difference" : " differences");
+    diffNavCount.textContent =
+      diffNavHunks.length +
+      (diffNavHunks.length === 1 ? " difference" : " differences");
   }
 
   function clearCurrentDiffLine() {
@@ -266,7 +305,8 @@
   // nearby line.
   function jumpToNavIndex(idx) {
     if (!diffNavHunks.length) return;
-    diffNavIndex = ((idx % diffNavHunks.length) + diffNavHunks.length) % diffNavHunks.length;
+    diffNavIndex =
+      ((idx % diffNavHunks.length) + diffNavHunks.length) % diffNavHunks.length;
     var hunk = diffNavHunks[diffNavIndex];
 
     clearCurrentDiffLine();
@@ -280,7 +320,7 @@
       markCurrentDiffLine(highlightB, hunk.bIndices[0]);
     }
 
-    diffNavCount.textContent = (diffNavIndex + 1) + " / " + diffNavHunks.length;
+    diffNavCount.textContent = diffNavIndex + 1 + " / " + diffNavHunks.length;
   }
 
   function gotoChange(delta) {
@@ -305,14 +345,30 @@
   }
 
   function deltaText(delta, unit) {
-    var cls = delta > 0 ? "converted" : (delta < 0 ? "removed" : "");
-    return '<span class="' + cls + '">' + signedNumber(delta) + " " + unit + "</span>";
+    var cls = delta > 0 ? "converted" : delta < 0 ? "removed" : "";
+    return (
+      '<span class="' +
+      cls +
+      '">' +
+      signedNumber(delta) +
+      " " +
+      unit +
+      "</span>"
+    );
   }
 
   function reportTile(label, big, subHtml) {
-    return '<div class="reportStat"><h3>' + ClearTXT.escapeHtml(label) + '</h3>' +
-      '<div class="reportBig">' + ClearTXT.escapeHtml(big) + "</div>" +
-      '<div class="reportSub">' + subHtml + "</div></div>";
+    return (
+      '<div class="reportStat"><h3>' +
+      ClearTXT.escapeHtml(label) +
+      "</h3>" +
+      '<div class="reportBig">' +
+      ClearTXT.escapeHtml(big) +
+      "</div>" +
+      '<div class="reportSub">' +
+      subHtml +
+      "</div></div>"
+    );
   }
 
   // Shared by renderReport (the on-page grid) and buildReportText (Copy/
@@ -330,7 +386,7 @@
       charsA: ClearTXT.charCount(aText, keepMarkdown),
       charsB: ClearTXT.charCount(bText, keepMarkdown),
       wordsA: ClearTXT.wordCount(aText, keepMarkdown),
-      wordsB: ClearTXT.wordCount(bText, keepMarkdown)
+      wordsB: ClearTXT.wordCount(bText, keepMarkdown),
     };
   }
 
@@ -343,9 +399,21 @@
     var s = computeReportStats(aText, bText);
 
     reportGrid.innerHTML = [
-      reportTile("Percentage diff", s.diffPct.toFixed(1) + "%", s.pct.toFixed(1) + "% similar"),
-      reportTile("Characters", s.charsA.toLocaleString() + " → " + s.charsB.toLocaleString(), deltaText(s.charsB - s.charsA, "chars")),
-      reportTile("Words", s.wordsA.toLocaleString() + " → " + s.wordsB.toLocaleString(), deltaText(s.wordsB - s.wordsA, "words"))
+      reportTile(
+        "Percentage diff",
+        s.diffPct.toFixed(1) + "%",
+        s.pct.toFixed(1) + "% similar",
+      ),
+      reportTile(
+        "Characters",
+        s.charsA.toLocaleString() + " → " + s.charsB.toLocaleString(),
+        deltaText(s.charsB - s.charsA, "chars"),
+      ),
+      reportTile(
+        "Words",
+        s.wordsA.toLocaleString() + " → " + s.wordsB.toLocaleString(),
+        deltaText(s.wordsB - s.wordsA, "words"),
+      ),
     ].join("");
   }
 
@@ -355,17 +423,38 @@
   // later, and reads better as a stand-alone text file than a DOM dump
   // would.
   function buildReportText() {
-    var aText = fileA.value, bText = fileB.value;
+    var aText = fileA.value,
+      bText = fileB.value;
     var s = computeReportStats(aText, bText);
-    return [
-      "ClearTXT Comparison Report",
-      "Generated: " + new Date().toLocaleString(),
-      "Markdown syntax: " + (s.keepMarkdown ? "included" : "excluded") + " in report",
-      "",
-      "Percentage diff: " + s.diffPct.toFixed(1) + "% (" + s.pct.toFixed(1) + "% similar)",
-      "Characters: " + s.charsA.toLocaleString() + " → " + s.charsB.toLocaleString() + " (" + signedNumber(s.charsB - s.charsA) + " chars)",
-      "Words: " + s.wordsA.toLocaleString() + " → " + s.wordsB.toLocaleString() + " (" + signedNumber(s.wordsB - s.wordsA) + " words)"
-    ].join("\n") + "\n";
+    return (
+      [
+        "ClearTXT Comparison Report",
+        "Generated: " + new Date().toLocaleString(),
+        "Markdown syntax: " +
+          (s.keepMarkdown ? "included" : "excluded") +
+          " in report",
+        "",
+        "Percentage diff: " +
+          s.diffPct.toFixed(1) +
+          "% (" +
+          s.pct.toFixed(1) +
+          "% similar)",
+        "Characters: " +
+          s.charsA.toLocaleString() +
+          " → " +
+          s.charsB.toLocaleString() +
+          " (" +
+          signedNumber(s.charsB - s.charsA) +
+          " chars)",
+        "Words: " +
+          s.wordsA.toLocaleString() +
+          " → " +
+          s.wordsB.toLocaleString() +
+          " (" +
+          signedNumber(s.wordsB - s.wordsA) +
+          " words)",
+      ].join("\n") + "\n"
+    );
   }
 
   function updateFixListEnabled(applyCleanup) {
@@ -380,8 +469,12 @@
     saveBool(APPLY_CLEANUP_KEY, applyCleanup);
     updateFixListEnabled(applyCleanup);
 
-    var displayA = applyCleanup ? ClearTXT.processText(rawA, opts).output : rawA;
-    var displayB = applyCleanup ? ClearTXT.processText(rawB, opts).output : rawB;
+    var displayA = applyCleanup
+      ? ClearTXT.processText(rawA, opts).output
+      : rawA;
+    var displayB = applyCleanup
+      ? ClearTXT.processText(rawB, opts).output
+      : rawB;
     syncPaneValue(fileA, displayA);
     syncPaneValue(fileB, displayB);
 
@@ -423,8 +516,14 @@
     update();
   }
 
-  fileA.addEventListener("input", function () { rawA = fileA.value; scheduleUpdate(); });
-  fileB.addEventListener("input", function () { rawB = fileB.value; scheduleUpdate(); });
+  fileA.addEventListener("input", function () {
+    rawA = fileA.value;
+    scheduleUpdate();
+  });
+  fileB.addEventListener("input", function () {
+    rawB = fileB.value;
+    scheduleUpdate();
+  });
   fileA.addEventListener("blur", flushUpdate);
   fileB.addEventListener("blur", flushUpdate);
 
@@ -437,13 +536,22 @@
     highlightB.scrollTop = fileB.scrollTop;
   });
 
-  diffPrevBtn.addEventListener("click", function () { gotoChange(-1); });
-  diffNextBtn.addEventListener("click", function () { gotoChange(1); });
+  diffPrevBtn.addEventListener("click", function () {
+    gotoChange(-1);
+  });
+  diffNextBtn.addEventListener("click", function () {
+    gotoChange(1);
+  });
 
   document.addEventListener("keydown", function (e) {
     if (!e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.key === "ArrowDown") { e.preventDefault(); gotoChange(1); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); gotoChange(-1); }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      gotoChange(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      gotoChange(-1);
+    }
   });
 
   function gutterClickHandler(side) {
@@ -466,11 +574,14 @@
   });
 
   function wireImport(btn, fileInput, ta, setRaw) {
-    btn.addEventListener("click", function () { fileInput.click(); });
+    btn.addEventListener("click", function () {
+      fileInput.click();
+    });
     fileInput.addEventListener("change", function () {
       var file = fileInput.files && fileInput.files[0];
       if (!file) return;
-      file.text()
+      file
+        .text()
         .then(function (text) {
           setRaw(text);
           update();
@@ -484,11 +595,23 @@
         });
     });
   }
-  wireImport(importBtnA, importFileA, fileA, function (text) { rawA = text; });
-  wireImport(importBtnB, importFileB, fileB, function (text) { rawB = text; });
+  wireImport(importBtnA, importFileA, fileA, function (text) {
+    rawA = text;
+  });
+  wireImport(importBtnB, importFileB, fileB, function (text) {
+    rawB = text;
+  });
 
-  clearBtnA.addEventListener("click", function () { rawA = ""; update(); fileA.focus(); });
-  clearBtnB.addEventListener("click", function () { rawB = ""; update(); fileB.focus(); });
+  clearBtnA.addEventListener("click", function () {
+    rawA = "";
+    update();
+    fileA.focus();
+  });
+  clearBtnB.addEventListener("click", function () {
+    rawB = "";
+    update();
+    fileB.focus();
+  });
 
   applyCleanupToggle.addEventListener("change", update);
   reportKeepMarkdown.addEventListener("change", function () {
@@ -501,11 +624,14 @@
   });
 
   downloadReportBtn.addEventListener("click", function () {
-    var blob = new Blob([buildReportText()], { type: "text/plain;charset=utf-8" });
+    var blob = new Blob([buildReportText()], {
+      type: "text/plain;charset=utf-8",
+    });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
-    a.download = "cleartxt-compare-report-" + ClearTXT.fileTimestamp(new Date()) + ".txt";
+    a.download =
+      "cleartxt-compare-report-" + ClearTXT.fileTimestamp(new Date()) + ".txt";
     document.body.appendChild(a);
     a.click();
     a.remove();

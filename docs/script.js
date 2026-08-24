@@ -22,7 +22,10 @@
   var FORMAT_CHAR_RE = /\p{Cf}/u;
   var LINE_PARAGRAPH_SEPARATORS = new Set([0x2028, 0x2029]);
   function isFormatChar(cp) {
-    return LINE_PARAGRAPH_SEPARATORS.has(cp) || FORMAT_CHAR_RE.test(String.fromCodePoint(cp));
+    return (
+      LINE_PARAGRAPH_SEPARATORS.has(cp) ||
+      FORMAT_CHAR_RE.test(String.fromCodePoint(cp))
+    );
   }
 
   // Unicode Tag characters (U+E0000-U+E007F): originally for obsolete
@@ -35,7 +38,10 @@
   // they're checked separately from ZERO_WIDTH; the *standard* variation
   // selectors (U+FE00-U+FE0F) are deliberately excluded here since those
   // are legitimately used to select an emoji's presentation.
-  var HIDDEN_PAYLOAD_RANGES = [[0xE0000, 0xE007F], [0xE0100, 0xE01EF]];
+  var HIDDEN_PAYLOAD_RANGES = [
+    [0xe0000, 0xe007f],
+    [0xe0100, 0xe01ef],
+  ];
 
   function isHiddenPayloadRange(cp) {
     for (var i = 0; i < HIDDEN_PAYLOAD_RANGES.length; i++) {
@@ -46,22 +52,34 @@
   }
 
   var QUOTE_MAP = new Map([
-    [0x2018, "'"], [0x2019, "'"], [0x201A, ","], [0x201B, "'"],
-    [0x201C, '"'], [0x201D, '"'], [0x201E, '"'], [0x201F, '"'],
-    [0x2039, "<"], [0x203A, ">"]
+    [0x2018, "'"],
+    [0x2019, "'"],
+    [0x201a, ","],
+    [0x201b, "'"],
+    [0x201c, '"'],
+    [0x201d, '"'],
+    [0x201e, '"'],
+    [0x201f, '"'],
+    [0x2039, "<"],
+    [0x203a, ">"],
   ]);
 
   // Only the em dash is ever converted. Every other dash-like character
   // (en dash, hyphen, non-breaking hyphen, figure dash, horizontal bar,
   // minus sign) is always preserved exactly as typed.
   var EM_DASH = 0x2014;
-  var PRESERVED_DASHES = new Set([0x2010, 0x2011, 0x2012, 0x2013, 0x2015, 0x2212]);
+  var PRESERVED_DASHES = new Set([
+    0x2010, 0x2011, 0x2012, 0x2013, 0x2015, 0x2212,
+  ]);
   // What "Convert em dashes" is allowed to turn an em dash into.
   var DASH_TARGETS = new Set(["-", "–"]);
 
   // Hebrew letters, points (niqqud/cantillation) and punctuation, plus the
   // presentation-forms block (ligatures like "ﭏ" and pointed letters).
-  var HEBREW_RANGES = [[0x0590, 0x05FF], [0xFB1D, 0xFB4F]];
+  var HEBREW_RANGES = [
+    [0x0590, 0x05ff],
+    [0xfb1d, 0xfb4f],
+  ];
 
   // Arabic letters, diacritics and Arabic-Indic digits, across the main
   // block plus the extended/supplement blocks covering Persian, Urdu and
@@ -71,12 +89,12 @@
   // earlier in processText's per-character loop as an invisible/format
   // character before this check ever runs, so it's never treated as Arabic.
   var ARABIC_RANGES = [
-    [0x0600, 0x06FF], // Arabic
-    [0x0750, 0x077F], // Arabic Supplement
-    [0x0870, 0x089F], // Arabic Extended-B
-    [0x08A0, 0x08FF], // Arabic Extended-A
-    [0xFB50, 0xFDFF], // Arabic Presentation Forms-A
-    [0xFE70, 0xFEFF]  // Arabic Presentation Forms-B
+    [0x0600, 0x06ff], // Arabic
+    [0x0750, 0x077f], // Arabic Supplement
+    [0x0870, 0x089f], // Arabic Extended-B
+    [0x08a0, 0x08ff], // Arabic Extended-A
+    [0xfb50, 0xfdff], // Arabic Presentation Forms-A
+    [0xfe70, 0xfeff], // Arabic Presentation Forms-B
   ];
 
   // Cyrillic letters/combining marks across the blocks covering everyday
@@ -84,32 +102,32 @@
   // through the Extended blocks used for a handful of minority languages
   // and historic/academic text (Old Church Slavonic, Abkhaz, Bashkir, ...).
   var CYRILLIC_RANGES = [
-    [0x0400, 0x04FF], // Cyrillic
-    [0x0500, 0x052F], // Cyrillic Supplement
-    [0x2DE0, 0x2DFF], // Cyrillic Extended-A
-    [0xA640, 0xA69F], // Cyrillic Extended-B
-    [0x1C80, 0x1C8F]  // Cyrillic Extended-C
+    [0x0400, 0x04ff], // Cyrillic
+    [0x0500, 0x052f], // Cyrillic Supplement
+    [0x2de0, 0x2dff], // Cyrillic Extended-A
+    [0xa640, 0xa69f], // Cyrillic Extended-B
+    [0x1c80, 0x1c8f], // Cyrillic Extended-C
   ];
 
   // Short label + human name for zero-width/formatting characters that
   // have no visible glyph of their own, so the diff view can show
   // something in their place instead of literally nothing.
   var INVISIBLE_NAMES = {
-    0x00AD: { label: "SHY", name: "soft hyphen" },
-    0x061C: { label: "ALM", name: "Arabic letter mark" },
-    0x180E: { label: "MVS", name: "Mongolian vowel separator" },
-    0x200B: { label: "ZWSP", name: "zero-width space" },
-    0x200C: { label: "ZWNJ", name: "zero-width non-joiner" },
-    0x200D: { label: "ZWJ", name: "zero-width joiner" },
-    0x200E: { label: "LRM", name: "left-to-right mark" },
-    0x200F: { label: "RLM", name: "right-to-left mark" },
+    0x00ad: { label: "SHY", name: "soft hyphen" },
+    0x061c: { label: "ALM", name: "Arabic letter mark" },
+    0x180e: { label: "MVS", name: "Mongolian vowel separator" },
+    0x200b: { label: "ZWSP", name: "zero-width space" },
+    0x200c: { label: "ZWNJ", name: "zero-width non-joiner" },
+    0x200d: { label: "ZWJ", name: "zero-width joiner" },
+    0x200e: { label: "LRM", name: "left-to-right mark" },
+    0x200f: { label: "RLM", name: "right-to-left mark" },
     0x2028: { label: "LS", name: "line separator" },
     0x2029: { label: "PS", name: "paragraph separator" },
-    0x202A: { label: "LRE", name: "left-to-right embedding" },
-    0x202B: { label: "RLE", name: "right-to-left embedding" },
-    0x202C: { label: "PDF", name: "pop directional formatting" },
-    0x202D: { label: "LRO", name: "left-to-right override" },
-    0x202E: { label: "RLO", name: "right-to-left override" },
+    0x202a: { label: "LRE", name: "left-to-right embedding" },
+    0x202b: { label: "RLE", name: "right-to-left embedding" },
+    0x202c: { label: "PDF", name: "pop directional formatting" },
+    0x202d: { label: "LRO", name: "left-to-right override" },
+    0x202e: { label: "RLO", name: "right-to-left override" },
     0x2060: { label: "WJ", name: "word joiner" },
     0x2061: { label: "FA", name: "function application" },
     0x2062: { label: "IT", name: "invisible times" },
@@ -119,16 +137,46 @@
     0x2067: { label: "RLI", name: "right-to-left isolate" },
     0x2068: { label: "FSI", name: "first strong isolate" },
     0x2069: { label: "PDI", name: "pop directional isolate" },
-    0xFEFF: { label: "BOM", name: "byte order mark" },
-    0xFFF9: { label: "IAA", name: "interlinear annotation anchor" },
-    0xFFFA: { label: "IAS", name: "interlinear annotation separator" },
-    0xFFFB: { label: "IAT", name: "interlinear annotation terminator" }
+    0xfeff: { label: "BOM", name: "byte order mark" },
+    0xfff9: { label: "IAA", name: "interlinear annotation anchor" },
+    0xfffa: { label: "IAS", name: "interlinear annotation separator" },
+    0xfffb: { label: "IAT", name: "interlinear annotation terminator" },
   };
 
   // Standard short names for the C0 control characters (index = code point).
   var CONTROL_NAMES = [
-    "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL", "BS", "HT", "LF", "VT", "FF", "CR", "SO", "SI",
-    "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB", "CAN", "EM", "SUB", "ESC", "FS", "GS", "RS", "US"
+    "NUL",
+    "SOH",
+    "STX",
+    "ETX",
+    "EOT",
+    "ENQ",
+    "ACK",
+    "BEL",
+    "BS",
+    "HT",
+    "LF",
+    "VT",
+    "FF",
+    "CR",
+    "SO",
+    "SI",
+    "DLE",
+    "DC1",
+    "DC2",
+    "DC3",
+    "DC4",
+    "NAK",
+    "SYN",
+    "ETB",
+    "CAN",
+    "EM",
+    "SUB",
+    "ESC",
+    "FS",
+    "GS",
+    "RS",
+    "US",
   ];
 
   function hex4(cp) {
@@ -143,11 +191,34 @@
   // code point.
   function invisibleInfo(cp) {
     var special = INVISIBLE_NAMES[cp];
-    if (special) return { label: special.label, name: special.name + " (" + hex4(cp) + ")" };
-    if (cp <= 0x1F) return { label: String.fromCodePoint(0x2400 + cp), name: (CONTROL_NAMES[cp] || "control character") + " (" + hex4(cp) + ")" };
-    if (cp === 0x7F) return { label: "␡", name: "DEL (" + hex4(cp) + ")" };
-    if (cp >= 0xE0000 && cp <= 0xE007F) return { label: "TAG", name: "Unicode tag character - can carry invisible hidden text (" + hex4(cp) + ")" };
-    if (cp >= 0xE0100 && cp <= 0xE01EF) return { label: "VS", name: "variation selector supplement, no legitimate modern use (" + hex4(cp) + ")" };
+    if (special)
+      return {
+        label: special.label,
+        name: special.name + " (" + hex4(cp) + ")",
+      };
+    if (cp <= 0x1f)
+      return {
+        label: String.fromCodePoint(0x2400 + cp),
+        name:
+          (CONTROL_NAMES[cp] || "control character") + " (" + hex4(cp) + ")",
+      };
+    if (cp === 0x7f) return { label: "␡", name: "DEL (" + hex4(cp) + ")" };
+    if (cp >= 0xe0000 && cp <= 0xe007f)
+      return {
+        label: "TAG",
+        name:
+          "Unicode tag character - can carry invisible hidden text (" +
+          hex4(cp) +
+          ")",
+      };
+    if (cp >= 0xe0100 && cp <= 0xe01ef)
+      return {
+        label: "VS",
+        name:
+          "variation selector supplement, no legitimate modern use (" +
+          hex4(cp) +
+          ")",
+      };
     return { label: hex4(cp), name: hex4(cp) };
   }
 
@@ -166,11 +237,13 @@
     tab: "tabs",
     linebreak: "line breaks",
     paragraph: "paragraph breaks",
-    space: "extra spaces"
+    space: "extra spaces",
   };
 
   function isControl(cp) {
-    return (cp <= 0x1F && cp !== 0x09 && cp !== 0x0A && cp !== 0x0D) || cp === 0x7F;
+    return (
+      (cp <= 0x1f && cp !== 0x09 && cp !== 0x0a && cp !== 0x0d) || cp === 0x7f
+    );
   }
 
   // Unicode's own "Currency Symbol" general category (Sc) - covers €, £,
@@ -248,7 +321,8 @@
 
     function flushWord() {
       if (hasLatin && otherScriptIdx.length) {
-        for (var k = 0; k < otherScriptIdx.length; k++) flagged.add(otherScriptIdx[k]);
+        for (var k = 0; k < otherScriptIdx.length; k++)
+          flagged.add(otherScriptIdx[k]);
       }
       hasLatin = false;
       otherScriptIdx = [];
@@ -257,8 +331,12 @@
     for (var i = 0; i < chars.length; i++) {
       var c = chars[i];
       var cp = c.codePointAt(0);
-      if (isFormatChar(cp) || isControl(cp) || isHiddenPayloadRange(cp)) continue;
-      if (!WORD_CHAR_RE.test(c)) { flushWord(); continue; }
+      if (isFormatChar(cp) || isControl(cp) || isHiddenPayloadRange(cp))
+        continue;
+      if (!WORD_CHAR_RE.test(c)) {
+        flushWord();
+        continue;
+      }
       if (!SCRIPTLESS_RE.test(c)) {
         if (LATIN_SCRIPT_RE.test(c)) hasLatin = true;
         else otherScriptIdx.push(i);
@@ -317,10 +395,21 @@
     var toRemove = new Set();
     var i = 0;
     while (i < chars.length) {
-      if (chars[i] !== "[" || chars[i - 1] === "!") { i++; continue; }
+      if (chars[i] !== "[" || chars[i - 1] === "!") {
+        i++;
+        continue;
+      }
       var textEnd = i + 1;
-      while (textEnd < chars.length && chars[textEnd] !== "]" && chars[textEnd] !== "\n") textEnd++;
-      if (chars[textEnd] !== "]" || chars[textEnd + 1] !== "(") { i++; continue; }
+      while (
+        textEnd < chars.length &&
+        chars[textEnd] !== "]" &&
+        chars[textEnd] !== "\n"
+      )
+        textEnd++;
+      if (chars[textEnd] !== "]" || chars[textEnd + 1] !== "(") {
+        i++;
+        continue;
+      }
       // Paren-depth-aware, not just "scan to the next )" - a scheme like
       // javascript: routinely has its own parens (e.g. "javascript:alert(1)"),
       // and stopping at the first ")" would leave the link's real closing
@@ -330,10 +419,16 @@
       while (urlEnd < chars.length && depth > 0) {
         if (chars[urlEnd] === "\n") break;
         if (chars[urlEnd] === "(") depth++;
-        else if (chars[urlEnd] === ")") { depth--; if (depth === 0) break; }
+        else if (chars[urlEnd] === ")") {
+          depth--;
+          if (depth === 0) break;
+        }
         urlEnd++;
       }
-      if (chars[urlEnd] !== ")") { i = textEnd + 1; continue; }
+      if (chars[urlEnd] !== ")") {
+        i = textEnd + 1;
+        continue;
+      }
 
       if (isUnsafeLinkTarget(chars.slice(textEnd + 2, urlEnd).join(""))) {
         toRemove.add(i);
@@ -352,7 +447,7 @@
     if (!d.length || d === ch) return null;
     for (var c of d) {
       var cp = c.codePointAt(0);
-      if (cp < 0x20 || cp > 0x7E) return null;
+      if (cp < 0x20 || cp > 0x7e) return null;
     }
     return d;
   }
@@ -383,8 +478,11 @@
   // the result one character at a time for large inputs.
   function normalizeProtectingLetterlike(text) {
     if (!PROTECTED_FROM_NORMALIZE_RE.test(text)) return text.normalize("NFKC");
-    return text.split(PROTECTED_FROM_NORMALIZE_SPLIT_RE)
-      .map(function (part, i) { return i % 2 === 1 ? part : part.normalize("NFKC"); })
+    return text
+      .split(PROTECTED_FROM_NORMALIZE_SPLIT_RE)
+      .map(function (part, i) {
+        return i % 2 === 1 ? part : part.normalize("NFKC");
+      })
       .join("");
   }
 
@@ -395,7 +493,10 @@
   // rather than built inline, since the whitespace pass can retroactively
   // turn an already-"kept" character into "removed"/"converted".
   function processText(text, opts) {
-    var src = (opts.normalize && text.normalize) ? normalizeProtectingLetterlike(text) : text;
+    var src =
+      opts.normalize && text.normalize
+        ? normalizeProtectingLetterlike(text)
+        : text;
     var changes = [];
     var chars = Array.from(src);
     var mixedScriptIdx = findMixedScriptIndices(chars);
@@ -407,9 +508,19 @@
 
       if (isFormatChar(cp) || isControl(cp) || isHiddenPayloadRange(cp)) {
         if (opts.stripInvisible) {
-          changes.push({ ch: ch, type: "removed", category: "invisible", replacement: "" });
+          changes.push({
+            ch: ch,
+            type: "removed",
+            category: "invisible",
+            replacement: "",
+          });
         } else {
-          changes.push({ ch: ch, type: "kept", category: "invisible", replacement: ch });
+          changes.push({
+            ch: ch,
+            type: "kept",
+            category: "invisible",
+            replacement: ch,
+          });
         }
         continue;
       }
@@ -423,78 +534,158 @@
       // inside a spoofed Latin word slip through.
       if (mixedScriptIdx.has(i)) {
         if (opts.stripHomoglyphs) {
-          changes.push({ ch: ch, type: "removed", category: "homoglyph", replacement: "" });
+          changes.push({
+            ch: ch,
+            type: "removed",
+            category: "homoglyph",
+            replacement: "",
+          });
         } else {
-          changes.push({ ch: ch, type: "kept", category: "homoglyph", replacement: ch });
+          changes.push({
+            ch: ch,
+            type: "kept",
+            category: "homoglyph",
+            replacement: ch,
+          });
         }
         continue;
       }
 
       if (unsafeLinkIdx.has(i)) {
         if (opts.stripUnsafeLinks) {
-          changes.push({ ch: ch, type: "removed", category: "unsafelink", replacement: "" });
+          changes.push({
+            ch: ch,
+            type: "removed",
+            category: "unsafelink",
+            replacement: "",
+          });
         } else {
-          changes.push({ ch: ch, type: "kept", category: "unsafelink", replacement: ch });
+          changes.push({
+            ch: ch,
+            type: "kept",
+            category: "unsafelink",
+            replacement: ch,
+          });
         }
         continue;
       }
 
-      if (cp === 0x09 || cp === 0x0A || cp === 0x0D) {
-        changes.push({ ch: ch, type: "kept", category: "whitespace", replacement: ch });
+      if (cp === 0x09 || cp === 0x0a || cp === 0x0d) {
+        changes.push({
+          ch: ch,
+          type: "kept",
+          category: "whitespace",
+          replacement: ch,
+        });
         continue;
       }
-      if (cp >= 0x20 && cp <= 0x7E) {
-        changes.push({ ch: ch, type: "kept", category: "ascii", replacement: ch });
+      if (cp >= 0x20 && cp <= 0x7e) {
+        changes.push({
+          ch: ch,
+          type: "kept",
+          category: "ascii",
+          replacement: ch,
+        });
         continue;
       }
 
       if (isHebrew(cp)) {
         if (opts.stripHebrew) {
-          changes.push({ ch: ch, type: "removed", category: "hebrew", replacement: "" });
+          changes.push({
+            ch: ch,
+            type: "removed",
+            category: "hebrew",
+            replacement: "",
+          });
         } else {
-          changes.push({ ch: ch, type: "kept", category: "hebrew", replacement: ch });
+          changes.push({
+            ch: ch,
+            type: "kept",
+            category: "hebrew",
+            replacement: ch,
+          });
         }
         continue;
       }
 
       if (isArabic(cp)) {
         if (opts.stripArabic) {
-          changes.push({ ch: ch, type: "removed", category: "arabic", replacement: "" });
+          changes.push({
+            ch: ch,
+            type: "removed",
+            category: "arabic",
+            replacement: "",
+          });
         } else {
-          changes.push({ ch: ch, type: "kept", category: "arabic", replacement: ch });
+          changes.push({
+            ch: ch,
+            type: "kept",
+            category: "arabic",
+            replacement: ch,
+          });
         }
         continue;
       }
 
       if (isCyrillic(cp)) {
         if (opts.stripCyrillic) {
-          changes.push({ ch: ch, type: "removed", category: "cyrillic", replacement: "" });
+          changes.push({
+            ch: ch,
+            type: "removed",
+            category: "cyrillic",
+            replacement: "",
+          });
         } else {
-          changes.push({ ch: ch, type: "kept", category: "cyrillic", replacement: ch });
+          changes.push({
+            ch: ch,
+            type: "kept",
+            category: "cyrillic",
+            replacement: ch,
+          });
         }
         continue;
       }
 
       if (opts.straightenQuotes && QUOTE_MAP.has(cp)) {
         var rq = QUOTE_MAP.get(cp);
-        changes.push({ ch: ch, type: "converted", category: "quote", replacement: rq });
+        changes.push({
+          ch: ch,
+          type: "converted",
+          category: "quote",
+          replacement: rq,
+        });
         continue;
       }
 
       if (PRESERVED_DASHES.has(cp)) {
-        changes.push({ ch: ch, type: "kept", category: "dash", replacement: ch });
+        changes.push({
+          ch: ch,
+          type: "kept",
+          category: "dash",
+          replacement: ch,
+        });
         continue;
       }
       if (cp === EM_DASH && opts.convertDashes) {
         var target = DASH_TARGETS.has(opts.dashTarget) ? opts.dashTarget : "-";
-        changes.push({ ch: ch, type: "converted", category: "dash", replacement: target });
+        changes.push({
+          ch: ch,
+          type: "converted",
+          category: "dash",
+          replacement: target,
+        });
         continue;
       }
 
       if (opts.foldAccents) {
         var folded = foldAccent(ch);
         if (folded !== null) {
-          changes.push({ ch: ch, type: "converted", category: "accent", replacement: folded });
+          changes.push({
+            ch: ch,
+            type: "converted",
+            category: "accent",
+            replacement: folded,
+          });
           continue;
         }
       }
@@ -506,14 +697,29 @@
       // action happens" convention every other fix toggle uses).
       if (isCurrencySymbol(ch)) {
         var stripThisCurrency = opts.stripCurrency && opts.stripEmoji;
-        changes.push({ ch: ch, type: stripThisCurrency ? "removed" : "kept", category: "currency", replacement: stripThisCurrency ? "" : ch });
+        changes.push({
+          ch: ch,
+          type: stripThisCurrency ? "removed" : "kept",
+          category: "currency",
+          replacement: stripThisCurrency ? "" : ch,
+        });
         continue;
       }
 
       if (opts.stripEmoji) {
-        changes.push({ ch: ch, type: "removed", category: "symbol", replacement: "" });
+        changes.push({
+          ch: ch,
+          type: "removed",
+          category: "symbol",
+          replacement: "",
+        });
       } else {
-        changes.push({ ch: ch, type: "kept", category: "symbol", replacement: ch });
+        changes.push({
+          ch: ch,
+          type: "kept",
+          category: "symbol",
+          replacement: ch,
+        });
       }
     }
 
@@ -544,7 +750,12 @@
       if (seg.type !== "removed" && seg.replacement === "\n") {
         var start = i;
         var j = i;
-        while (j < n && changes[j].type !== "removed" && changes[j].replacement === "\n") j++;
+        while (
+          j < n &&
+          changes[j].type !== "removed" &&
+          changes[j].replacement === "\n"
+        )
+          j++;
         if (j - start === 1) {
           if (opts.removeLineBreaks) {
             changes[start].type = "converted";
@@ -604,10 +815,13 @@
   }
 
   function summarizeChanges(changes) {
-    var removed = {}, converted = {};
+    var removed = {},
+      converted = {};
     changes.forEach(function (c) {
-      if (c.type === "removed") removed[c.category] = (removed[c.category] || 0) + 1;
-      else if (c.type === "converted") converted[c.category] = (converted[c.category] || 0) + 1;
+      if (c.type === "removed")
+        removed[c.category] = (removed[c.category] || 0) + 1;
+      else if (c.type === "converted")
+        converted[c.category] = (converted[c.category] || 0) + 1;
     });
     return { removed: removed, converted: converted };
   }
@@ -615,7 +829,11 @@
   function formatCatCounts(obj) {
     var keys = Object.keys(obj);
     if (!keys.length) return "";
-    return keys.map(function (k) { return obj[k] + " " + (CAT_LABEL[k] || k); }).join(", ");
+    return keys
+      .map(function (k) {
+        return obj[k] + " " + (CAT_LABEL[k] || k);
+      })
+      .join(", ");
   }
 
   // Escapes for both HTML text-content and (double- or single-quoted)
@@ -626,8 +844,12 @@
   // escaping defensively here means that stays true even if this function
   // gets reused for less-constrained text later.
   function escapeHtml(s) {
-    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   function markerSpan(cls, text, title) {
@@ -675,7 +897,8 @@
       if (c.category === "invisible") {
         var info = invisibleInfo(chars[i].codePointAt(0));
         var cls = "iv" + (c.type === "removed" ? " rm" : "");
-        var title = info.name + (c.type === "removed" ? " (removed)" : " (kept)");
+        var title =
+          info.name + (c.type === "removed" ? " (removed)" : " (kept)");
         lineHtml.push(markerSpan(cls, chars[i], title));
         lineChanged = true;
         i++;
@@ -689,7 +912,12 @@
       var type = c.type;
       var j = i;
       var buf = "";
-      while (j < budget && entries[j].type === type && entries[j].category !== "invisible" && chars[j] !== "\n") {
+      while (
+        j < budget &&
+        entries[j].type === type &&
+        entries[j].category !== "invisible" &&
+        chars[j] !== "\n"
+      ) {
         buf += chars[j];
         j++;
       }
@@ -743,7 +971,8 @@
   // Shared by inputHighlightHtml/outputHighlightHtml: resolves the
   // highlight character budget and delegates to buildLineHighlightHtml.
   function highlightFromChars(chars, entries, maxChars) {
-    var budget = maxChars == null ? chars.length : Math.min(maxChars, chars.length);
+    var budget =
+      maxChars == null ? chars.length : Math.min(maxChars, chars.length);
     return buildLineHighlightHtml(chars, entries, budget);
   }
 
@@ -761,7 +990,9 @@
   // overlay for that render rather than show misaligned highlights.
   function inputHighlightHtml(rawText, changes, maxChars) {
     var rawChars = rawCharsForInput(rawText, changes);
-    return rawChars === null ? null : highlightFromChars(rawChars, changes, maxChars);
+    return rawChars === null
+      ? null
+      : highlightFromChars(rawChars, changes, maxChars);
   }
 
   // Shared by outputHighlightHtml/outputLineChanged: output only ever
@@ -845,27 +1076,44 @@
   // technique - which this app of all things shouldn't hand back to you
   // in a file it just generated.
   function slugForFilename(text) {
-    var firstLine = (text.split("\n")[0] || "");
-    return Array.from(firstLine)
-      .filter(function (ch) { return !isFormatChar(ch.codePointAt(0)) && !isHiddenPayloadRange(ch.codePointAt(0)); })
-      .join("")
-      // eslint-disable-next-line no-control-regex -- intentionally stripping control chars too
-      .replace(/[\\/:*?"<>|\x00-\x1F]/g, "")
-      .trim()
-      .replace(/\s+/g, "-")
-      .slice(0, EXPORT_SLUG_MAX)
-      .replace(/-+$/, "");
+    var firstLine = text.split("\n")[0] || "";
+    return (
+      Array.from(firstLine)
+        .filter(function (ch) {
+          return (
+            !isFormatChar(ch.codePointAt(0)) &&
+            !isHiddenPayloadRange(ch.codePointAt(0))
+          );
+        })
+        .join("")
+        // Intentionally stripping control chars too (the regex range is
+        // deliberate; Biome's noControlCharactersInRegex is off project-wide).
+        .replace(/[\\/:*?"<>|\x00-\x1F]/g, "")
+        .trim()
+        .replace(/\s+/g, "-")
+        .slice(0, EXPORT_SLUG_MAX)
+        .replace(/-+$/, "")
+    );
   }
 
-  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+  function pad2(n) {
+    return n < 10 ? "0" + n : "" + n;
+  }
 
   // "YYYYMMDD-HHMMSS" local-time timestamp, e.g. "20260812-104015" -
   // shared by exportFilename below and batch.js's own zip/per-file
   // download filenames, both of which want the exact same
   // filesystem-safe, lexically-sortable stamp format.
   function fileTimestamp(d) {
-    return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
-      "-" + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
+    return (
+      d.getFullYear() +
+      pad2(d.getMonth() + 1) +
+      pad2(d.getDate()) +
+      "-" +
+      pad2(d.getHours()) +
+      pad2(d.getMinutes()) +
+      pad2(d.getSeconds())
+    );
   }
 
   // Builds the exported filename from the output's first line plus a
@@ -873,7 +1121,13 @@
   // back to a generic name when the first line yields no usable slug.
   function exportFilename(text, now) {
     var slug = slugForFilename(text);
-    return "cleartxt-" + (slug || "output") + "-" + fileTimestamp(now || new Date()) + ".txt";
+    return (
+      "cleartxt-" +
+      (slug || "output") +
+      "-" +
+      fileTimestamp(now || new Date()) +
+      ".txt"
+    );
   }
 
   // Character budget for the highlighted view. Runs already keep the DOM
@@ -908,20 +1162,20 @@
   function stripMarkdown(text) {
     var s = text;
 
-    s = s.replace(/^ {0,3}```.*$/gm, "");                      // fenced code block markers
-    s = s.replace(/`([^`]*)`/g, "$1");                          // inline code spans
-    s = s.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1");             // images
-    s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");              // links
-    s = s.replace(/^ {0,3}#{1,6}\s+/gm, "");                    // headings
-    s = s.replace(/^ {0,3}>\s?/gm, "");                         // block quotes
-    s = s.replace(/^ {0,3}([-*_])(?: *\1){2,} *$/gm, "");       // horizontal rules
-    s = s.replace(/^\s*(?:[-*+]|\d+\.)\s+/gm, "");              // list markers
-    s = s.replace(/^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$/gm, "");    // table header separators
-    s = s.replace(/\|/g, " ");                                  // remaining table pipes
-    s = s.replace(/(\*\*\*|___)([^*_]+)\1/g, "$2");             // bold+italic
-    s = s.replace(/(\*\*|__)([^*_]+)\1/g, "$2");                // bold
-    s = s.replace(/(\*|_)([^*_]+)\1/g, "$2");                   // italic
-    s = s.replace(/~~([^~]+)~~/g, "$1");                        // strikethrough
+    s = s.replace(/^ {0,3}```.*$/gm, ""); // fenced code block markers
+    s = s.replace(/`([^`]*)`/g, "$1"); // inline code spans
+    s = s.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1"); // images
+    s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1"); // links
+    s = s.replace(/^ {0,3}#{1,6}\s+/gm, ""); // headings
+    s = s.replace(/^ {0,3}>\s?/gm, ""); // block quotes
+    s = s.replace(/^ {0,3}([-*_])(?: *\1){2,} *$/gm, ""); // horizontal rules
+    s = s.replace(/^\s*(?:[-*+]|\d+\.)\s+/gm, ""); // list markers
+    s = s.replace(/^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$/gm, ""); // table header separators
+    s = s.replace(/\|/g, " "); // remaining table pipes
+    s = s.replace(/(\*\*\*|___)([^*_]+)\1/g, "$2"); // bold+italic
+    s = s.replace(/(\*\*|__)([^*_]+)\1/g, "$2"); // bold
+    s = s.replace(/(\*|_)([^*_]+)\1/g, "$2"); // italic
+    s = s.replace(/~~([^~]+)~~/g, "$1"); // strikethrough
 
     return s;
   }
@@ -934,7 +1188,9 @@
   // instead).
   function wordsOf(text, keepMarkdown) {
     var stripped = keepMarkdown ? text : stripMarkdown(text);
-    return stripped.split(/\s+/).filter(function (w) { return w.length > 0; });
+    return stripped.split(/\s+/).filter(function (w) {
+      return w.length > 0;
+    });
   }
 
   // Word count, Markdown-stripped by default (see wordsOf above).
@@ -968,13 +1224,18 @@
     var bWords = wordsOf(bText, keepMarkdown);
     if (aWords.length === 0 && bWords.length === 0) return 100;
     var counts = new Map();
-    aWords.forEach(function (w) { counts.set(w, (counts.get(w) || 0) + 1); });
+    aWords.forEach(function (w) {
+      counts.set(w, (counts.get(w) || 0) + 1);
+    });
     var common = 0;
     bWords.forEach(function (w) {
       var c = counts.get(w);
-      if (c > 0) { common++; counts.set(w, c - 1); }
+      if (c > 0) {
+        common++;
+        counts.set(w, c - 1);
+      }
     });
-    return (2 * common / (aWords.length + bWords.length)) * 100;
+    return ((2 * common) / (aWords.length + bWords.length)) * 100;
   }
 
   // ---- Two-file diffing (used by the Compare tool) ----------------------
@@ -1011,7 +1272,8 @@
   // here since n+m can be tens of thousands of characters while D, for
   // this app's realistic inputs, typically stays in the hundreds.
   function editDiffOps(a, b, maxD) {
-    var n = a.length, m = b.length;
+    var n = a.length,
+      m = b.length;
     if (n === 0 && m === 0) return [];
     var maxPossible = n + m;
     var boundD = maxD == null ? maxPossible : Math.min(maxD, maxPossible);
@@ -1026,13 +1288,19 @@
         var x;
         if (d === 0) {
           x = 0;
-        } else if (k === -d || (k !== d && prev[k - 1 + (d - 1)] < prev[k + 1 + (d - 1)])) {
+        } else if (
+          k === -d ||
+          (k !== d && prev[k - 1 + (d - 1)] < prev[k + 1 + (d - 1)])
+        ) {
           x = prev[k + 1 + (d - 1)];
         } else {
           x = prev[k - 1 + (d - 1)] + 1;
         }
         var y = x - k;
-        while (x < n && y < m && a[x] === b[y]) { x++; y++; }
+        while (x < n && y < m && a[x] === b[y]) {
+          x++;
+          y++;
+        }
         cur[k + d] = x;
         if (x >= n && y >= m) found = d;
       }
@@ -1049,13 +1317,17 @@
   // re-deriving at each depth `d` the same "which diagonal did this come
   // from" choice the forward pass made, to recover the actual edit script.
   function editDiffBacktrack(trace, n, m, D) {
-    var x = n, y = m;
+    var x = n,
+      y = m;
     var ops = [];
     for (var d = D; d > 0; d--) {
       var prev = trace[d - 1];
       var k = x - y;
       var prevK;
-      if (k === -d || (k !== d && prev[k - 1 + (d - 1)] < prev[k + 1 + (d - 1)])) {
+      if (
+        k === -d ||
+        (k !== d && prev[k - 1 + (d - 1)] < prev[k + 1 + (d - 1)])
+      ) {
         prevK = k + 1;
       } else {
         prevK = k - 1;
@@ -1064,18 +1336,21 @@
       var prevY = prevX - prevK;
       while (x > prevX && y > prevY) {
         ops.push({ type: "equal", a: x - 1, b: y - 1 });
-        x--; y--;
+        x--;
+        y--;
       }
       if (x === prevX) {
         ops.push({ type: "insert", a: x, b: y - 1 });
       } else {
         ops.push({ type: "delete", a: x - 1, b: y });
       }
-      x = prevX; y = prevY;
+      x = prevX;
+      y = prevY;
     }
     while (x > 0 && y > 0) {
       ops.push({ type: "equal", a: x - 1, b: y - 1 });
-      x--; y--;
+      x--;
+      y--;
     }
     return ops.reverse();
   }
@@ -1122,7 +1397,8 @@
         i++;
         continue;
       }
-      var aIndices = [], bIndices = [];
+      var aIndices = [],
+        bIndices = [];
       while (i < ops.length && ops[i].type !== "equal") {
         if (ops[i].type === "delete") aIndices.push(ops[i].a);
         else bIndices.push(ops[i].b);
@@ -1147,8 +1423,12 @@
     segs.forEach(function (seg) {
       var parts = seg.text.split("\n");
       for (var p = 0; p < parts.length; p++) {
-        if (p > 0) { lines.push(current); current = []; }
-        if (parts[p].length) current.push({ text: parts[p], changed: seg.changed });
+        if (p > 0) {
+          lines.push(current);
+          current = [];
+        }
+        if (parts[p].length)
+          current.push({ text: parts[p], changed: seg.changed });
       }
     });
     lines.push(current);
@@ -1189,45 +1469,97 @@
 
     if (ops === null) {
       for (i = 0; i < aLines.length; i++) {
-        aLineDiffs[i] = { changed: true, segs: aLines[i].length ? [{ text: aLines[i], changed: true }] : [] };
+        aLineDiffs[i] = {
+          changed: true,
+          segs: aLines[i].length ? [{ text: aLines[i], changed: true }] : [],
+        };
       }
       for (i = 0; i < bLines.length; i++) {
-        bLineDiffs[i] = { changed: true, segs: bLines[i].length ? [{ text: bLines[i], changed: true }] : [] };
+        bLineDiffs[i] = {
+          changed: true,
+          segs: bLines[i].length ? [{ text: bLines[i], changed: true }] : [],
+        };
       }
       if (aLines.length || bLines.length) {
         hunks.push({
-          aIndices: aLines.map(function (_line, idx) { return idx; }),
-          bIndices: bLines.map(function (_line, idx) { return idx; })
+          aIndices: aLines.map(function (_line, idx) {
+            return idx;
+          }),
+          bIndices: bLines.map(function (_line, idx) {
+            return idx;
+          }),
         });
       }
-      return { aLines: aLines, bLines: bLines, aLineDiffs: aLineDiffs, bLineDiffs: bLineDiffs, hunks: hunks, truncated: true };
+      return {
+        aLines: aLines,
+        bLines: bLines,
+        aLineDiffs: aLineDiffs,
+        bLineDiffs: bLineDiffs,
+        hunks: hunks,
+        truncated: true,
+      };
     }
 
     buildHunks(ops).forEach(function (row) {
       if (row.type === "equal") {
-        aLineDiffs[row.aIndex] = { changed: false, segs: aLines[row.aIndex].length ? [{ text: aLines[row.aIndex], changed: false }] : [] };
-        bLineDiffs[row.bIndex] = { changed: false, segs: bLines[row.bIndex].length ? [{ text: bLines[row.bIndex], changed: false }] : [] };
+        aLineDiffs[row.aIndex] = {
+          changed: false,
+          segs: aLines[row.aIndex].length
+            ? [{ text: aLines[row.aIndex], changed: false }]
+            : [],
+        };
+        bLineDiffs[row.bIndex] = {
+          changed: false,
+          segs: bLines[row.bIndex].length
+            ? [{ text: bLines[row.bIndex], changed: false }]
+            : [],
+        };
         return;
       }
 
       hunks.push({ aIndices: row.aIndices, bIndices: row.bIndices });
-      var aBlock = row.aIndices.map(function (idx) { return aLines[idx]; }).join("\n");
-      var bBlock = row.bIndices.map(function (idx) { return bLines[idx]; }).join("\n");
+      var aBlock = row.aIndices
+        .map(function (idx) {
+          return aLines[idx];
+        })
+        .join("\n");
+      var bBlock = row.bIndices
+        .map(function (idx) {
+          return bLines[idx];
+        })
+        .join("\n");
       var blockDiff = charDiffSegments(aBlock, bBlock);
       var aBlockLines = splitSegsIntoLines(blockDiff.aSegs);
       var bBlockLines = splitSegsIntoLines(blockDiff.bSegs);
 
       row.aIndices.forEach(function (idx, k) {
         var segs = aBlockLines[k] || [];
-        aLineDiffs[idx] = { changed: segs.some(function (s) { return s.changed; }), segs: segs };
+        aLineDiffs[idx] = {
+          changed: segs.some(function (s) {
+            return s.changed;
+          }),
+          segs: segs,
+        };
       });
       row.bIndices.forEach(function (idx, k) {
         var segs = bBlockLines[k] || [];
-        bLineDiffs[idx] = { changed: segs.some(function (s) { return s.changed; }), segs: segs };
+        bLineDiffs[idx] = {
+          changed: segs.some(function (s) {
+            return s.changed;
+          }),
+          segs: segs,
+        };
       });
     });
 
-    return { aLines: aLines, bLines: bLines, aLineDiffs: aLineDiffs, bLineDiffs: bLineDiffs, hunks: hunks, truncated: false };
+    return {
+      aLines: aLines,
+      bLines: bLines,
+      aLineDiffs: aLineDiffs,
+      bLineDiffs: bLineDiffs,
+      hunks: hunks,
+      truncated: false,
+    };
   }
 
   // Groups a char-level edit script into contiguous same-status runs for one
@@ -1236,7 +1568,8 @@
   // for the "a" side, "delete" for the "b" side) and is skipped entirely.
   function sideSegments(ops, arr, indexKey, skipType) {
     var segs = [];
-    var curText = "", curChanged = null;
+    var curText = "",
+      curChanged = null;
     for (var k = 0; k < ops.length; k++) {
       var op = ops[k];
       if (op.type === skipType) continue;
@@ -1245,7 +1578,8 @@
       if (curChanged === changed) {
         curText += ch;
       } else {
-        if (curChanged !== null) segs.push({ text: curText, changed: curChanged });
+        if (curChanged !== null)
+          segs.push({ text: curText, changed: curChanged });
         curText = ch;
         curChanged = changed;
       }
@@ -1285,17 +1619,18 @@
   // but a token-per-word input reaches that bound at a vastly larger
   // amount of actual text than a token-per-character one would have.
   function charDiffSegments(aLine, bLine) {
-    var aArr = tokenizeForDiff(aLine), bArr = tokenizeForDiff(bLine);
+    var aArr = tokenizeForDiff(aLine),
+      bArr = tokenizeForDiff(bLine);
     var ops = editDiffOps(aArr, bArr, MAX_CHAR_EDIT_DISTANCE);
     if (ops === null) {
       return {
         aSegs: aLine.length ? [{ text: aLine, changed: true }] : [],
-        bSegs: bLine.length ? [{ text: bLine, changed: true }] : []
+        bSegs: bLine.length ? [{ text: bLine, changed: true }] : [],
       };
     }
     return {
       aSegs: sideSegments(ops, aArr, "a", "insert"),
-      bSegs: sideSegments(ops, bArr, "b", "delete")
+      bSegs: sideSegments(ops, bArr, "b", "delete"),
     };
   }
 
@@ -1322,7 +1657,7 @@
     ["optRemoveTabs", "removeTabs", false, "whitespace"],
     ["optRemoveExtraSpaces", "removeExtraSpaces", true, "whitespace"],
     ["optRemoveLineBreaks", "removeLineBreaks", false, "whitespace"],
-    ["optRemoveParagraphBreaks", "removeParagraphBreaks", false, "whitespace"]
+    ["optRemoveParagraphBreaks", "removeParagraphBreaks", false, "whitespace"],
   ];
 
   // A full `processText` opts object with every toggle at its shipped
@@ -1330,10 +1665,15 @@
   // exported as `defaultOpts` for anything that needs one without a DOM
   // (frozen so no consumer can mutate the shared instance out from under
   // another).
-  var DEFAULT_OPTS = Object.freeze(FIX_TOGGLE_DEFS.reduce(function (acc, t) {
-    acc[t[1]] = t[2];
-    return acc;
-  }, { dashTarget: "-" }));
+  var DEFAULT_OPTS = Object.freeze(
+    FIX_TOGGLE_DEFS.reduce(
+      function (acc, t) {
+        acc[t[1]] = t[2];
+        return acc;
+      },
+      { dashTarget: "-" },
+    ),
+  );
 
   // Everything above this point is pure text-processing logic with no DOM
   // dependency, exported below for unit testing (see test/). Everything
@@ -1372,7 +1712,7 @@
     charDiffSegments: charDiffSegments,
     createFixOptionsController: createFixOptionsController,
     flashButtonLabel: flashButtonLabel,
-    defaultOpts: DEFAULT_OPTS
+    defaultOpts: DEFAULT_OPTS,
   };
 
   if (typeof module !== "undefined" && module.exports) {
@@ -1420,11 +1760,13 @@
       label.dataset.flashOriginal = label.textContent;
     }
     label.textContent = text;
-    label.dataset.flashTimer = String(setTimeout(function () {
-      label.textContent = label.dataset.flashOriginal;
-      delete label.dataset.flashTimer;
-      delete label.dataset.flashOriginal;
-    }, BUTTON_FEEDBACK_MS));
+    label.dataset.flashTimer = String(
+      setTimeout(function () {
+        label.textContent = label.dataset.flashOriginal;
+        delete label.dataset.flashTimer;
+        delete label.dataset.flashOriginal;
+      }, BUTTON_FEEDBACK_MS),
+    );
   }
 
   // Copies the current page's URL - every page (index.html, batch.html,
@@ -1434,7 +1776,8 @@
   var shareBtn = document.getElementById("shareBtn");
   if (shareBtn) {
     shareBtn.addEventListener("click", function () {
-      if (navigator.clipboard) navigator.clipboard.writeText(window.location.href);
+      if (navigator.clipboard)
+        navigator.clipboard.writeText(window.location.href);
       flashButtonLabel(shareBtn, "Link copied!");
     });
   }
@@ -1486,7 +1829,12 @@
     // checkboxes below) - it's never read from or written to
     // opts/localStorage.
     var FIX_TOGGLES = FIX_TOGGLE_DEFS.map(function (t) {
-      return { el: document.getElementById(t[0]), key: t[1], def: t[2], group: t[3] };
+      return {
+        el: document.getElementById(t[0]),
+        key: t[1],
+        def: t[2],
+        group: t[3],
+      };
     });
 
     // Group names in display order, matching the fixGroup sections in the
@@ -1495,7 +1843,9 @@
     var FIX_GROUPS = ["typography", "languages", "symbols", "whitespace"];
 
     function groupToggles(group) {
-      return FIX_TOGGLES.filter(function (t) { return t.group === group; });
+      return FIX_TOGGLES.filter(function (t) {
+        return t.group === group;
+      });
     }
 
     // Syncs one group's header checkbox to reflect its members: checked
@@ -1506,13 +1856,18 @@
       var header = document.getElementById("groupToggle-" + group);
       if (!header) return;
       var toggles = groupToggles(group);
-      var onCount = toggles.filter(function (t) { return t.el.checked; }).length;
+      var onCount = toggles.filter(function (t) {
+        return t.el.checked;
+      }).length;
       header.checked = onCount === toggles.length;
       header.indeterminate = onCount > 0 && onCount < toggles.length;
       // The indeterminate IDL property is visual-only - screen readers
       // don't reliably announce it without an explicit ARIA state
       // alongside it.
-      header.setAttribute("aria-checked", header.indeterminate ? "mixed" : String(header.checked));
+      header.setAttribute(
+        "aria-checked",
+        header.indeterminate ? "mixed" : String(header.checked),
+      );
     }
 
     function updateAllGroupHeaders() {
@@ -1525,18 +1880,26 @@
     var optConvertDashes = document.getElementById("optConvertDashes");
     var optDashTarget = document.getElementById("optDashTarget");
 
-    var optEls = FIX_TOGGLES.map(function (t) { return t.el; }).concat([optDashTarget]);
+    var optEls = FIX_TOGGLES.map(function (t) {
+      return t.el;
+    }).concat([optDashTarget]);
 
     var OPTS_KEY = "cleartxt-opts";
 
     function readOpts() {
       var opts = { dashTarget: optDashTarget.value };
-      FIX_TOGGLES.forEach(function (t) { opts[t.key] = t.el.checked; });
+      FIX_TOGGLES.forEach(function (t) {
+        opts[t.key] = t.el.checked;
+      });
       return opts;
     }
 
     function saveOpts(opts) {
-      try { localStorage.setItem(OPTS_KEY, JSON.stringify(opts)); } catch (e) { /* ignore */ }
+      try {
+        localStorage.setItem(OPTS_KEY, JSON.stringify(opts));
+      } catch {
+        /* ignore */
+      }
     }
 
     function applySavedOpts() {
@@ -1550,7 +1913,9 @@
           t.el.checked = t.def ? saved[t.key] !== false : saved[t.key] === true;
         });
         optDashTarget.value = saved.dashTarget === "–" ? "–" : "-";
-      } catch (e) { /* ignore malformed storage */ }
+      } catch {
+        /* ignore malformed storage */
+      }
     }
 
     function syncDashTargetEnabled() {
@@ -1558,7 +1923,9 @@
     }
 
     function restoreDefaults() {
-      FIX_TOGGLES.forEach(function (t) { t.el.checked = t.def; });
+      FIX_TOGGLES.forEach(function (t) {
+        t.el.checked = t.def;
+      });
       optDashTarget.value = "-";
       syncDashTargetEnabled();
       updateAllGroupHeaders();
@@ -1585,7 +1952,9 @@
         var header = document.getElementById("groupToggle-" + group);
         header.addEventListener("change", function () {
           var checked = header.checked;
-          groupToggles(group).forEach(function (t) { t.el.checked = checked; });
+          groupToggles(group).forEach(function (t) {
+            t.el.checked = checked;
+          });
           header.indeterminate = false;
           syncDashTargetEnabled();
           onChange();
@@ -1603,7 +1972,12 @@
       }
     }
 
-    return { readOpts: readOpts, saveOpts: saveOpts, restoreDefaults: restoreDefaults, init: init };
+    return {
+      readOpts: readOpts,
+      saveOpts: saveOpts,
+      restoreDefaults: restoreDefaults,
+      init: init,
+    };
   }
 
   var fixOptions = createFixOptionsController();
@@ -1653,7 +2027,8 @@
     ruler.style.lineHeight = cs.lineHeight;
 
     var lineHeight = parseFloat(cs.lineHeight);
-    if (!lineHeight || isNaN(lineHeight)) lineHeight = parseFloat(cs.fontSize) * 1.2;
+    if (!lineHeight || isNaN(lineHeight))
+      lineHeight = parseFloat(cs.fontSize) * 1.2;
 
     var frag = document.createDocumentFragment();
     var divs = new Array(logicalLines.length);
@@ -1684,7 +2059,9 @@
 
     function numHtml(n) {
       var s = String(n + 1);
-      return (lineChanged && lineChanged[n]) ? '<span class="gutter-changed">' + s + "</span>" : s;
+      return lineChanged && lineChanged[n]
+        ? '<span class="gutter-changed">' + s + "</span>"
+        : s;
     }
 
     // The gutter's own on-screen width depends on its content (more
@@ -1721,7 +2098,8 @@
 
     var cs = getComputedStyle(ta);
     var lineHeight = parseFloat(cs.lineHeight);
-    if (!lineHeight || isNaN(lineHeight)) lineHeight = parseFloat(cs.fontSize) * 1.2;
+    if (!lineHeight || isNaN(lineHeight))
+      lineHeight = parseFloat(cs.fontSize) * 1.2;
 
     var rowCounts = countWrappedRows(ta, logicalLines);
 
@@ -1729,7 +2107,7 @@
     for (var i = 0; i < lineNo; i++) rowsBefore += rowCounts[i];
 
     var targetTop = rowsBefore * lineHeight;
-    var targetCenter = targetTop - (ta.clientHeight / 2) + (lineHeight / 2);
+    var targetCenter = targetTop - ta.clientHeight / 2 + lineHeight / 2;
     var maxScroll = Math.max(0, ta.scrollHeight - ta.clientHeight);
     ta.scrollTop = Math.max(0, Math.min(maxScroll, targetCenter));
     gutter.scrollTop = ta.scrollTop;
@@ -1768,7 +2146,9 @@
       return;
     }
     diffNav.style.display = "";
-    diffNavCount.textContent = diffNavLines.length + (diffNavLines.length === 1 ? " changed line" : " changed lines");
+    diffNavCount.textContent =
+      diffNavLines.length +
+      (diffNavLines.length === 1 ? " changed line" : " changed lines");
   }
 
   // Jumps straight to position `idx` within diffNavLines (wrapping into
@@ -1781,7 +2161,8 @@
   // either gutter.
   function jumpToNavIndex(idx) {
     if (!diffNavLines.length) return;
-    diffNavIndex = ((idx % diffNavLines.length) + diffNavLines.length) % diffNavLines.length;
+    diffNavIndex =
+      ((idx % diffNavLines.length) + diffNavLines.length) % diffNavLines.length;
     var lineNo = diffNavLines[diffNavIndex];
 
     clearCurrentDiffLine();
@@ -1789,12 +2170,14 @@
     scrollLineIntoView(input, inGutter, inHighlight, lineNo);
     markCurrentDiffLine(inHighlight, lineNo);
 
-    var outLineCount = output.value.length ? output.value.split("\n").length : 1;
+    var outLineCount = output.value.length
+      ? output.value.split("\n").length
+      : 1;
     var outLineNo = Math.min(lineNo, outLineCount - 1);
     scrollLineIntoView(output, outGutter, outHighlight, outLineNo);
     markCurrentDiffLine(outHighlight, outLineNo);
 
-    diffNavCount.textContent = (diffNavIndex + 1) + " / " + diffNavLines.length;
+    diffNavCount.textContent = diffNavIndex + 1 + " / " + diffNavLines.length;
   }
 
   // Jumps to the next (delta 1) or previous (delta -1) changed line,
@@ -1828,15 +2211,20 @@
   // keystroke was pure waste.
   function renderDiff(rawChars, outputCE, changes) {
     var sums = summarizeChanges(changes);
-    var removedTotal = Object.keys(sums.removed).reduce(function (a, k) { return a + sums.removed[k]; }, 0);
-    var convertedTotal = Object.keys(sums.converted).reduce(function (a, k) { return a + sums.converted[k]; }, 0);
+    var removedTotal = Object.keys(sums.removed).reduce(function (a, k) {
+      return a + sums.removed[k];
+    }, 0);
+    var convertedTotal = Object.keys(sums.converted).reduce(function (a, k) {
+      return a + sums.converted[k];
+    }, 0);
 
     if (!changes.length) {
       diffSummary.textContent = "";
     } else if (removedTotal === 0 && convertedTotal === 0) {
       diffSummary.textContent = "(no changes)";
     } else {
-      diffSummary.textContent = "(" + removedTotal + " removed, " + convertedTotal + " converted)";
+      diffSummary.textContent =
+        "(" + removedTotal + " removed, " + convertedTotal + " converted)";
     }
 
     var lines = [];
@@ -1853,15 +2241,28 @@
       return;
     }
 
-    var inputOverlay = rawChars === null ? null : highlightFromChars(rawChars, changes, MAX_DIFF_CHARS);
+    var inputOverlay =
+      rawChars === null
+        ? null
+        : highlightFromChars(rawChars, changes, MAX_DIFF_CHARS);
     inHighlight.innerHTML = inputOverlay === null ? "" : inputOverlay;
-    outHighlight.innerHTML = highlightFromChars(outputCE.chars, outputCE.entries, MAX_DIFF_CHARS);
+    outHighlight.innerHTML = highlightFromChars(
+      outputCE.chars,
+      outputCE.entries,
+      MAX_DIFF_CHARS,
+    );
 
     if (changes.length > MAX_DIFF_CHARS) {
-      diffNote.textContent = "Detailed highlighting covers the first " + MAX_DIFF_CHARS.toLocaleString() + " of " + changes.length.toLocaleString() + " characters, for performance (the counts above cover the full text).";
+      diffNote.textContent =
+        "Detailed highlighting covers the first " +
+        MAX_DIFF_CHARS.toLocaleString() +
+        " of " +
+        changes.length.toLocaleString() +
+        " characters, for performance (the counts above cover the full text).";
       diffNote.style.display = "";
     } else if (inputOverlay === null) {
-      diffNote.textContent = "Inline highlighting isn't available for this input (Unicode normalization changed its length) - the counts above are still accurate.";
+      diffNote.textContent =
+        "Inline highlighting isn't available for this input (Unicode normalization changed its length) - the counts above are still accurate.";
       diffNote.style.display = "";
     } else {
       diffNote.style.display = "none";
@@ -1917,7 +2318,8 @@
     inCount.textContent = inLen + " chars";
     outCount.textContent = outLen + " chars";
 
-    var removedCount = 0, convertedCount = 0;
+    var removedCount = 0,
+      convertedCount = 0;
     result.changes.forEach(function (c) {
       if (c.type === "removed") removedCount++;
       else if (c.type === "converted") convertedCount++;
@@ -1930,8 +2332,12 @@
       statsHtml = "Nothing changed - text is already clean";
     } else {
       var parts = [];
-      if (removedCount) parts.push('<span class="removed">' + removedCount + "</span> removed");
-      if (convertedCount) parts.push('<span class="converted">' + convertedCount + "</span> converted");
+      if (removedCount)
+        parts.push('<span class="removed">' + removedCount + "</span> removed");
+      if (convertedCount)
+        parts.push(
+          '<span class="converted">' + convertedCount + "</span> converted",
+        );
       statsHtml = parts.join(" &middot; ");
     }
     stats.innerHTML = statsHtml;
@@ -1948,7 +2354,8 @@
     stickyFooter.style.display = inLen === 0 ? "none" : "";
 
     renderDiff(rawChars, outputCE, result.changes);
-    lastInLineChanged = rawChars === null ? null : lineChangedFlags(rawChars, result.changes);
+    lastInLineChanged =
+      rawChars === null ? null : lineChangedFlags(rawChars, result.changes);
     lastOutLineChanged = lineChangedFlags(outputCE.chars, outputCE.entries);
     updateGutter(input, inGutter, lastInLineChanged);
     updateGutter(output, outGutter, lastOutLineChanged);
@@ -1978,8 +2385,12 @@
     outHighlight.scrollTop = output.scrollTop;
   });
 
-  diffPrevBtn.addEventListener("click", function () { gotoChange(-1); });
-  diffNextBtn.addEventListener("click", function () { gotoChange(1); });
+  diffPrevBtn.addEventListener("click", function () {
+    gotoChange(-1);
+  });
+  diffNextBtn.addEventListener("click", function () {
+    gotoChange(1);
+  });
 
   // Alt+Down/Alt+Up step through changes from anywhere on the page,
   // mirroring the buttons - matches the "next/previous change" shortcut
@@ -1988,8 +2399,13 @@
   // against any that do.
   document.addEventListener("keydown", function (e) {
     if (!e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.key === "ArrowDown") { e.preventDefault(); gotoChange(1); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); gotoChange(-1); }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      gotoChange(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      gotoChange(-1);
+    }
   });
 
   // Clicking a changed line number in either gutter jumps straight to it.
@@ -2022,7 +2438,8 @@
   importFile.addEventListener("change", function () {
     var file = importFile.files && importFile.files[0];
     if (!file) return;
-    file.text()
+    file
+      .text()
       .then(function (text) {
         input.value = text;
         update();
